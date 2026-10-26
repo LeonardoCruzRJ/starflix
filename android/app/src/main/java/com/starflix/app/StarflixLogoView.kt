@@ -16,9 +16,9 @@ import androidx.core.graphics.PathParser
 
 /** Logo animado do StarFlix (o mesmo do pré-loading do site e da TV), desenhado em View para a tela de conexão do celular. */
 class StarflixLogoView(context: Context) : View(context) {
-    private val star = PathParser.createPathFromPathData(STAR_D) ?: Path()
-    private val flix = PathParser.createPathFromPathData(FLIX_D) ?: Path()
-    private val ring = PathParser.createPathFromPathData(RING_D) ?: Path()
+    private val star = PathParser.createPathFromPathData(STAR_D)
+    private val flix = PathParser.createPathFromPathData(FLIX_D)
+    private val ring = PathParser.createPathFromPathData(RING_D)
     private val measure = PathMeasure(ring, false)
     private val seg = Path()
     private val easeOpen = PathInterpolator(0.22f, 0.61f, 0.36f, 1f)

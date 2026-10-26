@@ -2,7 +2,7 @@ package com.starflix.app
 
 import android.content.Context
 
-/** 59.30: textos do app fora de Compose/Activity (TvApi, TvBridgeServer, listas) e atalho dentro dele; vem do `strings.xml` gerado (i18n/*.json).
+/** 59.30: textos do app fora de Compose/Activity (TvApi, TvBridgeServer, listas) e atalho dentro dele; vem do `strings.xml` gerado (i18n/<idioma>.json).
  *  `init` guarda só o contexto da aplicação; a 59.31 chama de novo com o contexto do idioma escolhido. */
 object Txt {
     @Volatile private var ctx: Context? = null

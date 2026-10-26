@@ -1157,7 +1157,7 @@ class PlayerActivity : AppCompatActivity() {
         if (!inPip) subtitle.textSize = subSizeSp
         subtitle.setTextColor(when (color) { "yellow" -> 0xFFFFE14D.toInt(); "cyan" -> 0xFF6FE3FF.toInt(); "green" -> 0xFF7DFF8A.toInt(); else -> 0xFFFFFFFF.toInt() })
         val dm = resources.displayMetrics
-        val h = (subSizeSp * 0.5f * dm.scaledDensity).toInt()
+        val h = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, subSizeSp * 0.5f, dm).toInt()
         when (bg) {
             "none" -> { subtitle.setBackgroundColor(0); subtitle.setShadowLayer(0f, 0f, 0f, 0); subtitle.setPadding(0, 0, 0, 0) }
             "box" -> { subtitle.setBackgroundColor(0x9E000000.toInt()); subtitle.setShadowLayer(0f, 0f, 0f, 0); subtitle.setPadding(h, h / 4, h, h / 4) }
