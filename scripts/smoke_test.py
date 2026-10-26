@@ -1,4 +1,4 @@
-"""Teste de regressão: setup -> login -> perfil -> biblioteca -> scan -> busca -> progresso (+ Fases 23 a 58).
+"""Teste de regressão: setup -> login -> perfil -> biblioteca -> scan -> busca -> progresso (+ Fases 23 a 59).
 Uso: python3 scripts/smoke_test.py   (usa dados temporários; não toca em data/)"""
 import io
 import json
@@ -25,10 +25,25 @@ from server.scanner import is_scanning  # noqa: E402
 fails = []
 
 
+def get_setting_port60():
+    from server.db import get_db as _gdb
+    with _gdb() as conn:
+        r = conn.execute("SELECT value FROM settings WHERE key = 'server_port'").fetchone()
+    return r["value"] if r else ""
+
+
 def check(name, cond):
     print(("OK   " if cond else "FALHA"), name)
     if not cond:
         fails.append(name)
+
+
+_PT = json.load(open(os.path.join(ROOT, "i18n", "pt-BR.json"), encoding="utf-8"))
+
+
+def uses_text(src, *frags):
+    """59.x: o texto em português saiu do JS e foi para o catálogo: confere que cada trecho existe em `i18n/pt-BR.json` e que o JS usa a chave."""
+    return all(any(f in v and re.search(r"[\"']" + re.escape(k) + r"[\"']", src) for k, v in _PT.items()) for f in frags)
 
 
 def make_video(path):
@@ -882,7 +897,7 @@ try:
         check("27.2 não-admin -> 403 e sem sessão -> /login", c27.get("/admin/access").status_code == 403 and anon.get("/admin/access", headers={"Accept": "text/html"}).status_code == 302)
         # 27.3: arquivos do modal
         js27 = open(os.path.join(ROOT, "web", "static", "js", "library-access.js"), encoding="utf-8").read()
-        check("27.3 modal: passos, rótulos e API", all(x_ in js27 for x_ in ("Garantir acesso à biblioteca", "Resultado da Pesquisa", "Anterior", "Salvar", "sfLibAccess", "la:saved")))
+        check("27.3 modal: passos, rótulos e API", uses_text(js27, "Garantir acesso à biblioteca", "Resultado da Pesquisa", "Anterior", "Salvar") and all(x_ in js27 for x_ in ("sfLibAccess", "la:saved")))
         check("27.3 página carrega o modal antes da lista", t27.index("library-access.js") < t27.index("library-access-page.js"))
         # 27.4: navegação e rota antiga
         t27 = c.get("/").get_data(as_text=True)
@@ -932,7 +947,7 @@ try:
         r_.status_code == 401 for r_ in (anon28.get("/admin/libraries/data"), anon28.post("/admin/libraries/add", json={}),
                                           anon28.post("/admin/libraries/1/update", json={}), anon28.get("/admin/libraries/settings"))))
     d28 = J28("/admin/libraries/data").json
-    check("28.3 data traz tipos, idiomas, padrões e atalhos", all(k in d28 for k in ("libraries", "langs", "defaults", "settings", "cert_countries")))
+    check("28.3 data traz tipos, padrões e atalhos, sem lista de idiomas (59.37)", all(k in d28 for k in ("libraries", "types", "defaults", "settings", "cert_countries")) and "langs" not in d28)
     br28 = c.get("/admin/browse?path=" + TMP).json
     check("28.3 browse devolve home e roots", "home" in br28 and "roots" in br28 and any(r_["path"] == "/" for r_ in br28["roots"]))
     r = J28("/admin/libraries/add", {"name": "Multi", "type": "movie", "lang": "pt-BR", "folders": [fa, fb], "prefs": {}})
@@ -945,15 +960,15 @@ try:
     check("28.2 pasta duplicada na mesma lista é recusada", J28("/admin/libraries/add", {"name": "X", "type": "movie", "folders": [fc, fc]}).status_code == 400)
     check("28.2 sem pasta é recusado", J28("/admin/libraries/add", {"name": "X", "type": "movie", "folders": []}).status_code == 400)
     check("28.3 add: tipo inválido recusado", J28("/admin/libraries/add", {"name": "X", "type": "music", "folders": [fc]}).status_code == 400)
-    check("28.1 add: lang inválido recusado", J28("/admin/libraries/add", {"name": "X", "type": "movie", "lang": "xx", "folders": [fc]}).status_code == 400)
     check("28.1 add: prefs inválidas recusadas", all(J28("/admin/libraries/add", {"name": "X", "type": "movie", "folders": [fc], "prefs": p_}).status_code == 400
                                                    for p_ in ({"visibility": "nada"}, {"adult": "sim"}, {"cert_country": "ZZ"}, "texto")))
     u28 = f"/admin/libraries/{lib28}/update"
     check("28.3 update não troca o tipo", J28(u28, {"type": "show"}).status_code == 400)
-    check("28.3 update: nome vazio e lang inválido recusados", J28(u28, {"name": " "}).status_code == 400 and J28(u28, {"lang": "xx"}).status_code == 400)
+    check("28.3 update: nome vazio recusado; `lang` é ignorado (59.37: idioma vem do usuário)", J28(u28, {"name": " "}).status_code == 400
+          and (lambda r_: r_.status_code == 200 and "lang" not in r_.json["library"])(J28(u28, {"lang": "xx"})))
     check("28.3 update: biblioteca inexistente dá 404", J28("/admin/libraries/999999/update", {"name": "Y"}).status_code == 404)
     r = J28(u28, {"name": "Multi2", "lang": "en-US", "prefs": {"cert_country": "US", "original_titles": True}})
-    check("28.1 update grava nome, idioma e prefs", r.status_code == 200 and (lambda l_: l_["name"] == "Multi2" and l_["lang"] == "en-US"
+    check("28.1 update grava nome e prefs e não grava idioma por biblioteca", r.status_code == 200 and (lambda l_: l_["name"] == "Multi2" and "lang" not in l_
           and l_["prefs"]["cert_country"] == "US" and l_["prefs"]["original_titles"] is True and l_["prefs"]["agent"] == "tmdb")(
         next(x_ for x_ in J28("/admin/libraries/data").json["libraries"] if x_["id"] == lib28)))
     r = J28(u28, {"folders": [fa]})
@@ -992,9 +1007,8 @@ try:
     check("static com cache-busting (?v=)", re.search(r"library-delete\.js\?v=\d+", c.get("/admin/libraries").get_data(as_text=True)) is not None)
     check("29.9 /admin/libraries carrega library-delete.js antes do manager", "library-delete.js" in c.get("/admin/libraries").get_data(as_text=True))
     js = {n: c.get(f"/static/js/{n}.js").get_data(as_text=True) for n in ("library-delete", "library-actions", "library-menu")}
-    check("29.9 modal Apagar Biblioteca: textos, checkbox e botão vermelho", all(t in js["library-delete"] for t in ("Apagar Biblioteca", "Sim, apagar a biblioteca", "Esta operação não poderá ser desfeita", "em-danger")) and "disabled" in js["library-delete"])
-    check("29.10 modais Analisar, Atualizar e Esvaziar com os textos da §5.17", all(t in js["library-actions"] for t in (
-        "Analisa todos os arquivos de mídia", "Força o download de informações atualizadas", "Remove da biblioteca os itens cujos arquivos não existem mais", "empty-trash", "refresh-info")))
+    check("29.9 modal Apagar Biblioteca: textos, checkbox e botão vermelho", uses_text(js["library-delete"], "Apagar Biblioteca", "Sim, apagar a biblioteca", "Esta operação não poderá ser desfeita") and "em-danger" in js["library-delete"] and "disabled" in js["library-delete"])
+    check("29.10 modais Analisar, Atualizar e Esvaziar com os textos da §5.17", all(any(f in v for v in _PT.values()) for f in ("Analisa todos os arquivos de mídia", "Força o download de informações atualizadas", "Remove da biblioteca os itens cujos arquivos não existem mais")) and all(t in js["library-actions"] for t in ("lib.act.", "empty-trash", "refresh-info")))
     check("29.5 menu registra Excluir e as demais ações", "actions['delete']" in js["library-menu"] and "started:" in js["library-menu"])
     nav = lambda: re.search(r'<a[^>]*href="/library/%d"[^>]*nav-item|<a[^>]*nav-item[^>]*href="/library/%d"' % (lib28, lib28), c.get("/library/%d" % lib28).get_data(as_text=True)) is not None
     check("29.2 biblioteca começa fixada na barra lateral", nav())
@@ -1088,8 +1102,8 @@ try:
     check("31.10 /library/<id>/rows: campos por item e 401/404", rw.status_code == 200 and all(k in next(iter(rw.json["rows"].values())) for k in ("o", "d", "rt", "rd", "cc", "ad", "res", "s"))
           and anon28.get(f"/library/{lib28}/rows").status_code == 401 and c.get("/library/999999/rows").status_code == 404)
     lv = c.get("/static/js/library-view.js").get_data(as_text=True)
-    check("31.10 script traz os 3 modos e as colunas", all(t in lv for t in ("sf.view", "sf.cols", "Data de Lançamento", "Duração", "pgrid-table", "pgrid-detail")))
-    check("31.10 menu da Grelha liga os 3 modos", all(t in c.get("/static/js/library-bar.js").get_data(as_text=True) for t in ("Visualização em Detalhes", "Exibição em Tabela", "V.set('table')")))
+    check("31.10 script traz os 3 modos e as colunas", all(any(f == v for k, v in _PT.items() if k.startswith("lib.col.")) for f in ("Data de Lançamento", "Duração")) and all(t in lv for t in ("sf.view", "sf.cols", "lib.col.", "pgrid-table", "pgrid-detail")))
+    check("31.10 menu da Grelha liga os 3 modos", uses_text(c.get("/static/js/library-bar.js").get_data(as_text=True), "Visualização em Detalhes", "Exibição em Tabela") and "V.set('table')" in c.get("/static/js/library-bar.js").get_data(as_text=True))
     # exclusão e limpeza de imagens
     check("31.4 excluir lista: 200 e página some", c.delete(f"/playlists/{pid31}").status_code == 200 and c.get(f"/playlist/{pid31}").status_code == 404)
     c.delete(f"/playlists/{sp31}")
@@ -1868,37 +1882,31 @@ try:
     c.post(f"/admin/users/{uo40}/delete")
     check("40.1 remover o usuário apaga as TVs dele (ON DELETE CASCADE)", sql32("SELECT COUNT(*) AS n FROM tv_devices WHERE user_id IN (?, ?)", uid40, uo40)[0]["n"] == 0)
     check("40.5 excluir biblioteca do teste 40", c.post(f"/admin/libraries/{lm40}/delete?json=1").status_code == 200)
-    # 45.7 Agentes: idioma no banco (TMDB com região atrelada, TVDB), chave só muda se digitarem outra
+    # 45.7 (59.37) Agentes: sem idioma por agente (segue o do usuário); chave só muda se digitarem outra
     import config as cfg45
     import server.tmdb_lists as tl45
-    real45 = (tl45.ensure_fresh, cfg45.TMDB_API_KEY, cfg45.TMDB_LANG, cfg45.TMDB_REGION, cfg45.TVDB_LANG)
+    real45 = (tl45.ensure_fresh, cfg45.TMDB_API_KEY)
     calls45 = []
     tl45.ensure_fresh = lambda: calls45.append(1)
     try:
         ag45 = {a_["id"]: a_ for a_ in c.get("/admin/agents/data").json["agents"]}
-        check("45.7 TMDB e TVDB trazem idioma e opções; OMDB não tem idioma", ag45["tmdb"]["langs"] and ag45["tvdb"]["langs"] and "langs" not in ag45["omdb"])
-        r_ = c.post("/admin/agents/tmdb", json={"key": "abcd1234efgh5678", "lang": "en-US"})
-        check("45.7 salvar TMDB com idioma en-US: região vira US e a chave fica mascarada com 4 finais",
-              r_.status_code == 200 and r_.json["agent"]["lang"] == "en-US" and cfg45.TMDB_LANG == "en-US" and cfg45.TMDB_REGION == "US"
-              and r_.json["agent"]["masked"] == "********5678" and "abcd1234" not in r_.get_data(as_text=True))
-        check("45.7 trocar o idioma do TMDB baixa as listas de novo (ensure_fresh)", len(calls45) == 1)
-        r_ = c.post("/admin/agents/tmdb", json={"lang": "pt-BR"})
-        check("45.7 salvar só o idioma (sem chave) mantém a chave e atualiza idioma/região",
-              r_.status_code == 200 and cfg45.TMDB_API_KEY == "abcd1234efgh5678" and cfg45.TMDB_LANG == "pt-BR" and cfg45.TMDB_REGION == "BR")
-        r_ = c.post("/admin/agents/tmdb", json={"key": "   ", "lang": "pt-BR"})
-        check("45.7 chave em branco no corpo não apaga a chave salva", r_.status_code == 200 and cfg45.TMDB_API_KEY == "abcd1234efgh5678")
-        check("45.7 idioma inválido e corpo vazio são recusados (400)", c.post("/admin/agents/tmdb", json={"lang": "xx-YY"}).status_code == 400
+        check("45.7 nenhum agente traz idioma ou opções de idioma (59.37)", all("lang" not in v_ and "langs" not in v_ for v_ in ag45.values()))
+        r_ = c.post("/admin/agents/tmdb", json={"key": "abcd1234efgh5678", "lang": "xx-YY"})
+        check("45.7 salvar TMDB grava a chave mascarada com 4 finais e ignora `lang`",
+              r_.status_code == 200 and cfg45.TMDB_API_KEY == "abcd1234efgh5678" and r_.json["agent"]["masked"] == "********5678"
+              and "abcd1234" not in r_.get_data(as_text=True) and "lang" not in r_.json["agent"])
+        check("45.7 salvar a chave do TMDB baixa as listas de novo (ensure_fresh)", len(calls45) == 1)
+        r_ = c.post("/admin/agents/tmdb", json={"key": "   "})
+        check("45.7 chave em branco é recusada (400) e não apaga a chave salva", r_.status_code == 400 and cfg45.TMDB_API_KEY == "abcd1234efgh5678")
+        check("45.7 só idioma, corpo vazio e chave com espaço são recusados (400)", c.post("/admin/agents/tmdb", json={"lang": "pt-BR"}).status_code == 400
               and c.post("/admin/agents/tmdb", json={}).status_code == 400 and c.post("/admin/agents/tmdb", json={"key": "a b"}).status_code == 400)
-        r_ = c.post("/admin/agents/tvdb", json={"lang": "spa"})
-        check("45.7 TVDB: idioma spa gravado no banco e aplicado", r_.status_code == 200 and r_.json["agent"]["lang"] == "spa" and cfg45.TVDB_LANG == "spa"
-              and sql32("SELECT value FROM settings WHERE key = 'lang_tvdb'")[0]["value"] == "spa")
-        check("45.7 OMDB não aceita idioma (400)", c.post("/admin/agents/omdb", json={"lang": "pt-BR"}).status_code == 400)
+        check("45.7 TVDB e OMDB só aceitam chave: `lang` sem chave dá 400", c.post("/admin/agents/tvdb", json={"lang": "spa"}).status_code == 400
+              and c.post("/admin/agents/omdb", json={"lang": "pt-BR"}).status_code == 400)
         import server.agents as ag_mod45
         check("45.7 máscara: asteriscos + 4 últimos", ag_mod45._mask("abcd1234efgh5678") == "********5678" and ag_mod45._mask("") == "")
     finally:
-        tl45.ensure_fresh, cfg45.TMDB_API_KEY, cfg45.TMDB_LANG, cfg45.TMDB_REGION, cfg45.TVDB_LANG = real45
-        for k_ in ("api_key_tmdb", "lang_tmdb", "lang_tvdb"):
-            sql32("DELETE FROM settings WHERE key = ?", k_)
+        tl45.ensure_fresh, cfg45.TMDB_API_KEY = real45
+        sql32("DELETE FROM settings WHERE key = 'api_key_tmdb'")
     # 46.1 Legendas do SubDL: salvas ao lado do vídeo, uma por arquivo (+ forçada em filme dublado), sem repetir busca
     import io as io46, zipfile as zf46
     import config as cfg46
@@ -2004,13 +2012,12 @@ try:
         zz46 = zip46({"Serie.S01E01.srt": srt46, "Serie.S01E02.srt": srt46.replace("Olá", "Oi")})
         check("46.1 zip: escolhe o arquivo do episódio; sem o episódio devolve None", "Oi" in sd46.extract_srt(zz46, "episode", 1, 2, "x") and sd46.extract_srt(zz46, "episode", 1, 9, "x") is None)
         ag46 = {a_["id"]: a_ for a_ in c.get("/admin/agents/data").json["agents"]}
-        check("46.1 Agentes: SubDL tem chave e idiomas (BR_PT padrão)", ag46["subdl"]["lang"] == "BR_PT" and any(o_["value"] == "PT" for o_ in ag46["subdl"]["langs"]))
+        check("46.1 Agentes: SubDL tem chave e não traz idioma (59.37: segue o do usuário)", "set" in ag46["subdl"] and "lang" not in ag46["subdl"] and "langs" not in ag46["subdl"])
         r46 = c.post("/admin/agents/subdl", json={"lang": "EN"})
-        check("46.1 Agentes: idioma do SubDL grava e vale na hora; inválido é recusado", r46.status_code == 200 and cfg46.SUBDL_LANG == "EN"
-              and c.post("/admin/agents/subdl", json={"lang": "XX"}).status_code == 400)
+        check("46.1 Agentes: SubDL sem chave no corpo é recusado (400) e o idioma continua o do usuário", r46.status_code == 400 and cfg46.SUBDL_LANG == "BR_PT")
     finally:
         sd46.requests.get, sd46.PAUSE, cfg46.SUBDL_API_KEY, cfg46.SUBDL_LANG = real46
-        sql32("DELETE FROM settings WHERE key IN ('lang_subdl', 'api_key_subdl')")
+        sql32("DELETE FROM settings WHERE key = 'api_key_subdl'")
         sql32("DELETE FROM subtitle_fetch")
         c.post(f"/admin/libraries/{lm46}/delete?json=1")
         c.post(f"/admin/libraries/{ls46}/delete?json=1")
@@ -2194,6 +2201,29 @@ try:
           and os.listdir(os.path.join(rd51, "avatars")) == ["nova.png"] and os.path.exists(os.path.join(rd51, "avatars.antes-restore", "velha.png"))
           and not os.path.exists(os.path.join(rd51, "starflix.db-wal")))
     check("51.4 arquivo que não é zip é recusado", run51(os.path.join(TMP, "orig51.db")).returncode == 1)
+    # 60.11: backup de segurança antes de restaurar + reversão automática se algo falhar
+    bk51 = [n_ for n_ in os.listdir(os.path.join(rd51, "backups")) if n_.endswith(".zip")] if os.path.isdir(os.path.join(rd51, "backups")) else []
+    pz51 = zf51.ZipFile(os.path.join(rd51, "backups", bk51[0])) if bk51 else None
+    check("60.11 antes de restaurar faz um backup de segurança (zip em backups/ com o banco e as fotos de antes)",
+          len(bk51) == 1 and pz51 is not None and sorted(pz51.namelist()) == ["avatars/velha.png", "starflix.db"] and "Backup de segurança" in rr51.stdout)
+    fail51 = ("import os,sys,importlib.util\n"
+              "spec=importlib.util.spec_from_file_location('rb',os.path.join(%r,'scripts','restore_backup.py'));rb=importlib.util.module_from_spec(spec);spec.loader.exec_module(rb)\n"
+              "orig=os.replace;once=[True]\n"
+              "def boom(a,b):\n"
+              "    if str(a).endswith('.novo') and once[0]:\n"
+              "        once[0]=False;raise OSError('disco cheio simulado')\n"
+              "    return orig(a,b)\n"
+              "os.replace=boom\n"
+              "try:\n"
+              "    rb.restore(%r);print('SEM ERRO')\n"
+              "except rb.RestoreError as e:\n"
+              "    print('KEY', e.key)\n") % (ROOT, zok51)
+    rf51 = subprocess.run([sys.executable, "-c", fail51], capture_output=True, text=True, env=env51, timeout=60)
+    check("60.11 falha no meio da troca: volta ao estado anterior (banco, fotos) e devolve err.restore_revertido",
+          "KEY err.restore_revertido" in rf51.stdout
+          and sq51.connect(os.path.join(rd51, "starflix.db")).execute("SELECT name FROM users").fetchone()[0] == "do_backup"
+          and os.listdir(os.path.join(rd51, "avatars")) == ["nova.png"]
+          and not os.path.exists(os.path.join(rd51, "avatars.novo")) and not os.path.exists(os.path.join(rd51, "starflix.db.restore")))
     # ---- Fase 52 (52.1, 52.2, 52.5): direct play pelas capacidades ----
     from server import stream as st52
     from server.caps import Caps as Caps52, parse_caps as pc52
@@ -2813,6 +2843,11 @@ try:
     from server import discovery as DS58
     r = c.post("/admin/server/save", json={"mdns": False})
     check("58.3 desligar o anúncio mDNS pelo admin salva e /api/server-info mostra mdns falso", r.status_code == 200 and anon58.get("/api/server-info").json["mdns"] is False)
+    for _w58 in range(50):  # o salvar reavalia o mDNS em thread (refresh_async): espera o anúncio anterior cair
+        if DS58._state["zc"] is None:
+            break
+        time.sleep(0.1)
+    DS58._stop()  # V678: derruba qualquer anúncio que a thread de reavaliação tenha subido depois da espera (corrida intermitente)
     try:
         DS58._start()
         ok58 = True
@@ -2826,6 +2861,200 @@ try:
     sql32("DELETE FROM phone_devices")
     sql32("DELETE FROM tv_tickets")
     TA58._hits.clear()
+    # ---- 59.34: idiomas (troca pela API, fallback, plural em russo, /api/i18n/*, cookie e perfil) ----
+    from server import i18n as I59
+    anon59 = run.app.test_client()
+    LANGS59 = ["pt-BR", "en-US", "es-ES", "ru-RU", "fr-FR", "de-DE", "it-IT", "ja-JP", "zh-CN", "tr-TR"]
+    check("59.34 LANGS tem os 10 idiomas", sorted(I59.CODES) == sorted(LANGS59))
+    ok59 = True
+    for l59 in LANGS59:
+        r = anon59.get(f"/api/i18n/{l59}")
+        j59 = r.json if r.status_code == 200 else {}
+        ok59 = ok59 and r.status_code == 200 and j59.get("lang") == l59 and j59.get("strings", {}).get("app.name") == "StarFlix" \
+            and len(j59["strings"]) >= 1500
+    check("59.34 GET /api/i18n/<idioma> responde 200 com o catálogo completo nos 10 idiomas", ok59)
+    check("59.34 idioma fora dos 10 (e variante en_GB) dá 404", anon59.get("/api/i18n/xx-XX").status_code == 404 and anon59.get("/api/i18n/en_GB").status_code == 404)
+    r = anon59.get("/api/i18n/ru-RU")
+    et59 = r.headers.get("ETag", "")
+    check("59.34 catálogo traz ETag e revalida (If-None-Match -> 304)", bool(et59) and "no-cache" in r.headers.get("Cache-Control", "")
+          and anon59.get("/api/i18n/ru-RU", headers={"If-None-Match": et59}).status_code == 304)
+    ru59 = r.json["strings"]
+    check("59.34 o catálogo do ru traz as 4 formas de plural e as chaves android.*", all(f"common.items.{k}" in ru59 for k in ("one", "few", "many", "other"))
+          and "android.tv_items_count.many" in ru59)
+    # plural em russo (CLDR)
+    cats59 = {n: I59.plural_category("ru-RU", n) for n in (0, 1, 2, 4, 5, 11, 12, 21, 22, 25, 101, 111)}
+    check("59.34 plural ru: 1/21/101 one, 2/4/22 few, 0/5/11/12/25/111 many",
+          all(cats59[n] == "one" for n in (1, 21, 101)) and all(cats59[n] == "few" for n in (2, 4, 22))
+          and all(cats59[n] == "many" for n in (0, 5, 11, 12, 25, 111)))
+    check("59.34 t() com n= escolhe o texto do plural em russo", [I59.t("common.items", "ru-RU", n=n) for n in (1, 2, 5, 21)]
+          == ["1 элемент", "2 элемента", "5 элементов", "21 элемент"])
+    check("59.34 plural em en-US, pt-BR (0 e 1 no singular) e ja (só other)", I59.t("common.items", "en-US", n=1) == "1 item" and I59.t("common.items", "en-US", n=2) == "2 items"
+          and I59.plural_category("pt-BR", 0) == "one" and I59.plural_category("ja-JP", 1) == "other")
+    # fallback
+    check("59.34 fallback: chave inexistente devolve a própria chave e idioma desconhecido cai no pt-BR", I59.t("nao.existe.59", "ru-RU") == "nao.existe.59"
+          and I59.t("app.name", "klingon") == "StarFlix" and I59.t("common.save", "klingon") == I59.t("common.save", "pt-BR"))
+    check("59.34 variável ausente fica {x} e variável passada é trocada", I59.t("android.connect_confirm", "en-US", name="Sala") == "Connect to Sala ({host})?")
+    # ordem de prioridade
+    check("59.34 pick: perfil > conta > cookie > Accept-Language > pt-BR (60.2: sem padrão do servidor)",
+          I59.pick("en-US", "es-ES", "de-DE", ["fr-FR"]) == "en-US" and I59.pick(None, "es-ES", "de-DE", ["fr-FR"]) == "es-ES"
+          and I59.pick(None, None, "de-DE", ["fr-FR"]) == "de-DE" and I59.pick(None, None, None, ["fr-FR"]) == "fr-FR"
+          and I59.pick(None, None, None, []) == "pt-BR" and I59.pick() == "pt-BR" and I59.pick(None, None, None, ["*", "xx"]) == "pt-BR")
+    # sem login: cookie e Accept-Language
+    def htmllang59(cl, **kw):
+        m = re.search(r'<html lang="([^"]*)"', cl.get("/login", **kw).get_data(as_text=True))
+        return m.group(1) if m else None
+    check("59.34 sem login: padrão pt-BR, Accept-Language escolhe o idioma e en-GB cai no en-US", htmllang59(run.app.test_client()) == "pt-BR"
+          and htmllang59(run.app.test_client(), headers={"Accept-Language": "fr-FR,fr;q=0.9"}) == "fr-FR"
+          and htmllang59(run.app.test_client(), headers={"Accept-Language": "en-GB"}) == "en-US")
+    r = anon59.post("/api/i18n/set", json={"lang": "de-DE"})
+    ck59 = r.headers.get("Set-Cookie", "")
+    check("59.34 POST /api/i18n/set sem login grava o cookie sf_lang (1 ano, Lax) e a tela de login segue o idioma",
+          r.status_code == 200 and r.json == {"ok": True, "lang": "de-DE", "metadata_refresh": False} and "sf_lang=de-DE" in ck59 and "SameSite=Lax" in ck59 and "Max-Age=31536000" in ck59
+          and htmllang59(anon59, headers={"Accept-Language": "fr-FR"}) == "de-DE")
+    check("59.34 idioma inválido, ausente ou fora dos 10 dá 400 e não grava cookie", all(
+        (lambda rr: rr.status_code == 400 and "sf_lang" not in rr.headers.get("Set-Cookie", ""))(anon59.post("/api/i18n/set", json=body))
+        for body in ({"lang": "xx-XX"}, {"lang": "en_GB"}, {"lang": 5}, {}, [])))
+    # 60.2: não existe mais idioma padrão do servidor (Admin -> Servidor); um default_lang antigo no banco é ignorado
+    with get_db() as conn:
+        conn.execute("INSERT INTO settings (key, value) VALUES ('default_lang', 'tr-TR') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        conn.commit()
+    r = c.post("/admin/server/save", json={"lang": "tr-TR"})
+    check("60.2 sem padrão do servidor: `default_lang` antigo e `lang` no save não mudam o idioma (pt-BR sem cookie nem Accept-Language)",
+          r.status_code == 200 and "lang" not in c.get("/admin/server/data").json and htmllang59(run.app.test_client()) == "pt-BR")
+    with get_db() as conn:
+        conn.execute("DELETE FROM settings WHERE key = 'default_lang'")
+        conn.commit()
+    check("60.2 a tela Servidor não tem mais o seletor de idioma", 'id="sv-lang"' not in c.get("/admin/server").get_data(as_text=True))
+    # 60.1: porta em Configurações -> Servidor
+    import socket as sock60
+    import config as cfg60
+    d60 = c.get("/admin/server/data").json
+    check("60.1 porta padrão 32000 em /admin/server/data e /api/server-info", d60["port"] == 32000 == cfg60.DEFAULT_PORT and anon58.get("/api/server-info").json["port"] == cfg60.PORT)
+    check("60.1 porta fora de 1024–65535, não numérica ou booleana dá 400", all(c.post("/admin/server/save", json={"port": v}).status_code == 400 for v in (0, 80, 70000, "32001", 3.5, True, None)))
+    busy60 = sock60.socket()
+    busy60.bind(("0.0.0.0", 0))
+    busy60.listen(1)
+    r = c.post("/admin/server/save", json={"port": busy60.getsockname()[1]})
+    check("60.1 porta em uso por outro programa dá 400 e nada é gravado", r.status_code == 400 and r.json.get("code") == "err.porta_em_uso" and get_setting_port60() == "")
+    busy60.close()
+    free60 = sock60.socket()
+    free60.bind(("0.0.0.0", 0))
+    np60 = free60.getsockname()[1]
+    free60.close()
+    r = c.post("/admin/server/save", json={"port": np60})
+    check("60.1 porta livre é gravada e a resposta pede reinício (sem reiniciar em teste)", r.status_code == 200 and r.json["restart"] is True and r.json["new_port"] == np60
+          and get_setting_port60() == str(np60) and cfg60.PORT == 32000 and cfg60.RESTART_ON_PORT is False)
+    cfg60.PORT = 32000
+    import server.admin_server as as60
+    as60.load_port()
+    check("60.1 load_port() na partida lê a porta salva (e o mDNS/server-info a usam)", cfg60.PORT == np60 and anon58.get("/api/server-info").json["port"] == np60
+          and all(u.endswith(":%d" % np60) for u in anon58.get("/api/server-info").json["urls"]["local"]))
+    r = c.post("/admin/server/save", json={"port": 32000})
+    as60.load_port()
+    check("60.1 voltar ao 32000 também reinicia e a partida seguinte usa 32000", r.status_code == 200 and r.json["restart"] is True and cfg60.PORT == 32000)
+    check("60.1 salvar sem `port` mantém a porta e não pede reinício", c.post("/admin/server/save", json={"name": "Casa 58"}).json["restart"] is False)
+    # ---- 60.10: Restaurar backup pelo site ----
+    import zipfile as zf60
+    from server import backup as bk60
+    os.makedirs(cfg60.BACKUPS_DIR, exist_ok=True)
+    bad60 = os.path.join(cfg60.BACKUPS_DIR, "starflix-20260102-000000.zip")
+    good60 = os.path.join(cfg60.BACKUPS_DIR, "starflix-20260102-000001.zip")
+    db60 = os.path.join(cfg60.BACKUPS_DIR, "t60.db")
+    try:
+        with zf60.ZipFile(bad60, "w") as z_:
+            z_.writestr("x.txt", "1")
+        bk60._copy_db(db60)
+        with zf60.ZipFile(good60, "w") as z_:
+            z_.write(db60, "starflix.db")
+        users60 = sql32("SELECT COUNT(*) FROM users")
+        check("60.10 restaurar sem login não passa", anon58.post("/admin/backup/starflix-20260102-000001.zip/restore").status_code in (301, 302, 401, 403))
+        check("60.10 backup que não existe dá 404", c.post("/admin/backup/starflix-20260102-999999.zip/restore").status_code == 404)
+        r = c.post("/admin/backup/starflix-20260102-000000.zip/restore")
+        check("60.10 zip sem starflix.db dá 400 err.restore_sem_banco (validado antes de reiniciar)", r.status_code == 400 and r.json.get("code") == "err.restore_sem_banco")
+        r = c.post("/admin/backup/starflix-20260102-000001.zip/restore")
+        check("60.10 em teste (sem run.py) não reinicia: 400 err.restore_indisponivel e o banco fica intacto", r.status_code == 400 and r.json.get("code") == "err.restore_indisponivel" and sql32("SELECT COUNT(*) FROM users") == users60)
+        check("60.10 /health traz o `boot` do processo", anon58.get("/health").json.get("boot"))
+        rs60 = bk60._script()
+        try:
+            rs60.validate(bad60)
+            bad_ok60 = False
+        except rs60.RestoreError as e_:
+            bad_ok60 = e_.key == "err.restore_sem_banco"
+        check("60.10 validate recusa o zip sem banco com a chave err.restore_sem_banco", bad_ok60)
+        try:
+            os.remove(rs60.RESULT)
+        except OSError:
+            pass
+        check("60.10 sem arquivo de resultado: {ok: null}", c.get("/admin/backup/restore-result").json["ok"] is None)
+        with open(rs60.RESULT, "w", encoding="utf-8") as f_:
+            json.dump({"ok": False, "key": "err.restore_falhou", "vars": {}, "msg": "x"}, f_)
+        r = c.get("/admin/backup/restore-result")
+        check("60.10 o resultado é entregue uma vez e o arquivo some", r.json["ok"] is False and r.json["key"] == "err.restore_falhou" and not os.path.exists(rs60.RESULT) and c.get("/admin/backup/restore-result").json["ok"] is None)
+        pn60 = c.get("/admin").get_data(as_text=True)
+        js60 = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "static", "js", "admin-backup.js"), encoding="utf-8").read()
+        check("60.10 o Painel traz a tela de espera (animação + texto) e o JS chama /restore e confere o `boot`", 'id="bk-wait"' in pn60 and 'id="restore-logo"' in pn60 and "/restore'" in js60 and "boot" in js60)
+    finally:
+        for f_ in (bad60, good60, db60):
+            try:
+                os.remove(f_)
+            except OSError:
+                pass
+    # com login: grava no perfil e vence o cookie
+    r = c.post("/api/i18n/set", json={"lang": "ru-RU"})
+    with get_db() as conn:
+        pf59 = json.loads(conn.execute("SELECT prefs FROM profiles WHERE id = ?", (pid,)).fetchone()["prefs"] or "{}")
+    check("59.34 POST /api/i18n/set com perfil escolhido grava o lang no perfil e o cookie", r.status_code == 200 and pf59.get("lang") == "ru-RU" and "sf_lang=ru-RU" in r.headers.get("Set-Cookie", ""))
+    check("59.34 o idioma do perfil vence o cookie e a página do site abre nesse idioma", 'lang="ru-RU"' in c.get("/", headers={"Cookie": "sf_lang=en-US"}).get_data(as_text=True))
+    r = c.post("/api/i18n/set", json={"lang": "ja-JP"})
+    with get_db() as conn:
+        pf59 = json.loads(conn.execute("SELECT prefs FROM profiles WHERE id = ?", (pid,)).fetchone()["prefs"] or "{}")
+    check("59.34 trocar de novo troca na hora, sem reiniciar", pf59.get("lang") == "ja-JP" and 'lang="ja-JP"' in c.get("/").get_data(as_text=True))
+    c.post("/api/i18n/set", json={"lang": "pt-BR"})
+    check("59.34 voltar ao pt-BR deixa a página no idioma da fonte", 'lang="pt-BR"' in c.get("/").get_data(as_text=True))
+    # ---- 59.37: o idioma dos agentes (TMDB, TVDB, SubDL) é o do usuário; trocar refaz os metadados (sem rede: ensure_fresh e a varredura são trocados) ----
+    import config as cfg59
+    import server.tmdb_lists as tl59
+    import server.scanner as sc59
+    import server.meta_lang as ml59
+    real59 = (tl59.ensure_fresh, sc59.refresh_language_async, cfg59.TMDB_LANG, cfg59.TMDB_REGION, cfg59.TVDB_LANG, cfg59.SUBDL_LANG)
+    lists59, scans59 = [], []
+    tl59.ensure_fresh = lambda: lists59.append(1)
+    sc59.refresh_language_async = lambda: scans59.append(1)
+    try:
+        check("59.37 MAP cobre os 10 idiomas com TMDB, TVDB e SubDL", sorted(ml59.MAP) == sorted(LANGS59) and all(len(v_) == 3 for v_ in ml59.MAP.values()))
+        ml59._apply("pt-BR")
+        r = c.post("/api/i18n/set", json={"lang": "en-US"})
+        check("59.37 /api/i18n/set com login ajusta TMDB, região, TVDB e SubDL e pede a nova varredura",
+              r.status_code == 200 and r.json["metadata_refresh"] is True and (cfg59.TMDB_LANG, cfg59.TMDB_REGION, cfg59.TVDB_LANG, cfg59.SUBDL_LANG) == ("en-US", "US", "eng", "EN")
+              and ml59.current() == "en-US" and len(scans59) == 1 and len(lists59) == 1
+              and sql32("SELECT value FROM settings WHERE key = 'meta_lang'")[0]["value"] == "en-US")
+        r = c.post("/api/i18n/set", json={"lang": "en-US"})
+        check("59.37 mesmo idioma não refaz nada", r.status_code == 200 and r.json["metadata_refresh"] is False and len(scans59) == 1 and len(lists59) == 1)
+        r = c.post("/api/i18n/set", json={"lang": "ru-RU"})
+        check("59.37 ru-RU: TMDB ru-RU/RU, TVDB rus, SubDL RU", r.json["metadata_refresh"] is True and (cfg59.TMDB_LANG, cfg59.TMDB_REGION, cfg59.TVDB_LANG, cfg59.SUBDL_LANG) == ("ru-RU", "RU", "rus", "RU") and len(scans59) == 2)
+        r = c.post("/account/settings", json={"values": {"lang": "ja-JP"}})
+        check("59.37 /account/settings com `lang` também troca os agentes (ja-JP -> JA)", r.status_code == 200 and cfg59.TVDB_LANG == "jpn" and cfg59.SUBDL_LANG == "JA" and len(scans59) == 3)
+        r = c.post("/account/settings", json={"values": {"seen": "all"}})
+        check("59.37 /account/settings sem `lang` não mexe nos agentes", r.status_code == 200 and len(scans59) == 3 and cfg59.SUBDL_LANG == "JA")
+        check("59.37 idioma inválido dá 400 e não troca os agentes", c.post("/api/i18n/set", json={"lang": "xx-XX"}).status_code == 400 and len(scans59) == 3 and ml59.current() == "ja-JP")
+        r = anon59.post("/api/i18n/set", json={"lang": "fr-FR"})
+        check("59.37 sem login só grava o cookie: agentes e metadados ficam como estão", r.status_code == 200 and r.json["metadata_refresh"] is False and ml59.current() == "ja-JP" and len(scans59) == 3)
+        ml59._apply("de-DE")
+        with get_db() as cn59:
+            ml59._set(cn59, "meta_lang", "es-ES")
+            cn59.commit()
+            ml59.load(cn59)
+        check("59.37 load() na partida restaura do banco (es-ES -> es-ES/ES/spa/ES)", (cfg59.TMDB_LANG, cfg59.TVDB_LANG, cfg59.SUBDL_LANG) == ("es-ES", "spa", "ES"))
+        ag59 = {a_["id"]: a_ for a_ in c.get("/admin/agents/data").json["agents"]}
+        check("59.37 Agentes sem seletor de idioma; salvar sem chave dá 400", all("lang" not in v_ and "langs" not in v_ for v_ in ag59.values())
+              and c.post("/admin/agents/tvdb", json={}).status_code == 400)
+        pg59 = c.get("/admin/agents").get_data(as_text=True) + open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "static", "js", "agents.js"), encoding="utf-8").read()
+        check("59.37 a página e o JS de Agentes não têm mais as chaves ag.lang*", "ag.lang" not in pg59)
+        check("59.37 assistente e edição de biblioteca não enviam nem recebem idioma", all(k_ not in J28("/admin/libraries/data").json["libraries"][0] for k_ in ("lang",)))
+    finally:
+        tl59.ensure_fresh, sc59.refresh_language_async, cfg59.TMDB_LANG, cfg59.TMDB_REGION, cfg59.TVDB_LANG, cfg59.SUBDL_LANG = real59
+        sql32("DELETE FROM settings WHERE key = 'meta_lang'")
+        c.post("/api/i18n/set", json={"lang": "pt-BR"})
 finally:
     shutil.rmtree(TMP, ignore_errors=True)
 
