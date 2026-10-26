@@ -2367,3 +2367,15 @@ video.preload-custom { max-width: 100vw; max-height: 100vh; }
 .rs-wait .preload-logo { width: min(60vmin, 360px); }
 .rs-wait .preload-custom { max-width: min(80vw, 520px); max-height: 50vh; }
 .rs-msg { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+
+/* 60.12: topbar transparente sobre a arte (destaque/fundo dominante): os ícones do cabeçalho ganham um sombreado escuro ao redor do traço (sem fundo nem botão), para não sumirem em fundo claro */
+body.has-hero-bg .topbar .icon-btn, body.tvd-on:not(.lean-page) .topbar .icon-btn,
+body.has-hero-bg .topbar .user-btn, body.tvd-on:not(.lean-page) .topbar .user-btn { color: #fff; }
+body.has-hero-bg .topbar .icon-btn .ic, body.tvd-on:not(.lean-page) .topbar .icon-btn .ic,
+body.has-hero-bg .topbar .user-btn > .ic, body.tvd-on:not(.lean-page) .topbar .user-btn > .ic {
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .95)) drop-shadow(0 0 4px rgba(0, 0, 0, .7)) drop-shadow(0 1px 8px rgba(0, 0, 0, .55));
+}
+body.has-hero-bg .topbar-right .icon-btn.active, body.tvd-on:not(.lean-page) .topbar-right .icon-btn.active { color: var(--accent); }
+body.has-hero-bg .topbar .logo, body.tvd-on:not(.lean-page) .topbar .logo {
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .95)) drop-shadow(0 0 4px rgba(0, 0, 0, .7)) drop-shadow(0 1px 8px rgba(0, 0, 0, .55));
+}
