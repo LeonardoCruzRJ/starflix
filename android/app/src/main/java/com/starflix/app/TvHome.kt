@@ -108,7 +108,7 @@ object TvHomeApi {
 
     fun home(server: String, token: String, profile: Long): HomeResult = try {
         val (code, j) = TvApi.authed("GET", server, "/api/tv/home", token, profile)
-        if (code != 200 || j == null) HomeResult.Err("Erro do servidor ($code).") else {
+        if (code != 200 || j == null) HomeResult.Err(Txt.s(R.string.tv_server_error, code)) else {
             val ra = j.optJSONArray("rows")
             val rows = (0 until (ra?.length() ?: 0)).mapNotNull { i ->
                 val r = ra!!.getJSONObject(i)
@@ -127,7 +127,7 @@ object TvHomeApi {
     } catch (e: TvUnauthorized) {
         HomeResult.Unauthorized
     } catch (e: Exception) {
-        HomeResult.Err("Servidor inacessível.")
+        HomeResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     private fun JSONObject.dateBr(k: String): String {
@@ -175,7 +175,7 @@ object TvHomeApi {
                     }
                 } else if (col) {
                     val n = j.optJSONArray("items")?.length() ?: 0
-                    parts.add(if (n == 1) "Coleção · 1 item" else "Coleção · $n itens")
+                    parts.add(Txt.n(R.plurals.tv_collection_items, n))
                 } else {
                     if (!j.isNull("year") && j.optInt("year") > 0) parts.add(j.optInt("year").toString())
                     if (c.type == "movie") minutes(j.optDouble("duration", 0.0)).let { if (it.isNotEmpty()) parts.add(it) }
@@ -284,7 +284,7 @@ fun HomeScreen(
                         val r = TvLibraryApi.page(server, token, profileId, l.id, 0, null)
                         (r as? LibResult.Ok)?.items?.takeIf { it.isNotEmpty() }?.let { TvRow("x:${l.id}", l.name, it.take(40)) }
                     } else {
-                        TvLibraryApi.collections(server, token, profileId, l.id).takeIf { it.isNotEmpty() }?.let { TvRow("c:${l.id}", "Coleções em ${l.name}", it) }
+                        TvLibraryApi.collections(server, token, profileId, l.id).takeIf { it.isNotEmpty() }?.let { TvRow("c:${l.id}", Txt.s(R.string.tv_collections_in, l.name), it) }
                     }
                 }
             }
@@ -299,15 +299,15 @@ fun HomeScreen(
         Box(Modifier.fillMaxSize().background(BG)) {
             HeroBackdrop(server, hero?.backdrop)
             when {
-                result == null -> Text("Carregando…", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                result == null -> Text(Txt.s(R.string.tv_loading), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 result is HomeResult.Err -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text((result as HomeResult.Err).msg, color = Color(0xFFE57373), fontSize = 20.sp)
                     Spacer(Modifier.height(16.dp))
                     Card(onClick = { reload++ }, modifier = Modifier.width(260.dp).focusRequester(first)) {
-                        Text("Tentar de novo", color = TEXT, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+                        Text(Txt.s(R.string.retry), color = TEXT, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
                     }
                 }
-                ok != null && ok.rows.isEmpty() && tab == 0 -> Text("Nada por aqui ainda. Adicione uma biblioteca no site.", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                ok != null && ok.rows.isEmpty() && tab == 0 -> Text(Txt.s(R.string.tv_empty_home), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 ok != null -> Column(Modifier.fillMaxSize().padding(start = 24.dp + DRAWER_INSET, top = 16.dp)) {
                     val c = focused
                     HomeTabs(tab) { tab = it; resetFocus++ }
@@ -325,8 +325,8 @@ fun HomeScreen(
                         }
                         Text(hero?.overview.orEmpty(), color = TEXT, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
                     }
-                    if (shownRows == null) Text("Carregando…", color = MUTED, fontSize = 18.sp, modifier = Modifier.padding(top = 24.dp, start = 12.dp))
-                    else if (shownRows.isEmpty()) Text(if (tab == 2) "Nenhuma coleção ainda." else "Nada por aqui ainda.", color = MUTED, fontSize = 18.sp, modifier = Modifier.padding(top = 24.dp, start = 12.dp))
+                    if (shownRows == null) Text(Txt.s(R.string.tv_loading), color = MUTED, fontSize = 18.sp, modifier = Modifier.padding(top = 24.dp, start = 12.dp))
+                    else if (shownRows.isEmpty()) Text(if (tab == 2) Txt.s(R.string.tv_no_collections) else Txt.s(R.string.tv_nothing_here), color = MUTED, fontSize = 18.sp, modifier = Modifier.padding(top = 24.dp, start = 12.dp))
                     else LazyColumn(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxSize()) {
                         items(shownRows, key = { it.key }) { row ->
                             Column {
@@ -357,9 +357,9 @@ internal fun HomeTabs(tab: Int, onTab: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(end = 32.dp), verticalAlignment = Alignment.CenterVertically) {
         PillGroup(reqs[tab.coerceIn(0, 2)]) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LibTab("Recomendado", tab == 0, { onTab(0) }, Modifier.focusRequester(reqs[0]))
-                LibTab("Explorar", tab == 1, { onTab(1) }, Modifier.focusRequester(reqs[1]))
-                LibTab("Coleções", tab == 2, { onTab(2) }, Modifier.focusRequester(reqs[2]))
+                LibTab(Txt.s(R.string.tv_recommended), tab == 0, { onTab(0) }, Modifier.focusRequester(reqs[0]))
+                LibTab(Txt.s(R.string.tv_explore), tab == 1, { onTab(1) }, Modifier.focusRequester(reqs[1]))
+                LibTab(Txt.s(R.string.tv_collections), tab == 2, { onTab(2) }, Modifier.focusRequester(reqs[2]))
             }
         }
         Spacer(Modifier.weight(1f))

@@ -75,7 +75,7 @@ object TvLibraryApi {
         var path = "/api/tv/library/$id?offset=$offset&limit=60"
         if (v != null) path += "&sort=${enc(v.sort)}&dir=${enc(v.dir)}&filter=${enc(v.filter)}&genre=${enc(v.genre)}"
         val (code, j) = TvApi.authed("GET", server, path, token, profile)
-        if (code != 200 || j == null) LibResult.Err(if (code == 404) "Biblioteca indisponível." else "Erro do servidor ($code).") else {
+        if (code != 200 || j == null) LibResult.Err(if (code == 404) Txt.s(R.string.tv_lib_unavailable) else Txt.s(R.string.tv_server_error, code)) else {
             val vw = j.getJSONObject("view")
             val ga = j.optJSONArray("genres")
             val ia = j.optJSONArray("items")
@@ -90,7 +90,7 @@ object TvLibraryApi {
     } catch (e: TvUnauthorized) {
         LibResult.Unauthorized
     } catch (e: Exception) {
-        LibResult.Err("Servidor inacessível.")
+        LibResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     /** Coleções da biblioteca (aba Coleções do Início): `/api/tv/library/<id>/collections`; falha = lista vazia (401 sobe). */
@@ -119,12 +119,12 @@ private val ACCENT = Color(0xFFE5A00D)
 private val TEXT = Color(0xFFEEEEEE)
 private val MUTED = Color(0xFF9A9EA3)
 
-private val SORTS = listOf(
-    Triple("title", "asc", "Título"), Triple("year", "desc", "Ano"),
-    Triple("added", "desc", "Adicionado em"), Triple("played", "desc", "Último assistido"),
+private val SORTS get() = listOf(
+    Triple("title", "asc", Txt.s(R.string.tv_sort_title)), Triple("year", "desc", Txt.s(R.string.tv_sort_year)),
+    Triple("added", "desc", Txt.s(R.string.tv_sort_added)), Triple("played", "desc", Txt.s(R.string.tv_sort_played)),
 )
-private val FILTER_SHORT = listOf("Tudo", "Não assistidos", "Assistidos", "Em andamento")
-private val FILTERS = listOf("all" to "Todos", "unwatched" to "Não assistidos", "watched" to "Assistidos", "progress" to "Em andamento")
+private val FILTER_SHORT get() = listOf(Txt.s(R.string.tv_filter_all_short), Txt.s(R.string.tv_filter_unwatched), Txt.s(R.string.tv_filter_watched), Txt.s(R.string.tv_filter_progress))
+private val FILTERS get() = listOf("all" to Txt.s(R.string.tv_filter_all), "unwatched" to Txt.s(R.string.tv_filter_unwatched), "watched" to Txt.s(R.string.tv_filter_watched), "progress" to Txt.s(R.string.tv_filter_progress))
 
 /** Chip pequeno da barra do Explorar (filtro, gênero, ordem, ⋮); foco com borda laranja. */
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -373,8 +373,8 @@ fun LibraryScreen(
             val tabReqs = remember { List(2) { FocusRequester() } }
             PillGroup(tabReqs[tab.coerceIn(0, 1)]) {
                 Row(Modifier.background(Color(0x66000000), RoundedCornerShape(50)).padding(horizontal = 6.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LibTab("Recomendado", tab == 0, { tab = 0 }, Modifier.focusRequester(tabReqs[0]))
-                    LibTab("Explorar", tab == 1, { tab = 1 }, Modifier.focusRequester(tabReqs[1]))
+                    LibTab(Txt.s(R.string.tv_recommended), tab == 0, { tab = 0 }, Modifier.focusRequester(tabReqs[0]))
+                    LibTab(Txt.s(R.string.tv_explore), tab == 1, { tab = 1 }, Modifier.focusRequester(tabReqs[1]))
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -382,7 +382,7 @@ fun LibraryScreen(
         }
         if (tab == 0) {
             HeroInfo(server, focused, hero)
-            if (!recLoaded) Text("Carregando…", color = MUTED, fontSize = 20.sp)
+            if (!recLoaded) Text(Txt.s(R.string.tv_loading), color = MUTED, fontSize = 20.sp)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
                 items(recRows, key = { it.key }) { row ->
                     Column {
@@ -407,28 +407,28 @@ fun LibraryScreen(
             if (genres.isNotEmpty() || v.genre.isNotEmpty()) {
                 val opts = listOf("") + genres
                 val gi = opts.indexOf(v.genre).coerceAtLeast(0)
-                ToolChip(if (v.genre.isEmpty()) "Gêneros" else v.genre, { change(v.copy(genre = opts[(gi + 1) % opts.size])) })
+                ToolChip(if (v.genre.isEmpty()) Txt.s(R.string.tv_genres) else v.genre, { change(v.copy(genre = opts[(gi + 1) % opts.size])) })
             }
-            Text("por", color = TEXT, fontSize = 12.sp)
+            Text(Txt.s(R.string.tv_sort_by), color = TEXT, fontSize = 12.sp)
             val si = SORTS.indexOfFirst { it.first == v.sort }.coerceAtLeast(0)
             ToolChip(SORTS[si].third, {
                 val n = SORTS[(si + 1) % SORTS.size]
                 change(v.copy(sort = n.first, dir = n.second))
             }, lead = { DirIcon(v.dir == "asc") })
-            if (loaded && error.isEmpty()) Text("$total ${if (total == 1) "item" else "itens"}", color = TEXT, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+            if (loaded && error.isEmpty()) Text(Txt.n(R.plurals.tv_items_count, total), color = TEXT, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.background(Color.Black, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
             ToolChip("", { change(v.copy(dir = if (v.dir == "asc") "desc" else "asc")) }, lead = { DotsIcon() })
         } }
         Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxSize()) {
             when {
-                !loaded -> Text("Carregando…", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                !loaded -> Text(Txt.s(R.string.tv_loading), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 error.isNotEmpty() -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error, color = Color(0xFFE57373), fontSize = 20.sp)
                     Spacer(Modifier.height(16.dp))
-                    TvButton("Tentar de novo", Modifier.width(260.dp).focusRequester(first)) { version++ }
+                    TvButton(Txt.s(R.string.retry), Modifier.width(260.dp).focusRequester(first)) { version++ }
                 }
-                items.isEmpty() -> Text("Nenhum item neste filtro.", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                items.isEmpty() -> Text(Txt.s(R.string.tv_no_items_filter), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 else -> {
                     val letterIdx = remember(items) { LinkedHashMap<String, Int>().also { m -> items.forEachIndexed { i, c -> m.putIfAbsent(letterOf(c.title), i) } } }
                     val showIndex = v?.sort == "title" && letterIdx.size > 1

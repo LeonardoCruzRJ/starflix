@@ -249,7 +249,7 @@ class TvActivity : ComponentActivity() {
     /** Abre o PlayerActivity no modo TV (Bearer + X-Profile); ele retoma da posição salva e segue para o próximo episódio. */
     private fun play(path: String?, title: String, position: Int) {
         val m = Regex("/stream/(movie|episode)/(\\d+)/play").find(path.orEmpty())
-        if (m == null) { Toast.makeText(this, "\"$title\" não tem vídeo para reproduzir.", Toast.LENGTH_SHORT).show(); return }
+        if (m == null) { Toast.makeText(this, Txt.s(R.string.tv_no_video, title), Toast.LENGTH_SHORT).show(); return }
         playerLauncher.launch(
             Intent(this, PlayerActivity::class.java)
                 .putExtra(PlayerActivity.EXTRA_KIND, m.groupValues[1])

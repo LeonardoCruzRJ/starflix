@@ -64,9 +64,9 @@ object TvApi {
         val (code, j) = call("POST", "$server/api/phone/claim", JSONObject().put("token", token).put("name", name).toString())
         val dev = j?.optString("device_token").orEmpty()
         if (code == 200 && dev.isNotEmpty()) ClaimResult.Ok(dev)
-        else ClaimResult.Err(j?.optString("error").orEmpty().ifBlank { "O servidor não aceitou o QR ou link ($code)." })
+        else ClaimResult.Err(j?.optString("error").orEmpty().ifBlank { Txt.s(R.string.tv_claim_qr_fail, code) })
     } catch (e: Exception) {
-        ClaimResult.Err("Servidor inacessível.")
+        ClaimResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     /** 58.15: troca o ticket (dado pelo celular) pelo token da TV em `POST /api/tv/claim`. */
@@ -74,9 +74,9 @@ object TvApi {
         val (code, j) = call("POST", "$server/api/tv/claim", JSONObject().put("ticket", ticket).put("name", name).toString())
         val t = j?.optString("token").orEmpty()
         if (code == 200 && t.isNotEmpty()) ClaimResult.Ok(t)
-        else ClaimResult.Err(j?.optString("error").orEmpty().ifBlank { "O servidor não aceitou o ticket ($code)." })
+        else ClaimResult.Err(j?.optString("error").orEmpty().ifBlank { Txt.s(R.string.tv_claim_ticket_fail, code) })
     } catch (e: Exception) {
-        ClaimResult.Err("Servidor inacessível.")
+        ClaimResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     /** 58.16: IPv4 de rede privada (10/8, 172.16/12, 192.168/16, link-local); o app só fala em texto claro com a TV nesses endereços. */
@@ -98,20 +98,20 @@ object TvApi {
     fun phoneTvTicket(server: String, deviceToken: String): ClaimResult = try {
         val (code, j) = authed("POST", server, "/api/phone/tv-ticket", deviceToken)
         val t = j?.optString("ticket").orEmpty()
-        if (code == 200 && t.isNotEmpty()) ClaimResult.Ok(t) else ClaimResult.Err(j?.optString("error").orEmpty().ifBlank { "O servidor não gerou o ticket ($code)." })
+        if (code == 200 && t.isNotEmpty()) ClaimResult.Ok(t) else ClaimResult.Err(j?.optString("error").orEmpty().ifBlank { Txt.s(R.string.tv_ticket_fail, code) })
     } catch (e: TvUnauthorized) {
-        ClaimResult.Err("Este celular foi desconectado do servidor.")
+        ClaimResult.Err(Txt.s(R.string.tv_phone_revoked))
     } catch (e: Exception) {
-        ClaimResult.Err("Servidor inacessível.")
+        ClaimResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     /** 58.16: entrega o ticket ao mini servidor da TV (`POST http://ip:porta/pair`, 5 s para conectar). null = a TV aceitou; senão, a mensagem de erro. */
     fun sendTvPair(ip: String, port: Int, key: String, serverUrls: List<String>, ticket: String): String? = try {
         val body = JSONObject().put("k", key).put("ticket", ticket).put("server_urls", org.json.JSONArray(serverUrls)).toString()
         val (code, j) = call("POST", "http://$ip:$port/pair", body, 5000, 20000)
-        if (code == 200) null else j?.optString("error").orEmpty().ifBlank { "A TV recusou ($code)." }
+        if (code == 200) null else j?.optString("error").orEmpty().ifBlank { Txt.s(R.string.tv_refused, code) }
     } catch (e: Exception) {
-        "Não foi possível falar com a TV: celular e TV precisam estar no mesmo Wi-Fi."
+        Txt.s(R.string.tv_talk_fail)
     }
 
     /** true quando o último [TvUnauthorized] foi perfil inválido (403) e não token revogado (401). */
@@ -176,11 +176,11 @@ object TvApi {
         val (code, j) = call("POST", "$server/api/tv/code", JSONObject().put("name", deviceName).toString())
         when {
             code == 200 && j != null -> CodeResult.Ok(j.getString("code"), j.getString("poll"), j.optString("url", "$server/tv"), j.optInt("expires_in", 600))
-            code == 429 -> CodeResult.Err("Muitos pedidos. Aguarde alguns minutos.")
-            else -> CodeResult.Err("O servidor não gerou o código.")
+            code == 429 -> CodeResult.Err(Txt.s(R.string.tv_too_many))
+            else -> CodeResult.Err(Txt.s(R.string.tv_code_fail))
         }
     } catch (e: Exception) {
-        CodeResult.Err("Servidor inacessível.")
+        CodeResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     fun poll(server: String, poll: String): PollResult = try {
@@ -190,11 +190,11 @@ object TvApi {
                 PollResult.Authorized(j.getString("token"), j.optLong("device_id"), j.optString("name"))
             code == 200 -> PollResult.Pending
             code == 410 || code == 404 -> PollResult.Expired
-            code == 429 -> PollResult.Err("Muitas consultas. Aguarde.")
-            else -> PollResult.Err("Erro do servidor ($code).")
+            code == 429 -> PollResult.Err(Txt.s(R.string.tv_too_many_polls))
+            else -> PollResult.Err(Txt.s(R.string.tv_server_error, code))
         }
     } catch (e: Exception) {
-        PollResult.Err("Servidor inacessível.")
+        PollResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     /** Chamada autenticada (Bearer + X-Profile). 401 vira [TvUnauthorized]; demais erros HTTP voltam como código + JSON. */
@@ -231,11 +231,11 @@ object TvApi {
                 TvProfile(o.getLong("id"), o.optString("name"), o.optString("avatar", "#e5a00d"), if (o.isNull("photo")) "" else o.optString("photo"))
             }
             ProfilesResult.Ok(list)
-        } else ProfilesResult.Err("Erro do servidor ($code).")
+        } else ProfilesResult.Err(Txt.s(R.string.tv_server_error, code))
     } catch (e: TvUnauthorized) {
         ProfilesResult.Unauthorized
     } catch (e: Exception) {
-        ProfilesResult.Err("Servidor inacessível.")
+        ProfilesResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     /** POST /api/tv/profile/<id>: valida que o perfil é do usuário do token. */

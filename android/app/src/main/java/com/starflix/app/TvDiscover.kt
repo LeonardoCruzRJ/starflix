@@ -81,10 +81,10 @@ fun DiscoverScreen(onChosen: (ServerInfo, String) -> Unit, onNone: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (!list) {
-            Text("Procurando seu servidor…", color = Color(0xFFEEEEEE), fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("A TV e o servidor precisam estar na mesma rede.", color = Color(0xFF9A9EA3), fontSize = 18.sp)
+            Text(Txt.s(R.string.tv_searching), color = Color(0xFFEEEEEE), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text(Txt.s(R.string.tv_same_network), color = Color(0xFF9A9EA3), fontSize = 18.sp)
         } else {
-            Text("Escolha o servidor", color = Color(0xFFEEEEEE), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text(Txt.s(R.string.tv_choose_server), color = Color(0xFFEEEEEE), fontSize = 30.sp, fontWeight = FontWeight.Bold)
             found.forEachIndexed { i, (info, url) ->
                 TvButton("${info.name}  ·  $url", Modifier.width(640.dp).let { if (i == 0) it.focusRequester(first) else it }, centered = true) { onChosen(info, url) }
             }
@@ -94,7 +94,7 @@ fun DiscoverScreen(onChosen: (ServerInfo, String) -> Unit, onNone: () -> Unit) {
 
 /**
  * 58.15: "Conectar pelo celular": a TV mostra o QR `starflix://tvpair?ip&port&k&n` e espera o celular (já conectado ao servidor) enviar o ticket
- * ao mini servidor. Recebido, `onPaired(info, endereço, token)`; a TV vai direto aos perfis. Sem rede ou com o tempo esgotado, avisa e oferece outro QR. "Digitar endereço" (58.17, último recurso) abre a tela de endereço com teclado.
+ * ao mini servidor. Recebido, `onPaired(info, endereço, token)`; a TV vai direto aos perfis. Sem rede ou com o tempo esgotado, avisa e oferece outro QR. Txt.s(R.string.tv_enter_address) (58.17, último recurso) abre a tela de endereço com teclado.
  */
 @Composable
 fun TvBridgeScreen(onPaired: (ServerInfo, String, String) -> Unit, onAddress: () -> Unit, onBack: () -> Unit) {
@@ -128,30 +128,30 @@ fun TvBridgeScreen(onPaired: (ServerInfo, String, String) -> Unit, onAddress: ()
             if (state == "run" && ip != null && key.isNotEmpty()) {
                 val text = "starflix://tvpair?ip=$ip&port=$port&k=$key&n=${Uri.encode(Build.MODEL ?: "TV")}"
                 val bmp = remember(text) { qrBitmap(text).asImageBitmap() }
-                Image(bmp, contentDescription = "QR code para conectar pelo celular", modifier = Modifier.fillMaxSize())
+                Image(bmp, contentDescription = Txt.s(R.string.tv_qr_desc), modifier = Modifier.fillMaxSize())
             } else {
-                Text("Sem QR", color = Color.Black, fontSize = 20.sp)
+                Text(Txt.s(R.string.tv_no_qr), color = Color.Black, fontSize = 20.sp)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Conectar pelo celular", color = Color(0xFFEEEEEE), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text(Txt.s(R.string.tv_connect_phone), color = Color(0xFFEEEEEE), fontSize = 30.sp, fontWeight = FontWeight.Bold)
             when (state) {
                 "run" -> {
                     Text(
-                    "No celular com o app StarFlix já conectado, abra Configurações → Conectar uma TV, toque em Ler QR code da TV e aponte para o QR ao lado. O celular e a TV precisam estar na mesma rede.",
+                    Txt.s(R.string.tv_connect_phone_help),
                     color = Color(0xFF9A9EA3), fontSize = 18.sp, modifier = Modifier.width(560.dp),
                 )
-                    TvButton("Digitar endereço", Modifier.focusRequester(btn)) { onAddress() }
+                    TvButton(Txt.s(R.string.tv_enter_address), Modifier.focusRequester(btn)) { onAddress() }
                 }
                 "noip" -> {
-                    Text("A TV está sem Wi-Fi nem Ethernet. Conecte-a à rede e tente de novo.", color = Color(0xFFE57373), fontSize = 18.sp, modifier = Modifier.width(560.dp))
-                    TvButton("Tentar de novo", Modifier.focusRequester(btn)) { gen++ }
-                    TvButton("Digitar endereço") { onAddress() }
+                    Text(Txt.s(R.string.tv_no_network), color = Color(0xFFE57373), fontSize = 18.sp, modifier = Modifier.width(560.dp))
+                    TvButton(Txt.s(R.string.retry), Modifier.focusRequester(btn)) { gen++ }
+                    TvButton(Txt.s(R.string.tv_enter_address)) { onAddress() }
                 }
                 else -> {
-                    Text("Tempo esgotado. Gere um QR novo.", color = Color(0xFFE57373), fontSize = 18.sp, modifier = Modifier.width(560.dp))
-                    TvButton("Gerar QR novo", Modifier.focusRequester(btn)) { gen++ }
-                    TvButton("Digitar endereço") { onAddress() }
+                    Text(Txt.s(R.string.tv_qr_expired), color = Color(0xFFE57373), fontSize = 18.sp, modifier = Modifier.width(560.dp))
+                    TvButton(Txt.s(R.string.tv_new_qr), Modifier.focusRequester(btn)) { gen++ }
+                    TvButton(Txt.s(R.string.tv_enter_address)) { onAddress() }
                 }
             }
         }

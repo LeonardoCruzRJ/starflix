@@ -70,7 +70,7 @@ class TvBridgeServer(
             if (h.isEmpty()) break
             if (h.startsWith("content-length:", true)) len = h.substringAfter(':').trim().toIntOrNull() ?: 0
         }
-        if (!req.startsWith("POST /pair") || len <= 0 || len > 8192) { reply(s, 400, "Pedido inválido."); return }
+        if (!req.startsWith("POST /pair") || len <= 0 || len > 8192) { reply(s, 400, Txt.s(R.string.tv_bad_request)); return }
         val buf = ByteArray(len)
         var n = 0
         while (n < len) {
@@ -78,11 +78,11 @@ class TvBridgeServer(
             if (r < 0) break
             n += r
         }
-        val j = try { JSONObject(String(buf, 0, n)) } catch (e: Exception) { reply(s, 400, "Pedido inválido."); return }
+        val j = try { JSONObject(String(buf, 0, n)) } catch (e: Exception) { reply(s, 400, Txt.s(R.string.tv_bad_request)); return }
         if (!MessageDigest.isEqual(j.optString("k").toByteArray(), key.toByteArray())) {
             bad++
             if (bad >= 3) { bad = 0; key = newKey(); ui.post { if (!closed) onKey(key) } }
-            reply(s, 403, "Chave inválida.")
+            reply(s, 403, Txt.s(R.string.tv_bad_key))
             return
         }
         val ticket = j.optString("ticket")
@@ -94,7 +94,7 @@ class TvBridgeServer(
             val i = TvApi.serverInfo(u, 3000)
             if (i != null) { info = i; url = u; break }
         }
-        if (info == null || ticket.isEmpty()) { reply(s, 502, "A TV não alcançou o servidor."); return }
+        if (info == null || ticket.isEmpty()) { reply(s, 502, Txt.s(R.string.tv_no_server)); return }
         when (val r = TvApi.tvClaim(url, ticket, Build.MODEL ?: "TV")) {
             is ClaimResult.Err -> reply(s, 410, r.msg)
             is ClaimResult.Ok -> {

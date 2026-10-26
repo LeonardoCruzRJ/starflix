@@ -273,8 +273,8 @@ fun TvDrawer(
                             }
                             Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x40FFFFFF)))
                             Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                DrawerRow(true, false, { userMenu = false; onSwitchProfile() }, ihDialog.focusRequester(firstReq), colors, { DrawerIcon("user") }, "Trocar Usuário")
-                                DrawerRow(true, false, { userMenu = false; onDisconnect() }, ihDialog, colors, { DrawerIcon("exit") }, "Desconectar TV")
+                                DrawerRow(true, false, { userMenu = false; onSwitchProfile() }, ihDialog.focusRequester(firstReq), colors, { DrawerIcon("user") }, Txt.s(R.string.tv_switch_user))
+                                DrawerRow(true, false, { userMenu = false; onDisconnect() }, ihDialog, colors, { DrawerIcon("exit") }, Txt.s(R.string.tv_disconnect))
                             }
                         }
                     }
@@ -294,12 +294,12 @@ fun TvDrawer(
                 verticalArrangement = Arrangement.spacedBy(if (open) 8.dp else 6.dp),
             ) {
                 DrawerRow(open, false, { userMenu = true }, ih, colors, { ProfileDot(server, profileName, profileColor, profilePhoto) }, profileName)
-                if (open) DrawerRow(open, selected == "mylist", { onNavigate("mylist") }, ih.then(if (selected == "mylist") Modifier.focusRequester(selReq) else Modifier), colors, { DrawerIcon("list") }, "Minhas Listas")
-                DrawerRow(open, selected == "search", { onNavigate("search") }, ih.then(if (selected == "search") Modifier.focusRequester(selReq) else Modifier), colors, { DrawerIcon("search") }, "Pesquisar")
-                DrawerRow(open, selected == "home", { onNavigate("home") }, ih.then(if (selected == "home") Modifier.focusRequester(selReq) else Modifier), colors, { DrawerIcon("home") }, "Início")
+                if (open) DrawerRow(open, selected == "mylist", { onNavigate("mylist") }, ih.then(if (selected == "mylist") Modifier.focusRequester(selReq) else Modifier), colors, { DrawerIcon("list") }, Txt.s(R.string.tv_my_lists))
+                DrawerRow(open, selected == "search", { onNavigate("search") }, ih.then(if (selected == "search") Modifier.focusRequester(selReq) else Modifier), colors, { DrawerIcon("search") }, Txt.s(R.string.tv_search))
+                DrawerRow(open, selected == "home", { onNavigate("home") }, ih.then(if (selected == "home") Modifier.focusRequester(selReq) else Modifier), colors, { DrawerIcon("home") }, Txt.s(R.string.tv_home))
                 if (open) {
                     Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Bibliotecas de mídia", color = DRAWER_MUTED, fontSize = 9.sp, maxLines = 1)
+                        Text(Txt.s(R.string.tv_media_libraries), color = DRAWER_MUTED, fontSize = 9.sp, maxLines = 1)
                         Spacer(Modifier.width(8.dp))
                         Box(Modifier.weight(1f).height(1.dp).background(Color(0x40FFFFFF)))
                     }

@@ -115,12 +115,6 @@ class WebActivity : AppCompatActivity() {
         fun scanTv() {
             runOnUiThread { tvScan.launch(Intent(this@WebActivity, QrScanActivity::class.java)) }
         }
-
-        /** 59.29: o site trocou o idioma (evento `sf:lang`): o app o acompanha sem recriar esta tela. */
-        @JavascriptInterface
-        fun setLang(code: String) {
-            runOnUiThread { AppLang.set(code); AppLang.syncCookie(baseUrl) }
-        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -205,7 +199,6 @@ class WebActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 CookieManager.getInstance().flush()
-                view?.evaluateJavascript("if(!window.__sfLangHook){window.__sfLangHook=1;document.addEventListener('sf:lang',function(e){try{StarflixApp.setLang(e.detail.lang)}catch(x){}})}", null)  // 59.29
                 if (!failed && !httpFailed) {
                     sessionRetried = false
                     error.visibility = View.GONE
@@ -275,8 +268,7 @@ class WebActivity : AppCompatActivity() {
      *  A troca do token pelo cookie é feita aqui, fora do WebView: o resultado (401, erro de rede…) é tratado pelo app e nenhuma resposta crua (JSON) chega à tela. */
     private fun openHome() {
         val t = ServerStore(this).deviceToken
-        AppLang.syncCookie(baseUrl)
-        if (t.isEmpty()) { web.loadUrl(baseUrl, AppLang.headers()); return }
+        if (t.isEmpty()) { web.loadUrl(baseUrl); return }
         web.visibility = View.GONE
         Thread {
             var code: Int
@@ -303,8 +295,7 @@ class WebActivity : AppCompatActivity() {
                         val cm = CookieManager.getInstance()
                         cookies.forEach { cm.setCookie(baseUrl, it) }
                         cm.flush()
-                        AppLang.syncCookie(baseUrl)
-                        web.loadUrl(baseUrl, AppLang.headers())
+                        web.loadUrl(baseUrl)
                     }
                     code == 401 -> {
                         ServerStore(this).deviceToken = ""

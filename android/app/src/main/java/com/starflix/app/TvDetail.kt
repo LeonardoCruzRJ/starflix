@@ -112,7 +112,7 @@ object TvDetailApi {
             val n = s.optInt("n")
             val count = s.optInt("count")
             val w = s.optInt("watched")
-            TvCard("season", showId, if (n == 0) "Especiais" else "Temporada $n", "$count ${if (count == 1) "episódio" else "episódios"}",
+            TvCard("season", showId, if (n == 0) Txt.s(R.string.tv_specials) else Txt.s(R.string.tv_season, n), Txt.n(R.plurals.tv_episodes_count, count),
                 s.str("image"), 0, count > 0 && w >= count, false, null, 0L, n)
         }
     }.orEmpty()
@@ -141,9 +141,9 @@ object TvDetailApi {
 
     private fun tech(j: JSONObject) = j.optJSONArray("tech")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
 
-    private fun playLabel(pos: Int) = if (pos > 0) "Continuar" else "Reproduzir"
+    private fun playLabel(pos: Int) = if (pos > 0) Txt.s(R.string.tv_continue) else Txt.s(R.string.tv_play)
 
-    private fun empty(kind: String, id: Long) = Detail(kind, id, "", "", "", null, null, null, "Reproduzir", "", 0, null, false, 0L, false,
+    private fun empty(kind: String, id: Long) = Detail(kind, id, "", "", "", null, null, null, Txt.s(R.string.tv_play), "", 0, null, false, 0L, false,
         emptyList(), emptyList(), emptyList(), emptyList(), "")
 
     fun load(server: String, token: String, profile: Long, t: Target): DetailResult = try {
@@ -153,7 +153,7 @@ object TvDetailApi {
             else -> "/api/tv/${t.kind}/${t.id}"
         }
         val (code, j) = TvApi.authed("GET", server, path, token, profile)
-        if (code != 200 || j == null) DetailResult.Err(if (code == 404) "Item indisponível." else "Erro do servidor ($code).") else {
+        if (code != 200 || j == null) DetailResult.Err(if (code == 404) Txt.s(R.string.tv_item_unavailable) else Txt.s(R.string.tv_server_error, code)) else {
             val base = empty(t.kind, t.id)
             val im = j.optJSONObject("images")
             val d = when (t.kind) {
@@ -165,18 +165,18 @@ object TvDetailApi {
                         backdrop = im?.str("backdrop")?.ifEmpty { null } ?: im?.str("poster"), poster = im?.str("poster"),
                         playPath = j.str("play").ifEmpty { null }, playLabel = playLabel(pos), playTitle = j.str("title"), position = pos,
                         watchKind = "movie", watched = j.optBoolean("watched"), listId = t.id, inList = j.optBoolean("in_list"),
-                        cast = cast(j), items = cards(j, "related"), itemsTitle = "Relacionados")
+                        cast = cast(j), items = cards(j, "related"), itemsTitle = Txt.s(R.string.tv_related))
                 }
                 "show" -> {
                     val pl = j.optJSONObject("play")
-                    val label = if (pl == null) "Reproduzir" else if (pl.optBoolean("next_up")) "Próximo: T${pl.optInt("season")} · E${pl.optInt("episode")}" else "Reproduzir"
+                    val label = if (pl == null) Txt.s(R.string.tv_play) else if (pl.optBoolean("next_up")) Txt.s(R.string.tv_next_up, pl.optInt("season"), pl.optInt("episode")) else Txt.s(R.string.tv_play)
                     base.copy(title = j.str("title"), overview = j.str("overview").ifEmpty { j.str("tagline") },
-                        meta = meta(j.optInt("year").takeIf { it > 0 }?.toString().orEmpty(), genres(j), "${j.optInt("watched_count")}/${j.optInt("total")} assistidos"),
+                        meta = meta(j.optInt("year").takeIf { it > 0 }?.toString().orEmpty(), genres(j), Txt.s(R.string.tv_watched_count, j.optInt("watched_count"), j.optInt("total"))),
                         logo = im?.str("logo")?.ifEmpty { null }, contentRating = j.str("content_rating"), badges = badges(j), directors = directors(j), reviews = reviews(j),
                         backdrop = im?.str("backdrop")?.ifEmpty { null } ?: im?.str("poster"), poster = im?.str("poster"),
                         playPath = pl?.str("url")?.ifEmpty { null }, playLabel = label, playTitle = j.str("title"),
                         listId = t.id, inList = j.optBoolean("in_list"),
-                        seasons = seasonCards(j, t.id), cast = cast(j), items = cards(j, "related"), itemsTitle = "Relacionados")
+                        seasons = seasonCards(j, t.id), cast = cast(j), items = cards(j, "related"), itemsTitle = Txt.s(R.string.tv_related))
                 }
                 "season" -> {
                     val show = j.optJSONObject("show")
@@ -186,14 +186,14 @@ object TvDetailApi {
                         val e = ea!!.getJSONObject(i)
                         val n = e.optInt("episode")
                         val ttl = e.str("title")
-                        TvCard("episode", e.optLong("id"), if (ttl.isEmpty()) "Episódio $n" else "$n. $ttl", "T${t.n} · E$n", e.str("image"),
+                        TvCard("episode", e.optLong("id"), if (ttl.isEmpty()) Txt.s(R.string.tv_episode, n) else "$n. $ttl", "T${t.n} · E$n", e.str("image"),
                             e.optInt("pct"), e.optBoolean("watched"), true, e.str("play").ifEmpty { null }, sid, e.optInt("position"))  // n = posição salva (s)
                     }
                     val nums = j.optJSONArray("seasons")?.let { a -> (0 until a.length()).map { a.getInt(it) } }.orEmpty()
                     val sj = try { TvApi.authed("GET", server, "/api/tv/show/$sid", token, profile).let { if (it.first == 200) it.second else null } } catch (e: TvUnauthorized) { throw e } catch (e: Exception) { null }
                     val sim = sj?.optJSONObject("images")
-                    base.copy(title = show?.str("title").orEmpty(), meta = if (t.n == 0) "Especiais" else "Temporada ${t.n}",
-                        overview = "${eps.size} ${if (eps.size == 1) "episódio" else "episódios"}", poster = "/season-poster/$sid/${t.n}",
+                    base.copy(title = show?.str("title").orEmpty(), meta = if (t.n == 0) Txt.s(R.string.tv_specials) else Txt.s(R.string.tv_season, t.n),
+                        overview = Txt.n(R.plurals.tv_episodes_count, eps.size), poster = "/season-poster/$sid/${t.n}",
                         backdrop = "/backdrop/$sid", episodes = eps, seasonNums = nums, showId = sid, listId = sid, inList = sj?.optBoolean("in_list") == true,
                         logo = sim?.str("logo")?.ifEmpty { null }, contentRating = sj?.str("content_rating").orEmpty(), cast = if (sj != null) cast(sj) else emptyList(), reviews = if (sj != null) reviews(sj) else emptyList())
                 }
@@ -201,7 +201,7 @@ object TvDetailApi {
                     val pos = j.optInt("position")
                     val s = j.optInt("season")
                     val n = j.optInt("episode")
-                    base.copy(title = j.str("title").ifEmpty { "Episódio $n" }, overview = j.str("overview"),
+                    base.copy(title = j.str("title").ifEmpty { Txt.s(R.string.tv_episode, n) }, overview = j.str("overview"),
                         meta = meta(j.str("show"), "T$s · E$n", j.str("air_date"), minutes(j.optInt("duration"))),
                         backdrop = j.str("image"), poster = j.str("image"),
                         playPath = j.str("play").ifEmpty { null }, playLabel = playLabel(pos), playTitle = "${j.str("show")} · T$s E$n", position = pos,
@@ -211,15 +211,15 @@ object TvDetailApi {
                     val next = j.optLong("next_id", 0L)
                     val its = cards(j, "items")
                     base.copy(title = j.str("title"), overview = j.str("overview"),
-                        meta = "${its.size} ${if (its.size == 1) "item" else "itens"}", poster = j.str("image"),
+                        meta = Txt.n(R.plurals.tv_items_count, its.size), poster = j.str("image"),
                         backdrop = j.str("backdrop").ifEmpty { j.str("image") },
                         playPath = if (next > 0 && its.any { it.id == next }) "/stream/movie/$next/play" else null, playTitle = j.str("title"),
-                        items = its, itemsTitle = "Itens")
+                        items = its, itemsTitle = Txt.s(R.string.tv_items))
                 }
                 else -> {  // playlist
                     val its = cards(j, "items")
-                    base.copy(title = j.str("title"), meta = "${its.size} ${if (its.size == 1) "item" else "itens"}", poster = j.str("image"),
-                        backdrop = j.str("image"), items = its, itemsTitle = "Itens")
+                    base.copy(title = j.str("title"), meta = Txt.n(R.plurals.tv_items_count, its.size), poster = j.str("image"),
+                        backdrop = j.str("image"), items = its, itemsTitle = Txt.s(R.string.tv_items))
                 }
             }
             DetailResult.Ok(d)
@@ -227,7 +227,7 @@ object TvDetailApi {
     } catch (e: TvUnauthorized) {
         DetailResult.Unauthorized
     } catch (e: Exception) {
-        DetailResult.Err("Servidor inacessível.")
+        DetailResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     private fun dateBr(raw: String): String = try {
@@ -323,14 +323,14 @@ fun DetailScreen(
         val want = !watched
         scope.launch {
             val r = withContext(Dispatchers.IO) { TvDetailApi.setWatched(server, token, profileId, kind, d.id, want) }
-            when (r) { true -> { watched = want; notice = "" }; null -> onUnauthorized(); false -> notice = "Não foi possível salvar." }
+            when (r) { true -> { watched = want; notice = "" }; null -> onUnauthorized(); false -> notice = Txt.s(R.string.tv_save_fail) }
         }
     }
 
     fun setEpWatched(id: Long, want: Boolean) {
         scope.launch {
             val r = withContext(Dispatchers.IO) { TvDetailApi.setWatched(server, token, profileId, "episode", id, want) }
-            when (r) { true -> { epWatched[id] = want; notice = "" }; null -> onUnauthorized(); false -> notice = "Não foi possível salvar." }
+            when (r) { true -> { epWatched[id] = want; notice = "" }; null -> onUnauthorized(); false -> notice = Txt.s(R.string.tv_save_fail) }
         }
     }
 
@@ -338,7 +338,7 @@ fun DetailScreen(
         val want = !inList
         scope.launch {
             val r = withContext(Dispatchers.IO) { TvDetailApi.setList(server, token, profileId, d.listId, want) }
-            when (r) { true -> { inList = want; notice = "" }; null -> onUnauthorized(); false -> notice = "Não foi possível salvar." }
+            when (r) { true -> { inList = want; notice = "" }; null -> onUnauthorized(); false -> notice = Txt.s(R.string.tv_save_fail) }
         }
     }
 
@@ -349,13 +349,13 @@ fun DetailScreen(
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, BG), startY = 400f)))
         }
         when {
-            result == null -> Text("Carregando…", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center).focusRequester(loadFr).focusable())
+            result == null -> Text(Txt.s(R.string.tv_loading), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center).focusRequester(loadFr).focusable())
             result is DetailResult.Err -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text((result as DetailResult.Err).msg, color = Color(0xFFE57373), fontSize = 20.sp)
                 Spacer(Modifier.height(16.dp))
-                TvButton("Tentar de novo", Modifier.width(260.dp).focusRequester(first)) { reload++ }
+                TvButton(Txt.s(R.string.retry), Modifier.width(260.dp).focusRequester(first)) { reload++ }
                 Spacer(Modifier.height(10.dp))
-                TvButton("Voltar", Modifier.width(260.dp)) { onBack() }
+                TvButton(Txt.s(R.string.http_back), Modifier.width(260.dp)) { onBack() }
             }
             ok != null -> {
                 val d = ok.d
@@ -386,21 +386,21 @@ fun DetailScreen(
                                 Text(d.title, color = TEXT, fontSize = 34.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 if (d.meta.isNotEmpty()) Text(d.meta, color = ACCENT, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
                                 if (d.overview.isNotEmpty()) Text(d.overview, color = TEXT, fontSize = 16.sp, maxLines = 5, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
-                                if (d.cast.isNotEmpty()) Text("Elenco: " + d.cast.take(8).joinToString(", ") { if (it.role.isEmpty()) it.name else "${it.name} (${it.role})" },
+                                if (d.cast.isNotEmpty()) Text(Txt.s(R.string.tv_cast_label) +  d.cast.take(8).joinToString(", ") { if (it.role.isEmpty()) it.name else "${it.name} (${it.role})" },
                                     color = MUTED, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
                                 Spacer(Modifier.height(18.dp))
                                 EnterAt(first) { Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     if (d.playPath != null) TvButton(d.playLabel, Modifier.width(250.dp).let { if (focusOn == "play") it.focusRequester(first) else it }) {
                                         onPlay(d.playPath, d.playTitle, d.position)
                                     }
-                                    if (d.watchKind != null) TvButton(if (watched) "✓ Assistido" else "Marcar assistido", Modifier.width(250.dp).let { if (focusOn == "watch") it.focusRequester(first) else it }) { toggleWatched(d) }
-                                    if (d.kind == "movie" || d.kind == "show") TvButton(if (inList) "✓ Minha Lista" else "+ Minha Lista", Modifier.width(250.dp).let { if (focusOn == "list") it.focusRequester(first) else it }) { toggleList(d) }
+                                    if (d.watchKind != null) TvButton(if (watched) Txt.s(R.string.tv_watched_btn) else Txt.s(R.string.tv_mark_watched_short), Modifier.width(250.dp).let { if (focusOn == "watch") it.focusRequester(first) else it }) { toggleWatched(d) }
+                                    if (d.kind == "movie" || d.kind == "show") TvButton(if (inList) Txt.s(R.string.tv_in_my_list) else Txt.s(R.string.tv_add_my_list), Modifier.width(250.dp).let { if (focusOn == "list") it.focusRequester(first) else it }) { toggleList(d) }
                                 } }
                                 Text(notice, color = Color(0xFFE57373), fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp).height(20.dp))
                             }
                         }
                     Spacer(Modifier.height(18.dp))
-                    val sections = listOf("Temporadas" to d.seasons, "Episódios" to d.episodes, d.itemsTitle to d.items).filter { it.second.isNotEmpty() }
+                    val sections = listOf(Txt.s(R.string.tv_seasons) to d.seasons, Txt.s(R.string.tv_episodes) to d.episodes, d.itemsTitle to d.items).filter { it.second.isNotEmpty() }
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
                     items(sections, key = { it.first }) { (title, list) ->
                         val fr = remember { FocusRequester() }
@@ -594,13 +594,13 @@ private fun MediaDetail(
                         .clickable { expanded = !expanded }
                         .padding(horizontal = 4.dp, vertical = 3.dp))
             }
-            if (d.directors.isNotEmpty()) Text("Dirigido por ${d.directors}", color = MUTED, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            if (d.directors.isNotEmpty()) Text(Txt.s(R.string.tv_directed_by, d.directors), color = MUTED, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 EnterAt(if (d.playPath != null) playReq else null) { Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (d.playPath != null) CircleBtn(d.playLabel, { hint = it }, Modifier.focusRequester(first).focusRequester(playReq), { onPlay(d.position) }) { iconPlay(it) }
-                    if (d.playPath != null && d.kind == "movie" && d.position > 0) CircleBtn("Do início", { hint = it }, Modifier, { onPlay(-1) }) { iconRestart(it) }
-                    CircleBtn(if (inList) "Remover da Minha Lista" else "Adicionar à Minha Lista", { hint = it }, Modifier, onToggleList) { iconList(it, inList) }
-                    if (d.watchKind != null) CircleBtn(if (watched) "Marcar como não assistido" else "Marcar como assistido", { hint = it }, Modifier, onToggleWatched) { iconCheck(it, watched) }
+                    if (d.playPath != null && d.kind == "movie" && d.position > 0) CircleBtn(Txt.s(R.string.tv_from_start), { hint = it }, Modifier, { onPlay(-1) }) { iconRestart(it) }
+                    CircleBtn(if (inList) Txt.s(R.string.tv_list_remove) else Txt.s(R.string.tv_list_add), { hint = it }, Modifier, onToggleList) { iconList(it, inList) }
+                    if (d.watchKind != null) CircleBtn(if (watched) Txt.s(R.string.tv_mark_unwatched) else Txt.s(R.string.tv_mark_watched), { hint = it }, Modifier, onToggleWatched) { iconCheck(it, watched) }
                     Text(if (notice.isNotEmpty()) notice else hint, color = if (notice.isNotEmpty()) Color(0xFFE57373) else MUTED, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp))
                 } }
                 Spacer(Modifier.weight(1f))
@@ -612,7 +612,7 @@ private fun MediaDetail(
             }
             if (d.seasons.isNotEmpty()) item("seasons") {
                 Column {
-                    Text("Temporadas", color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                    Text(Txt.s(R.string.tv_seasons), color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
                     FirstEnter(frSeasons) { st -> LazyRow(state = st, horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(start = 12.dp, end = 48.dp, top = 8.dp, bottom = 8.dp)) {
                         items(d.seasons, key = { it.type + it.id + ":" + it.n }) { c -> PosterCard(server, c, onFocus = {}, onOpen = onOpen, modifier = if (c === d.seasons.first()) Modifier.focusRequester(frSeasons) else Modifier) }
                     } }
@@ -620,7 +620,7 @@ private fun MediaDetail(
             }
             if (d.cast.isNotEmpty()) item("cast") {
                 Column {
-                    Text("Elenco & Equipe", color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                    Text(Txt.s(R.string.tv_cast_crew), color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
                     FirstEnter(frCast) { st -> LazyRow(state = st, horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(start = 12.dp, end = 48.dp, top = 8.dp, bottom = 8.dp)) {
                         items(d.cast, key = { it.name + it.role }) { c -> CastCircle(server, c, if (c === d.cast.first()) Modifier.focusRequester(frCast) else Modifier) }
                     } }
@@ -714,17 +714,17 @@ private fun SeasonDetail(
             Column {
                 // pílulas numa fileira que rola (séries com 8+ temporadas espremiam as últimas e o texto quebrava letra a letra, esticando a linha)
                 val pillState = androidx.compose.foundation.lazy.rememberLazyListState()
-                val cur = remember(d) { d.seasonNums.indexOfFirst { d.meta == (if (it == 0) "Especiais" else "Temporada $it") } + 1 }
+                val cur = remember(d) { d.seasonNums.indexOfFirst { d.meta == (if (it == 0) Txt.s(R.string.tv_specials) else Txt.s(R.string.tv_season, it)) } + 1 }
                 LaunchedEffect(cur) { pillState.scrollToItem((cur - 2).coerceAtLeast(0)) }
                 val curPill = remember { FocusRequester() }
                 val scope = rememberCoroutineScope()
                 // ↑ do conteúdo cai na temporada atual (não na 1ª); ao sair, a fileira volta a mostrar a atual para o foco poder retornar a ela
                 PillGroup(if (cur > 0) curPill else null, Modifier.fillMaxWidth(), onLeave = { scope.launch { pillState.scrollToItem((cur - 2).coerceAtLeast(0)) } }) {
                 LazyRow(Modifier.fillMaxWidth(), state = pillState, contentPadding = PaddingValues(end = 48.dp)) {
-                    item { SeasonPill("Série", false) { onOpen(showCard) } }
+                    item { SeasonPill(Txt.s(R.string.tv_series), false) { onOpen(showCard) } }
                     items(d.seasonNums.size) { k ->
                         val n = d.seasonNums[k]
-                        val lbl = if (n == 0) "Especiais" else "Temporada $n"
+                        val lbl = if (n == 0) Txt.s(R.string.tv_specials) else Txt.s(R.string.tv_season, n)
                         SeasonPill(lbl, d.meta == lbl, if (d.meta == lbl) Modifier.focusRequester(curPill) else Modifier) { onOpen(TvCard("season", d.showId, "", "", "", 0, false, false, null, 0L, n)) }
                     }
                 }
@@ -747,7 +747,7 @@ private fun SeasonDetail(
                     i?.badges?.forEach { Text(it, color = TEXT, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.background(Color(0x66000000), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) }
                 }
                 Text(i?.overview.orEmpty(), color = TEXT, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp).width(640.dp).height(lines(2, 18.sp)))
-                Text(if (i?.directors.isNullOrEmpty()) "" else "Dirigido por ${i!!.directors}", color = MUTED, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp).height(lines(1, 16.sp)))
+                Text(if (i?.directors.isNullOrEmpty()) "" else Txt.s(R.string.tv_directed_by, i!!.directors), color = MUTED, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp).height(lines(1, 16.sp)))
             }
         }
         item("tech") {
@@ -767,16 +767,16 @@ private fun SeasonDetail(
         }
         item("actions") {
             EnterAt(frAct) {             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (c?.play != null) CircleBtn(if (c.n > 0 && !isWatched) "Continuar" else "Reproduzir", { hint = it }, Modifier.focusRequester(frAct), { onPlay(c.play, c.title, c.n) }) { iconPlay(it) }
-                if (c?.play != null && c.n > 0 && !isWatched) CircleBtn("Do início", { hint = it }, Modifier, { onPlay(c.play, c.title, -1) }) { iconRestart(it) }
-                CircleBtn(if (inList) "Remover a série da Minha Lista" else "Adicionar a série à Minha Lista", { hint = it }, if (c?.play == null) Modifier.focusRequester(frAct) else Modifier, onToggleList) { iconList(it, inList) }
-                if (c != null) CircleBtn(if (isWatched) "Marcar como não assistido" else "Marcar como assistido", { hint = it }, Modifier, { onSetWatched(c.id, !isWatched) }) { iconCheck(it, isWatched) }
+                if (c?.play != null) CircleBtn(if (c.n > 0 && !isWatched) Txt.s(R.string.tv_continue) else Txt.s(R.string.tv_play), { hint = it }, Modifier.focusRequester(frAct), { onPlay(c.play, c.title, c.n) }) { iconPlay(it) }
+                if (c?.play != null && c.n > 0 && !isWatched) CircleBtn(Txt.s(R.string.tv_from_start), { hint = it }, Modifier, { onPlay(c.play, c.title, -1) }) { iconRestart(it) }
+                CircleBtn(if (inList) Txt.s(R.string.tv_list_remove_show) else Txt.s(R.string.tv_list_add_show), { hint = it }, if (c?.play == null) Modifier.focusRequester(frAct) else Modifier, onToggleList) { iconList(it, inList) }
+                if (c != null) CircleBtn(if (isWatched) Txt.s(R.string.tv_mark_unwatched) else Txt.s(R.string.tv_mark_watched), { hint = it }, Modifier, { onSetWatched(c.id, !isWatched) }) { iconCheck(it, isWatched) }
                 Text(if (notice.isNotEmpty()) notice else hint, color = if (notice.isNotEmpty()) Color(0xFFE57373) else MUTED, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp))
             } }
         }
         if (d.cast.isNotEmpty()) item("cast") {
             Column {
-                Text("Elenco & Equipe", color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                Text(Txt.s(R.string.tv_cast_crew), color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
                 FirstEnter(frCast) { st -> LazyRow(state = st, horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(start = 12.dp, end = 48.dp, top = 8.dp, bottom = 8.dp)) {
                     items(d.cast, key = { it.name + it.role }) { x -> CastCircle(server, x, if (x === d.cast.first()) Modifier.focusRequester(frCast) else Modifier) }
                 } }
@@ -829,7 +829,7 @@ private fun ReviewHead(r: Review) {
 @Composable
 private fun ReviewsRow(reviews: List<Review>, first: FocusRequester? = null, onAll: () -> Unit) {
     Column {
-        Text("Avaliações & Análises", color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+        Text(Txt.s(R.string.tv_reviews), color = TEXT, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
         FirstEnter(first) { st -> LazyRow(state = st, horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(start = 12.dp, end = 48.dp, top = 8.dp, bottom = 8.dp)) {
             items(reviews.take(8).size, key = { it }) { i ->
                 val r = reviews[i]
@@ -845,7 +845,7 @@ private fun ReviewsRow(reviews: List<Review>, first: FocusRequester? = null, onA
             item("all") {
                 Card(onClick = onAll, shape = CardDefaults.shape(RoundedCornerShape(50)), colors = CardDefaults.colors(containerColor = Color(0x66000000)),
                     border = CardDefaults.border(focusedBorder = Border(BorderStroke(3.dp, Color.White)))) {
-                    Text("Ver todos", color = TEXT, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp))
+                    Text(Txt.s(R.string.tv_see_all), color = TEXT, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp))
                 }
             }
         } }
@@ -859,7 +859,7 @@ private fun ReviewsDialog(reviews: List<Review>, onClose: () -> Unit) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onClose, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0xF2101214)).padding(horizontal = 80.dp, vertical = 32.dp)) {
             Column {
-                Text("Avaliações & Análises", color = TEXT, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+                Text(Txt.s(R.string.tv_reviews), color = TEXT, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 40.dp)) {
                     items(reviews.size, key = { it }) { i ->
                         val r = reviews[i]

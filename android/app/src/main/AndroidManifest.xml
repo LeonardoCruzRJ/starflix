@@ -13,6 +13,7 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
     <application
+        android:name=".SfApp"
         android:allowBackup="false"
         android:localeConfig="@xml/locales_config"
         android:banner="@drawable/starflix_banner"
@@ -68,7 +69,7 @@
             android:exported="false" />
         <activity
             android:name=".WebActivity"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|locale|layoutDirection"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="false" />
         <activity
             android:name=".PlayerActivity"

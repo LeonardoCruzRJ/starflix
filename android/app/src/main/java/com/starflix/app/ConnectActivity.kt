@@ -112,20 +112,6 @@ class ConnectActivity : AppCompatActivity() {
         val contentW = minOf(resources.displayMetrics.widthPixels - dp(48), dp(420))
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        // 59.29: seletor de idioma do app (a tela se recria no novo idioma)
-        val langBtn = label("🌐  " + AppLang.nameOf(AppLang.current()), 14f, MUTED).apply {
-            setPadding(dp(14), dp(8), dp(14), dp(8))
-            background = round(0x1AFFFFFF, 20)
-            isFocusable = true
-            setOnClickListener {
-                val codes = AppLang.LANGS.map { it.first }
-                AlertDialog.Builder(this@ConnectActivity).setTitle(R.string.language_title)
-                    .setSingleChoiceItems(AppLang.LANGS.map { it.second }.toTypedArray(), codes.indexOf(AppLang.current())) { d, i -> d.dismiss(); AppLang.set(codes[i]) }
-                    .setNegativeButton(R.string.next_cancel, null).show()
-            }
-        }
-        content.addView(langBtn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.END; bottomMargin = dp(8) })
-
         val logo = StarflixLogoView(this)
         content.addView(logo, LinearLayout.LayoutParams((contentW * 0.8f).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER_HORIZONTAL })
         content.addView(label(getString(R.string.connect_welcome), 24f, Color.WHITE, true), lp(28))

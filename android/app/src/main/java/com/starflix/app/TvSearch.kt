@@ -51,7 +51,7 @@ sealed class ListResult {
 object TvSearchApi {
     fun search(server: String, token: String, profile: Long, q: String): ListResult = try {
         val (code, j) = TvApi.authed("GET", server, "/api/tv/search?q=" + URLEncoder.encode(q, "UTF-8"), token, profile)
-        if (code != 200 || j == null) ListResult.Err("Erro do servidor ($code).") else {
+        if (code != 200 || j == null) ListResult.Err(Txt.s(R.string.tv_server_error, code)) else {
             val all = listOf("movies", "shows", "videos", "collections").flatMap { k ->
                 j.optJSONArray(k)?.let { a -> (0 until a.length()).map { TvHomeApi.parseCard(a.getJSONObject(it)) } }.orEmpty()
             }
@@ -60,19 +60,19 @@ object TvSearchApi {
     } catch (e: TvUnauthorized) {
         ListResult.Unauthorized
     } catch (e: Exception) {
-        ListResult.Err("Servidor inacessível.")
+        ListResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 
     fun myList(server: String, token: String, profile: Long): ListResult = try {
         val (code, j) = TvApi.authed("GET", server, "/api/tv/mylist", token, profile)
-        if (code != 200 || j == null) ListResult.Err("Erro do servidor ($code).") else {
+        if (code != 200 || j == null) ListResult.Err(Txt.s(R.string.tv_server_error, code)) else {
             val a = j.optJSONArray("items")
             ListResult.Ok((0 until (a?.length() ?: 0)).map { TvHomeApi.parseCard(a!!.getJSONObject(it)) }.map { it.copy(wide = false) })
         }
     } catch (e: TvUnauthorized) {
         ListResult.Unauthorized
     } catch (e: Exception) {
-        ListResult.Err("Servidor inacessível.")
+        ListResult.Err(Txt.s(R.string.tv_server_unreachable))
     }
 }
 
@@ -140,7 +140,7 @@ fun SearchScreen(
     Row(Modifier.fillMaxSize().background(BG).padding(start = DRAWER_INSET + 8.dp, top = 28.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
         Column(Modifier.width(400.dp)) {
             Box(Modifier.width(400.dp).background(Color(0xFF2F3236), RoundedCornerShape(8.dp)).padding(14.dp)) {
-                Text(if (q.isEmpty()) "Buscar filmes e séries" else q, color = if (q.isEmpty()) MUTED else TEXT, fontSize = 24.sp, maxLines = 1)
+                Text(if (q.isEmpty()) Txt.s(R.string.tv_search_hint) else q, color = if (q.isEmpty()) MUTED else TEXT, fontSize = 24.sp, maxLines = 1)
             }
             Spacer(Modifier.height(12.dp))
             val rows = listOf("abcdef", "ghijkl", "mnopqr", "stuvwx", "yz1234", "567890")
@@ -153,25 +153,25 @@ fun SearchScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
-                TvButton("Espaço", Modifier.width(126.dp).rowNav(kreq, rows.size, 0)) { if (q.isNotEmpty() && !q.endsWith(" ")) q += " " }
-                TvButton("Apagar", Modifier.width(126.dp).rowNav(kreq, rows.size, 1)) { q = q.dropLast(1) }
-                TvButton("Limpar", Modifier.width(126.dp).rowNav(kreq, rows.size, 2)) { q = "" }
+                TvButton(Txt.s(R.string.tv_space), Modifier.width(126.dp).rowNav(kreq, rows.size, 0)) { if (q.isNotEmpty() && !q.endsWith(" ")) q += " " }
+                TvButton(Txt.s(R.string.tv_key_delete), Modifier.width(126.dp).rowNav(kreq, rows.size, 1)) { q = q.dropLast(1) }
+                TvButton(Txt.s(R.string.tv_key_clear), Modifier.width(126.dp).rowNav(kreq, rows.size, 2)) { q = "" }
             }
-            if (canSpeak) TvButton("Ditar", Modifier.width(390.dp).padding(top = 6.dp).rowNav(kreq, rows.size + 1, 0)) {
+            if (canSpeak) TvButton(Txt.s(R.string.tv_key_dictate), Modifier.width(390.dp).padding(top = 6.dp).rowNav(kreq, rows.size + 1, 0)) {
                 runCatching { speech.launch(speechIntent) }
             }
         }
         Box(Modifier.fillMaxSize()) {
             val r = res
             when {
-                q.isBlank() -> Text("Digite para buscar.", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
-                r == null -> Text("Buscando…", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                q.isBlank() -> Text(Txt.s(R.string.tv_type_to_search), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                r == null -> Text(Txt.s(R.string.tv_searching_items), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 r is ListResult.Err -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(r.msg, color = ERR, fontSize = 20.sp)
                     Spacer(Modifier.height(16.dp))
-                    TvButton("Tentar de novo", Modifier.width(260.dp)) { res = null; retry++ }
+                    TvButton(Txt.s(R.string.retry), Modifier.width(260.dp)) { res = null; retry++ }
                 }
-                r is ListResult.Ok && r.items.isEmpty() -> Text("Nada encontrado para \"${q.trim()}\".", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                r is ListResult.Ok && r.items.isEmpty() -> Text(Txt.s(R.string.tv_nothing_found, q.trim()), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 r is ListResult.Ok -> CardGrid(server, r.items, onOpen, Modifier.fillMaxSize())
             }
         }
@@ -194,18 +194,18 @@ fun MyListScreen(server: String, token: String, profileId: Long, onOpen: (TvCard
     }
     LaunchedEffect(res) { if (res != null) runCatching { first.requestFocus() } }
     Column(Modifier.fillMaxSize().background(BG).padding(start = DRAWER_INSET + 8.dp, top = 28.dp, end = 24.dp)) {
-        Text("Minha Lista", color = TEXT, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text(Txt.s(R.string.tv_my_list), color = TEXT, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         Box(Modifier.fillMaxSize()) {
             val r = res
             when {
-                r == null -> Text("Carregando…", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                r == null -> Text(Txt.s(R.string.tv_loading), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 r is ListResult.Err -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(r.msg, color = ERR, fontSize = 20.sp)
                     Spacer(Modifier.height(16.dp))
-                    TvButton("Tentar de novo", Modifier.width(260.dp).focusRequester(first)) { reload++ }
+                    TvButton(Txt.s(R.string.retry), Modifier.width(260.dp).focusRequester(first)) { reload++ }
                 }
-                r is ListResult.Ok && r.items.isEmpty() -> Text("Sua lista está vazia. Adicione itens pela página de detalhes.", color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+                r is ListResult.Ok && r.items.isEmpty() -> Text(Txt.s(R.string.tv_list_empty), color = MUTED, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
                 r is ListResult.Ok -> CardGrid(server, r.items, onOpen, Modifier.fillMaxSize(), first)
             }
         }

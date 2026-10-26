@@ -50,5 +50,6 @@ lit run.py::Erro não tratado
 file scripts/i18n_build.py
 # 59.28: mensagem interna (exceção do pool de descoberta, nunca mostrada)
 lit android/app/src/main/java/com/starflix/app/MainActivity.kt::outro servidor
-# 59.29: nomes dos idiomas na própria língua
-file android/app/src/main/java/com/starflix/app/AppLang.kt
+# 59.30: mensagens internas (exceções, nunca mostradas)
+lit android/app/src/main/java/com/starflix/app/TvApi.kt::Token inválido
+lit android/app/src/main/java/com/starflix/app/Txt.kt::Txt.init não chamado

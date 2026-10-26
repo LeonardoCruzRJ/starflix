@@ -133,19 +133,19 @@ fun PairScreen(server: String, onPaired: (token: String) -> Unit) {
             val i = info
             if (i != null) {
                 val bmp = remember(i.code, server) { qrBitmap("$server/tv?code=${i.code}").asImageBitmap() }
-                Image(bmp, contentDescription = "QR code de pareamento", modifier = Modifier.fillMaxSize())
+                Image(bmp, contentDescription = Txt.s(R.string.tv_pair_qr_desc), modifier = Modifier.fillMaxSize())
             } else {
-                Text("Gerando código…", color = Color.Black, fontSize = 20.sp)
+                Text(Txt.s(R.string.tv_generating), color = Color.Black, fontSize = 20.sp)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Logo(40)
-            Text("Conecte esta TV à sua conta", color = TEXT, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("Escaneie o QR code com o celular ou abra o endereço abaixo no navegador e digite o código.", color = MUTED, fontSize = 18.sp, modifier = Modifier.width(560.dp))
+            Text(Txt.s(R.string.tv_connect_account), color = TEXT, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text(Txt.s(R.string.tv_scan_help), color = MUTED, fontSize = 18.sp, modifier = Modifier.width(560.dp))
             Text("$server/tv", color = TEXT, fontSize = 24.sp)
             Text(info?.code?.chunked(3)?.joinToString(" ") ?: "······", color = ACCENT, fontSize = 64.sp, fontWeight = FontWeight.Bold)
             Text(error, color = Color(0xFFE57373), fontSize = 16.sp, modifier = Modifier.height(22.dp))
-            if (error.isNotEmpty()) TvButton("Tentar de novo", Modifier.width(260.dp).focusRequester(retryFocus)) { error = ""; info = null; retry++ }
+            if (error.isNotEmpty()) TvButton(Txt.s(R.string.retry), Modifier.width(260.dp).focusRequester(retryFocus)) { error = ""; info = null; retry++ }
         }
     }
 }
@@ -184,7 +184,7 @@ fun ProfileScreen(server: String, token: String, onPicked: (TvProfile) -> Unit, 
             when (ok) {
                 true -> onPicked(p)
                 null -> onUnauthorized()
-                false -> error = "Não foi possível escolher o perfil."
+                false -> error = Txt.s(R.string.tv_profile_fail)
             }
         }
     }
@@ -192,17 +192,17 @@ fun ProfileScreen(server: String, token: String, onPicked: (TvProfile) -> Unit, 
     Column(Modifier.fillMaxSize().background(BG).padding(horizontal = 80.dp, vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Logo(36)
         Spacer(Modifier.height(12.dp))
-        Text("Quem está assistindo?", color = TEXT, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(Txt.s(R.string.tv_who), color = TEXT, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(24.dp))
         val list = profiles
         when {
-            list == null && error.isEmpty() -> Text("Carregando perfis…", color = MUTED, fontSize = 20.sp)
+            list == null && error.isEmpty() -> Text(Txt.s(R.string.tv_loading_profiles), color = MUTED, fontSize = 20.sp)
             list == null -> {
                 Text(error, color = Color(0xFFE57373), fontSize = 18.sp)
                 Spacer(Modifier.height(16.dp))
-                TvButton("Tentar de novo", Modifier.width(260.dp).focusRequester(first)) { profiles = null; reload++ }
+                TvButton(Txt.s(R.string.retry), Modifier.width(260.dp).focusRequester(first)) { profiles = null; reload++ }
             }
-            list.isEmpty() -> Text("Nenhum perfil. Crie um perfil no site e tente de novo.", color = MUTED, fontSize = 20.sp)
+            list.isEmpty() -> Text(Txt.s(R.string.tv_no_profiles), color = MUTED, fontSize = 20.sp)
             else -> EnterAt(first) { FlowRow(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
                 list.forEachIndexed { i, p ->
                     val color = runCatching { Color(android.graphics.Color.parseColor(p.color)) }.getOrDefault(ACCENT)
