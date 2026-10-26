@@ -31,7 +31,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
         Thread {
-            val hit = pick(store)
+            // 60.3: ninguém respondeu (porta ou IP do servidor mudou): procura por mDNS o servidor de mesmo id e grava o endereço novo
+            val hit = pick(store) ?: ServerRefind.byId(this, store.id)
             if (hit != null) store.save(hit.first, hit.second, preferExternal = true)  // celular grava o externo; aprende endereços novos (mudança de domínio)
             val base = hit?.second ?: store.current.ifBlank { store.urls.first() }  // ninguém respondeu: a página de erro oferece "Tentar de novo"
             runOnUiThread {

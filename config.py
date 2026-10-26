@@ -2,7 +2,9 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-PORT = 32000  # porta fixa
+DEFAULT_PORT = 32000
+PORT = DEFAULT_PORT  # 60.1: porta de escuta; run.py a troca pela salva em Configurações → Servidor (settings.server_port)
+RESTART_ON_PORT = False  # 60.1: run.py liga quando roda como servidor; a troca de porta reinicia o processo só se for True
 VERSION = "1.0.665"  # 58.2: sobe a cada entrega (igual ao versionName do app); aparece em /api/server-info
 MAX_TRANSCODES = int(os.environ.get("STARFLIX_MAX_TRANSCODES", 3))  # ffmpeg simultâneos (0 = sem limite)
 MIN_FREE_GB = float(os.environ.get("STARFLIX_MIN_FREE_GB", 5))  # espaço livre mínimo em data/transcode (0 = sem limite)

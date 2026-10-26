@@ -15,8 +15,9 @@
         <input type="text" id="sv-url" class="la-q sv-in" placeholder="https://meuservidor.com" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url" disabled>
         <button type="button" class="la-btn" id="sv-test" disabled data-i18n="sv.test">{{ t('sv.test') }}</button>
       </label>
-      <label class="hl-opt"><span data-i18n="admin.server.default_lang">{{ t('admin.server.default_lang') }}</span>
-        <select id="sv-lang" class="la-q sv-in" disabled>{% for code, nm in i18n_langs %}<option value="{{ code }}">{{ nm }}</option>{% endfor %}</select>
+      <label class="hl-opt"><span data-i18n="sv.port">{{ t('sv.port') }}</span>
+        <input type="number" id="sv-port" class="la-q sv-in" min="1024" max="65535" step="1" inputmode="numeric" disabled>
+        <button type="button" class="la-btn" id="sv-port-test" disabled data-i18n="sv.test" data-i18n-title="sv.port_test_tip" title="{{ t('sv.port_test_tip') }}">{{ t('sv.test') }}</button>
       </label>
       <label class="hl-opt sv-chk"><input type="checkbox" id="sv-mdns" disabled> <span data-i18n="sv.mdns">{{ t('sv.mdns') }}</span></label>
       <span class="hl-msg" id="sv-msg" role="status"></span>

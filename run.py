@@ -18,7 +18,7 @@ from server.admin_edit import bp as admin_edit_bp
 from server.admin_media import bp as admin_media_bp
 from server.admin_home import bp as admin_home_bp
 from server.admin_panel import bp as admin_panel_bp
-from server.admin_server import bp as admin_server_bp
+from server.admin_server import bp as admin_server_bp, load_port
 from server.phone_auth import bp as phone_auth_bp, phone_alive, phone_token_valid
 from server.agents import bp as agents_bp, load_keys
 from server.browse import bp as browse_bp
@@ -52,6 +52,7 @@ from server.users import bp as users_bp
 
 init_db()
 load_keys()  # 45.5: chaves de API (TMDB/TVDB/OMDB) do banco para o config
+load_port()  # 60.1: porta salva em Configurações → Servidor (padrão 32000)
 
 
 def load_secret():
@@ -284,6 +285,7 @@ def index():
 
 
 if __name__ == "__main__":
+    config.RESTART_ON_PORT = True  # 60.1: trocar a porta em Configurações → Servidor reinicia este processo
     start_periodic(config.SCAN_INTERVAL)
     start_cleanup()
     start_discovery()  # 58.3: anúncio mDNS (falha em silêncio)

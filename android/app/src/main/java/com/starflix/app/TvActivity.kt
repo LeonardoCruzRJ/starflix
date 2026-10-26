@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +117,13 @@ class TvActivity : ComponentActivity() {
                 var splash by rememberSaveable { mutableStateOf(true) }   // pré-loading só ao abrir o app
                 if (splash) { SplashScreen { splash = false }; return@MaterialTheme }
                 var screen by remember { mutableStateOf(start()) }
+                // 60.3: o servidor trocou de porta (ou de IP)? confere a cada 30 s; se o endereço guardado não responde, acha o mesmo servidor por mDNS e recomeça com o endereço novo
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        if (withContext(Dispatchers.IO) { healServer() }) { TvWatchNext.refresh(this@TvActivity, store, 0L); recreate(); break }
+                        delay(30_000)
+                    }
+                }
                 var homeFocus by remember { mutableStateOf<String?>(null) }   // último card focado no Início (Voltar restaura)
                 var libId by remember { mutableStateOf(0L) }
                 var libName by remember { mutableStateOf("") }
@@ -260,6 +268,18 @@ class TvActivity : ComponentActivity() {
                 .putExtra(PlayerActivity.EXTRA_PROFILE, store.profileId)
                 .apply { if (position < 0) putExtra(PlayerActivity.EXTRA_START, 0) },  // -1 = "Do início": ignora a posição salva
         )
+    }
+
+    /** 60.3: true se o endereço guardado deixou de responder e o mesmo servidor (id) foi achado em outro endereço, já gravado em [store] e em [ServerStore]. */
+    private fun healServer(): Boolean {
+        val cur = store.server
+        if (cur.isBlank() || TvApi.serverInfo(cur, 3000) != null) return false
+        val st = ServerStore(this)
+        val (info, url) = ServerRefind.byId(this, st.id) ?: return false
+        if (url == cur) return false
+        st.save(info, url)
+        store.server = url
+        return true
     }
 
     private fun start() = when {

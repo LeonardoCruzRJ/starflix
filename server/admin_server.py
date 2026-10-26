@@ -1,10 +1,13 @@
-"""58.1: Configurações → Servidor (/admin/server): nome, endereço externo (que os apps usam fora de casa), endereços locais
-detectados e interruptor do mDNS (58.3). Valores em `settings`: server_name, server_url, server_id (uuid estável, nasce na 1ª
+"""58.1: Configurações → Servidor (/admin/server): nome, endereço externo (que os apps usam fora de casa), porta (60.1), endereços locais
+detectados e interruptor do mDNS (58.3). Valores em `settings`: server_name, server_url, server_port, server_id (uuid estável, nasce na 1ª
 leitura) e mdns_enabled."""
 import ipaddress
+import os
 import re
 import socket
 import subprocess
+import sys
+import threading
 import time
 import uuid
 from urllib.parse import urlsplit
@@ -13,7 +16,6 @@ from flask import Blueprint, jsonify, render_template, request
 
 import config
 from server.auth import admin_required
-from server import i18n
 from server.i18n import E, jerr
 from server.db import get_db
 from server.libraries import get_setting
@@ -53,9 +55,54 @@ def mdns_enabled(conn):
     return get_setting(conn, "mdns_enabled", "1") != "0"
 
 
-def default_lang(conn):
-    """59.2: idioma padrão do servidor (settings.default_lang); vale quando o usuário não escolheu e o navegador não pede um idioma suportado."""
-    return i18n.norm(get_setting(conn, "default_lang", "")) or i18n.DEFAULT
+PORT_MIN, PORT_MAX = 1024, 65535
+
+
+def get_port(conn):
+    """60.1: porta salva em Configurações → Servidor (settings.server_port); inválida ou ausente = 32000."""
+    try:
+        p = int(get_setting(conn, "server_port", "") or 0)
+    except ValueError:
+        p = 0
+    return p if PORT_MIN <= p <= PORT_MAX else config.DEFAULT_PORT
+
+
+def load_port():
+    """60.1: na partida (run.py), banco → config.PORT."""
+    with get_db() as conn:
+        config.PORT = get_port(conn)
+
+
+def port_free(port):
+    """60.1: a porta pode ser aberta por este servidor? (a porta atual já é nossa, então vale sempre)."""
+    if port == config.PORT:
+        return True
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("0.0.0.0", port))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
+def restart_soon(delay=1.5):
+    """60.1: reinicia o processo (execv, mesmo PID, o systemd não percebe) para abrir a porta nova; antes encerra o anúncio mDNS
+    (os apps não ficam com o endereço velho). Só roda sob run.py (`config.RESTART_ON_PORT`); em testes não faz nada."""
+    if not config.RESTART_ON_PORT:
+        return
+
+    def go():
+        time.sleep(delay)
+        try:
+            from server import discovery
+            discovery._stop()
+        except Exception:
+            pass
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+    threading.Thread(target=go, daemon=True, name="port-restart").start()
 
 
 def public_base(conn):
@@ -158,7 +205,7 @@ def _warning(url):
 
 def _payload(conn):
     url = get_server_url(conn)
-    return {"name": get_server_name(conn), "url": url, "id": get_server_id(conn), "mdns": mdns_enabled(conn), "lang": default_lang(conn),
+    return {"name": get_server_name(conn), "url": url, "id": get_server_id(conn), "mdns": mdns_enabled(conn),
             "port": config.PORT, "local": local_addresses(), "request_url": request.host_url.rstrip("/"), "warning": _warning(url), "brand": __import__("server.branding", fromlist=["x"]).admin_state(conn)}
 
 
@@ -185,6 +232,61 @@ def normalize():
     return jsonify(url=url)
 
 
+GLOBALPING = "https://api.globalping.io/v1/measurements"  # 60.6: sondas públicas pela internet (jsDelivr Globalping, sem chave)
+
+
+def internet_check(host, port, sid, wait=25):
+    """60.6: pede a sondas espalhadas pela internet um GET http://host:port/api/server-info e conta as que receberam a resposta deste servidor
+    (mesmo `id`). Devolve (alcançaram, total). Levanta exceção se o serviço não responder ou não trouxer resultado."""
+    import requests
+    hdr = {"User-Agent": "StarFlix/" + config.VERSION}
+    body = {"type": "http", "target": host, "limit": 3, "locations": [],
+            "measurementOptions": {"protocol": "HTTP", "port": port, "request": {"method": "GET", "path": "/api/server-info"}}}
+    r = requests.post(GLOBALPING, json=body, headers=hdr, timeout=10)
+    r.raise_for_status()
+    url = f"{GLOBALPING}/{r.json()['id']}"
+    end = time.time() + wait
+    g = {}
+    while time.time() < end:
+        time.sleep(1.5)
+        g = requests.get(url, headers=hdr, timeout=10).json()
+        if g.get("status") != "in-progress":
+            break
+    res = g.get("results") or []
+    if not res:
+        raise RuntimeError("sem resultados")
+    ok = sum(1 for x in res if (x.get("result") or {}).get("status") == "finished" and (x.get("result") or {}).get("statusCode") == 200
+             and sid in ((x.get("result") or {}).get("rawBody") or ""))
+    return ok, len(res)
+
+
+@bp.route("/admin/server/port-check", methods=["POST"])
+@admin_required
+def port_check():
+    """60.5/60.6: botão Testar ao lado da porta. Porta em uso por este servidor → testa pela internet (host do endereço externo + porta,
+    por sondas públicas do Globalping; só ao clicar); outra porta → só diz se está livre para ser aberta ao salvar."""
+    d = request.get_json(silent=True)
+    port = d.get("port") if isinstance(d, dict) else None
+    if isinstance(port, bool) or not isinstance(port, int) or not PORT_MIN <= port <= PORT_MAX:
+        return jerr("err.porta_fora_faixa", 400, vars={"min": PORT_MIN, "max": PORT_MAX})
+    if port != config.PORT:
+        if not port_free(port):
+            return jerr("err.porta_em_uso", 400, vars={"port": port})
+        return jsonify(port=port, current=False, free=True)
+    with get_db() as conn:
+        url, sid = get_server_url(conn), get_server_id(conn)
+    host = urlsplit(url).hostname if url else None
+    if not host:
+        return jerr("sv.need_url", 400)
+    if is_private_host(host):
+        return jerr("sv.warn_local", 400)
+    try:
+        ok, total = internet_check(host, port, sid)
+    except Exception:
+        return jerr("err.teste_internet_falhou", 502)
+    return jsonify(port=port, current=True, ok=ok, total=total)
+
+
 @bp.route("/admin/server/save", methods=["POST"])
 @admin_required
 def save():
@@ -195,9 +297,13 @@ def save():
         cur = _payload(conn)
     name = d.get("name", cur["name"])
     mdns = d.get("mdns", cur["mdns"])
-    lang = d.get("lang", cur["lang"])
-    if not isinstance(name, str) or len(name.strip()) > NAME_MAX or not isinstance(mdns, bool) or lang not in i18n.CODES:
+    port = d.get("port", cur["port"])
+    if not isinstance(name, str) or len(name.strip()) > NAME_MAX or not isinstance(mdns, bool) or isinstance(port, bool) or not isinstance(port, int):
         return jerr("err.opcao_invalida", 400)
+    if not PORT_MIN <= port <= PORT_MAX:
+        return jerr("err.porta_fora_faixa", 400, vars={"min": PORT_MIN, "max": PORT_MAX})
+    if not port_free(port):
+        return jerr("err.porta_em_uso", 400, vars={"port": port})
     url, err = normalize_url(d["url"]) if "url" in d else (cur["url"], None)  # ausente = mantém o atual
     if err:
         return jerr(err, 400)
@@ -205,9 +311,14 @@ def save():
         _upsert(conn, "server_name", name.strip() or NAME_DEFAULT)
         _upsert(conn, "server_url", url)
         _upsert(conn, "mdns_enabled", "1" if mdns else "0")
-        _upsert(conn, "default_lang", lang)
+        _upsert(conn, "server_port", str(port))
         conn.commit()
         out = _payload(conn)
+    out["restart"] = port != config.PORT  # 60.1: a porta nova só abre com o processo reiniciado
+    if out["restart"]:
+        out["new_port"] = port
+        restart_soon()
+        return jsonify(out)
     from server import discovery  # 58.3: import tardio (discovery importa este módulo)
     discovery.refresh_async()
     return jsonify(out)

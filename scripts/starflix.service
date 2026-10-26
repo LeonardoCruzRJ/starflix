@@ -1,5 +1,5 @@
 [Unit]
-Description=StarFlix - servidor de vídeo (porta 32000)
+Description=StarFlix - servidor de vídeo (porta padrão 32000)
 After=network-online.target remote-fs.target
 Wants=network-online.target
 

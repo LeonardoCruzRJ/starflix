@@ -6,7 +6,7 @@
     sudo systemctl start starflix
 
 O banco atual vira data/starflix.db.antes-restore e as fotos atuais, data/avatars.antes-restore (a cópia anterior, se houver, é substituída).
-Use --force só se tiver certeza de que o servidor está parado (o teste da porta 32000 pode falhar numa porta diferente)."""
+Use --force só se tiver certeza de que o servidor está parado (o teste da porta salva em Configurações → Servidor pode falhar numa porta diferente)."""
 import os
 import re
 import shutil
@@ -27,11 +27,21 @@ def die(msg):
     sys.exit(1)
 
 
+def server_port():
+    """60.1: porta salva em Configurações → Servidor (banco atual); sem banco ou sem valor, 32000."""
+    try:
+        r = sqlite3.connect("file:" + config.DB_PATH + "?mode=ro", uri=True).execute("SELECT value FROM settings WHERE key = 'server_port'").fetchone()
+        p = int(r[0]) if r else 0
+    except (sqlite3.Error, ValueError, TypeError):
+        p = 0
+    return p if 1024 <= p <= 65535 else config.DEFAULT_PORT
+
+
 def server_running():
     s = socket.socket()
     s.settimeout(1)
     try:
-        return s.connect_ex(("127.0.0.1", config.PORT)) == 0
+        return s.connect_ex(("127.0.0.1", server_port())) == 0
     finally:
         s.close()
 
@@ -45,7 +55,7 @@ def main(argv):
     if not zipfile.is_zipfile(src):
         die("não é um arquivo zip válido: " + src)
     if not force and server_running():
-        die(f"o servidor parece estar ligado (porta {config.PORT} responde). Pare com: sudo systemctl stop starflix")
+        die(f"o servidor parece estar ligado (porta {server_port()} responde). Pare com: sudo systemctl stop starflix")
     with zipfile.ZipFile(src) as z:
         names = z.namelist()
         if "starflix.db" not in names:

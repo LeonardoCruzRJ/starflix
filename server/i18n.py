@@ -125,8 +125,8 @@ def t(key, lang=None, **vars):
 
 
 # ---- 59.2: idioma ativo -----------------------------------------------------------------------------------------------
-def pick(profile=None, account=None, cookie=None, accept=(), server=None):
-    """Ordem: perfil → conta → cookie `sf_lang` → Accept-Language → padrão do servidor → pt-BR."""
+def pick(profile=None, account=None, cookie=None, accept=()):
+    """Ordem: perfil → conta → cookie `sf_lang` → Accept-Language → pt-BR (60.2: não há mais idioma padrão do servidor)."""
     for c in (profile, account, cookie):
         n = norm(c)
         if n:
@@ -135,7 +135,7 @@ def pick(profile=None, account=None, cookie=None, accept=(), server=None):
         n = norm(a) if a != "*" else None
         if n:
             return n
-    return norm(server) or DEFAULT
+    return DEFAULT
 
 
 def _saved_lang(row):
@@ -160,8 +160,7 @@ def current_lang():
             if pid:
                 prof = _saved_lang(conn.execute("SELECT prefs FROM profiles WHERE id = ? AND user_id = ?", (pid, uid)).fetchone())
             acct = _saved_lang(conn.execute("SELECT prefs FROM users WHERE id = ?", (uid,)).fetchone())
-        r = conn.execute("SELECT value FROM settings WHERE key = 'default_lang'").fetchone()
-    g.lang = pick(prof, acct, request.cookies.get("sf_lang"), [v for v, _q in request.accept_languages], r["value"] if r else None)
+    g.lang = pick(prof, acct, request.cookies.get("sf_lang"), [v for v, _q in request.accept_languages])
     return g.lang
 
 
