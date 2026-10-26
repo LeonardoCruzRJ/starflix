@@ -226,7 +226,7 @@ def E(key, **vars):
     return m
 
 
-def jerr(msg, status=400, vars=None, **extra):
+def jerr(msg, http=400, /, vars=None, **extra):
     """Resposta JSON de erro: {code, message, error (= message, compatível), vars?, **extra}, status.
     `msg`: chave do catálogo, Msg/E(), exceção que carrega uma Msg ou texto livre (sem `code`)."""
     from flask import jsonify
@@ -240,7 +240,7 @@ def jerr(msg, status=400, vars=None, **extra):
         if msg.vars:
             body["vars"] = msg.vars
     body.update(extra)
-    return jsonify(body), status
+    return jsonify(body), http
 
 
 # ---- 59.3: pacote do idioma para o site (catálogo já com fallback) -----------------------------------------------------
