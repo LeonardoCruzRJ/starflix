@@ -67,13 +67,21 @@ class TvActivity : ComponentActivity() {
 
     private val playerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         if (r.resultCode == PlayerActivity.RESULT_UNAUTHORIZED) { TvWatchNext.clearAsync(this, store); store.clearLogin(); recreate() }
-        else { fromPlayer = true; playTick++ }
+        else { fromPlayer = true; window.decorView.postDelayed({ playTick++ }, 1500L) }  // 60.7: espera o player gravar a posição antes de recarregar
+    }
+
+    private var pausedAt = 0L  // 60.7: voltou do segundo plano depois de um tempo: recarrega (assistiu em outro aparelho)
+
+    override fun onPause() {
+        super.onPause()
+        pausedAt = System.currentTimeMillis()
     }
 
     /** 52.17: ao abrir o app e ao voltar do player, atualiza a linha "Reproduzir a seguir" (assistido sai, próximo episódio entra). */
     override fun onResume() {
         super.onResume()
         TvWatchNext.refresh(this, store, if (fromPlayer) 1500L else 0L)
+        if (!fromPlayer && pausedAt > 0 && System.currentTimeMillis() - pausedAt > 20000L) playTick++
         fromPlayer = false
     }
 

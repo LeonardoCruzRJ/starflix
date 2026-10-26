@@ -1579,6 +1579,12 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    /** 60.7: grava a posição já ao sair da tela (antes de o site/TV recarregarem o Início); o onStop repete por segurança. */
+    override fun onPause() {
+        super.onPause()
+        save()
+    }
+
     override fun onStop() {
         super.onStop()
         player?.pause()

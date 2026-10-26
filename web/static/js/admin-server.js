@@ -1,11 +1,11 @@
 // 58.1: Configurações → Servidor (nome, endereço externo, mDNS)
 (function () {
-  var $ = function (i) { return document.getElementById(i); }, name = $('sv-name'), url = $('sv-url'), mdns = $('sv-mdns'), port = $('sv-port'), ptest = $('sv-port-test'), save = $('sv-save'), test = $('sv-test'),
+  var $ = function (i) { return document.getElementById(i); }, name = $('sv-name'), url = $('sv-url'), mdns = $('sv-mdns'), port = $('sv-port'), save = $('sv-save'), test = $('sv-test'),
     msg = $('sv-msg'), warn = $('sv-warn'), local = $('sv-local'), sid = $('sv-id');
   function say(t, bad) { msg.textContent = t || ''; msg.className = 'hl-msg' + (bad ? ' bad' : ''); }
   function fill(d) {
     name.value = d.name; url.value = d.url; mdns.checked = d.mdns; port.value = d.port; sid.textContent = d.id;
-    name.disabled = url.disabled = mdns.disabled = port.disabled = test.disabled = ptest.disabled = false; save.disabled = true;
+    name.disabled = url.disabled = mdns.disabled = port.disabled = test.disabled = false; save.disabled = true;
     warn.hidden = !d.warning; warn.textContent = d.warning || '';
     local.innerHTML = '';
     if (!d.local.length) { var e = document.createElement('li'); e.textContent = T('sv.no_local'); local.appendChild(e); }
@@ -36,16 +36,6 @@
       .then(json).then(function (j) { fill(j); if (j.restart) moved(j); else say(T('common.saved')); })
       .catch(function (e) { save.disabled = false; say(e.message, true); });
   });
-  // 60.5/60.6: Testar a porta. Porta em uso: o servidor pede a sondas da internet (Globalping) que acessem endereço externo + porta; outra porta: diz se está livre
-  ptest.addEventListener('click', function () {
-    var n = parseInt(port.value, 10);
-    ptest.disabled = true; say(T('common.testing'));
-    fetch('/admin/server/port-check', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({port: n})}).then(json).then(function (j) {
-      if (!j.current) say(T('sv.port_free', {port: n}));
-      else if (j.ok > 0) say(T('sv.port_net_ok', {port: n, ok: j.ok, total: j.total}));
-      else say(T('sv.port_net_fail', {port: n}), true);
-    }).catch(function (e) { say(e.message, true); }).then(function () { ptest.disabled = false; });
-  });
   // Testar: o navegador consulta o /api/server-info do endereço (58.2, CORS aberto) e compara o identificador
   test.addEventListener('click', function () {
     if (!url.value.trim()) { say(T('sv.need_url'), true); return; }
@@ -61,4 +51,19 @@
       }, function () { clearTimeout(t); throw new Error(T('sv.unreachable')); });
     }).catch(function (e) { say(e.message, true); }).then(function () { test.disabled = false; });
   });
+})();
+
+// 60.6: "?" ao lado do mDNS: explicação ao passar o mouse (ou foco/toque)
+(function () {
+  var q = document.getElementById('sv-q'), t = document.getElementById('sv-tip');
+  if (!q || !t) return;
+  var box = q.parentNode;
+  function set(o) { t.hidden = !o; q.setAttribute('aria-expanded', o ? 'true' : 'false'); }
+  box.addEventListener('mouseenter', function () { set(true); });
+  box.addEventListener('mouseleave', function () { set(false); });
+  q.addEventListener('focus', function () { set(true); });
+  q.addEventListener('blur', function () { set(false); });
+  q.addEventListener('click', function (e) { e.stopPropagation(); set(t.hidden); });
+  document.addEventListener('click', function (e) { if (!box.contains(e.target)) set(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') set(false); });
 })();

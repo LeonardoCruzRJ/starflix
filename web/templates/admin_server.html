@@ -16,10 +16,12 @@
         <button type="button" class="la-btn" id="sv-test" disabled data-i18n="sv.test">{{ t('sv.test') }}</button>
       </label>
       <label class="hl-opt"><span data-i18n="sv.port">{{ t('sv.port') }}</span>
-        <input type="number" id="sv-port" class="la-q sv-in" min="1024" max="65535" step="1" inputmode="numeric" disabled>
-        <button type="button" class="la-btn" id="sv-port-test" disabled data-i18n="sv.test" data-i18n-title="sv.port_test_tip" title="{{ t('sv.port_test_tip') }}">{{ t('sv.test') }}</button>
+        <input type="number" id="sv-port" class="la-q sv-in sv-port" min="1024" max="65535" step="1" inputmode="numeric" disabled>
       </label>
-      <label class="hl-opt sv-chk"><input type="checkbox" id="sv-mdns" disabled> <span data-i18n="sv.mdns">{{ t('sv.mdns') }}</span></label>
+      <div class="hl-opt sv-mdns-row">
+        <label class="sv-chk"><input type="checkbox" id="sv-mdns" disabled> <span data-i18n="sv.mdns">{{ t('sv.mdns') }}</span></label>
+        <span class="pb-help sv-help"><button type="button" class="pb-q" id="sv-q" aria-label="{{ t('pb.help') }}" data-i18n-aria="pb.help" aria-expanded="false">?</button><span class="pb-tip sv-tip" id="sv-tip" role="tooltip" data-i18n="sv.mdns_tip" hidden>{{ t('sv.mdns_tip') }}</span></span>
+      </div>
       <span class="hl-msg" id="sv-msg" role="status"></span>
       <p class="sv-warn" id="sv-warn" hidden></p>
     </div>

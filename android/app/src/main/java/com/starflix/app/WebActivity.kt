@@ -385,7 +385,8 @@ class WebActivity : AppCompatActivity() {
         web.onResume()
         if (reloadOnResume) {
             reloadOnResume = false
-            if (!failed) web.reload()
+            // 60.7: o player grava a posição em segundo plano; recarregar na hora mostrava o Início/Continuar assistindo velho
+            web.postDelayed({ if (!isDestroyed && !failed) web.reload() }, 1500L)
         }
     }
 

@@ -409,7 +409,7 @@ def one_row(key):
     pid = _profile()
     if not pid:
         return jerr("err.perfil_nao_selecionado", 400)
-    for r in build_rows_cached(session["user_id"], pid):
+    for r in build_rows_cached(session["user_id"], pid, fresh=request.args.get("fresh") == "1"):  # 60.7: ?fresh=1 refaz (o site atualiza o Continuar assistindo ao voltar à aba)
         if r["key"] == key:
             out = {"row": r}
             if request.args.get("html") == "1":

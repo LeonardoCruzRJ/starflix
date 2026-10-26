@@ -232,61 +232,6 @@ def normalize():
     return jsonify(url=url)
 
 
-GLOBALPING = "https://api.globalping.io/v1/measurements"  # 60.6: sondas públicas pela internet (jsDelivr Globalping, sem chave)
-
-
-def internet_check(host, port, sid, wait=25):
-    """60.6: pede a sondas espalhadas pela internet um GET http://host:port/api/server-info e conta as que receberam a resposta deste servidor
-    (mesmo `id`). Devolve (alcançaram, total). Levanta exceção se o serviço não responder ou não trouxer resultado."""
-    import requests
-    hdr = {"User-Agent": "StarFlix/" + config.VERSION}
-    body = {"type": "http", "target": host, "limit": 3, "locations": [],
-            "measurementOptions": {"protocol": "HTTP", "port": port, "request": {"method": "GET", "path": "/api/server-info"}}}
-    r = requests.post(GLOBALPING, json=body, headers=hdr, timeout=10)
-    r.raise_for_status()
-    url = f"{GLOBALPING}/{r.json()['id']}"
-    end = time.time() + wait
-    g = {}
-    while time.time() < end:
-        time.sleep(1.5)
-        g = requests.get(url, headers=hdr, timeout=10).json()
-        if g.get("status") != "in-progress":
-            break
-    res = g.get("results") or []
-    if not res:
-        raise RuntimeError("sem resultados")
-    ok = sum(1 for x in res if (x.get("result") or {}).get("status") == "finished" and (x.get("result") or {}).get("statusCode") == 200
-             and sid in ((x.get("result") or {}).get("rawBody") or ""))
-    return ok, len(res)
-
-
-@bp.route("/admin/server/port-check", methods=["POST"])
-@admin_required
-def port_check():
-    """60.5/60.6: botão Testar ao lado da porta. Porta em uso por este servidor → testa pela internet (host do endereço externo + porta,
-    por sondas públicas do Globalping; só ao clicar); outra porta → só diz se está livre para ser aberta ao salvar."""
-    d = request.get_json(silent=True)
-    port = d.get("port") if isinstance(d, dict) else None
-    if isinstance(port, bool) or not isinstance(port, int) or not PORT_MIN <= port <= PORT_MAX:
-        return jerr("err.porta_fora_faixa", 400, vars={"min": PORT_MIN, "max": PORT_MAX})
-    if port != config.PORT:
-        if not port_free(port):
-            return jerr("err.porta_em_uso", 400, vars={"port": port})
-        return jsonify(port=port, current=False, free=True)
-    with get_db() as conn:
-        url, sid = get_server_url(conn), get_server_id(conn)
-    host = urlsplit(url).hostname if url else None
-    if not host:
-        return jerr("sv.need_url", 400)
-    if is_private_host(host):
-        return jerr("sv.warn_local", 400)
-    try:
-        ok, total = internet_check(host, port, sid)
-    except Exception:
-        return jerr("err.teste_internet_falhou", 502)
-    return jsonify(port=port, current=True, ok=ok, total=total)
-
-
 @bp.route("/admin/server/save", methods=["POST"])
 @admin_required
 def save():

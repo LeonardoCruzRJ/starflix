@@ -2243,7 +2243,11 @@ body.sw-body { display: block; padding: 0; background: radial-gradient(ellipse a
 
 /* 58.1: Configurações → Servidor */
 .hl-opt .la-q.sv-in { width: 320px; margin: 0; }
-.sv-chk { cursor: pointer; }
+.sv-opts .hl-opt { flex-basis: 100%; }
+.hl-opt .la-q.sv-in.sv-port { width: 7ch; min-width: 0; box-sizing: content-box; text-align: center; padding-left: 12px; padding-right: 12px; }
+.sv-chk { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.sv-help { margin-left: 0; }
+.sv-tip { width: min(340px, 86vw); }
 .sv-warn { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--accent); }
 .sv-info { padding: 14px 24px; font-size: 14px; color: var(--muted); }
 .sv-h { margin: 0 0 6px; color: var(--text-strong, inherit); font-weight: 600; }
@@ -2252,6 +2256,7 @@ body.sw-body { display: block; padding: 0; background: radial-gradient(ellipse a
 .sv-id { margin: 0; font-size: 12px; }
 @media (max-width: 700px) {
   .hl-opt .la-q.sv-in { width: 100%; min-height: 44px; font-size: 16px; }
+  .hl-opt .la-q.sv-in.sv-port { width: 7ch; }
   .sv-opts .hl-opt { flex-wrap: wrap; width: 100%; }
   .sv-info { padding: 12px; }
 }
