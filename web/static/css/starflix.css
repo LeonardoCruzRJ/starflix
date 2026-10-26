@@ -2349,3 +2349,21 @@ video.preload-custom { max-width: 100vw; max-height: 100vh; }
   :root:lang(de), :root:lang(ru), :root:lang(fr) { --side-w: 240px; }
   .menu { max-width: 94vw; }
 }
+
+/* 60.10: Backup → Restaurar. Colunas fixas: o botão não anda quando o nome ou o tamanho mudam */
+.bk-row { cursor: default; }
+.bk-row .lm-name { flex: 1 1 auto; min-width: 0; }
+.bk-row .lm-sub { flex: none; width: 240px; max-width: none; text-align: right; font-variant-numeric: tabular-nums; }
+.bk-acts { flex: none; display: grid; grid-template-columns: repeat(3, 118px); gap: 8px; }
+.bk-acts .la-btn { display: block; box-sizing: border-box; width: 100%; min-width: 0; padding-left: 8px; padding-right: 8px; text-align: center; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  .bk-row { flex-wrap: wrap; row-gap: 8px; }
+  .bk-row .lm-name { flex-basis: 100%; }
+  .bk-row .lm-sub { flex: 1 1 auto; width: auto; text-align: left; }
+  .bk-acts { flex-basis: 100%; grid-template-columns: repeat(3, 1fr); }
+}
+.rs-wait { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; background: var(--preload-bg); color: #fff; text-align: center; }
+.rs-wait[hidden] { display: none; }
+.rs-wait .preload-logo { width: min(60vmin, 360px); }
+.rs-wait .preload-custom { max-width: min(80vw, 520px); max-height: 50vh; }
+.rs-msg { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .02em; }

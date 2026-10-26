@@ -75,6 +75,11 @@
     </div>
   </div>
 </div>
+<div class="rs-wait" id="bk-wait" role="alert" aria-live="assertive" hidden>
+  {% set art_loop = true %}{% set art_svg_id = 'restore-logo' %}{% include "_preload_art.html" %}
+  <p class="rs-msg" id="bk-wait-msg" data-i18n="bk.restoring">{{ t('bk.restoring') }}</p>
+  <button type="button" class="la-btn" id="bk-wait-reload" hidden data-i18n="bk.restore_reload">{{ t('bk.restore_reload') }}</button>
+</div>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin-backup.js') }}" defer></script>

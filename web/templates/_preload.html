@@ -1,54 +1,5 @@
 {% if not brand or brand.intro_on %}<div class="preload" id="preload" aria-hidden="true">
-{% if brand and brand.intro %}{% if brand.intro.kind == "video" %}<video class="preload-custom" src="{{ brand.intro.url }}" muted autoplay playsinline preload="auto"></video>{% else %}<img class="preload-custom" src="{{ brand.intro.url }}" alt="">{% endif %}{% else %}
-<svg id="preload-logo" class="preload-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 447 447" role="img" aria-label="StarFlix">
-  <title>StarFlix</title>
-  <defs>
-    <linearGradient id="gBarBottom" gradientUnits="userSpaceOnUse" x1="33.8" y1="0" x2="217.0" y2="0">
-      <stop offset="0" stop-color="#e5251d"/><stop offset="1" stop-color="#e6d530"/>
-    </linearGradient>
-    <linearGradient id="gBarTop" gradientUnits="userSpaceOnUse" x1="230.0" y1="0" x2="388.1" y2="0">
-      <stop offset="0" stop-color="#e8301f"/><stop offset="1" stop-color="#b9e22e"/>
-    </linearGradient>
-    <linearGradient id="gRing" gradientUnits="userSpaceOnUse" x1="101" y1="330" x2="346" y2="170">
-      <stop offset="0" stop-color="#2f62ff"/><stop offset="0.45" stop-color="#6b3fc9"/><stop offset="1" stop-color="#ee3a2a"/>
-    </linearGradient>
-    <!-- máscaras: abrem do meio (x=223.5) para a esquerda / para a direita, sincronizadas -->
-    <clipPath id="clipL"><rect x="223.5" y="160" width="0" height="130">
-      <animate attributeName="x" from="223.5" to="23.5" begin="0.4s" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.22 0.61 0.36 1"/>
-      <animate attributeName="width" from="0" to="200" begin="0.4s" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.22 0.61 0.36 1"/>
-    </rect></clipPath>
-    <clipPath id="clipR"><rect x="223.5" y="160" width="0" height="130">
-      <animate attributeName="width" from="0" to="200" begin="0.4s" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.22 0.61 0.36 1"/>
-    </rect></clipPath>
-  </defs>
-
-  <rect width="447" height="447" fill="#000"/>
-
-  <!-- círculo centralizado (223.5, 223.5): nasce logo abaixo da barra inferior, desce, passa pela parte inferior direita até a superior direita e para acima do T de STAR sem tocá-lo -->
-  <path d="M 108.4 264 A 122 122 0 1 0 112.9 172" fill="none" stroke="url(#gRing)" stroke-width="3.5" stroke-linecap="round"
-        pathLength="100" stroke-dasharray="100" stroke-dashoffset="100">
-    <animate attributeName="stroke-dashoffset" from="100" to="0" begin="1.7s" dur="1.8s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.45 0 0.2 1"/>
-  </path>
-
-  <!-- STAR + barra inferior: saem do meio para a esquerda -->
-  <g clip-path="url(#clipL)">
-    <g>
-      <animateTransform attributeName="transform" type="translate" from="70 0" to="0 0" begin="0.4s" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.22 0.61 0.36 1"/>
-      <path d="M64.95 190.29V198.31Q61.82 196.91 58.85 196.2Q55.88 195.49 53.24 195.49Q49.74 195.49 48.06 196.46Q46.39 197.42 46.39 199.45Q46.39 200.97 47.52 201.83Q48.65 202.68 51.62 203.29L55.78 204.12Q62.1 205.39 64.77 207.98Q67.44 210.57 67.44 215.35Q67.44 221.62 63.72 224.68Q60 227.74 52.35 227.74Q48.75 227.74 45.12 227.05Q41.49 226.37 37.86 225.02V216.77Q41.49 218.7 44.88 219.67Q48.27 220.65 51.41 220.65Q54.61 220.65 56.31 219.59Q58.02 218.52 58.02 216.54Q58.02 214.76 56.86 213.8Q55.71 212.83 52.25 212.07L48.47 211.23Q42.78 210.01 40.15 207.35Q37.53 204.68 37.53 200.16Q37.53 194.5 41.18 191.45Q44.84 188.41 51.69 188.41Q54.82 188.41 58.12 188.88Q61.42 189.35 64.95 190.29Z M81.5 189.09H116.44V196.48H103.87V227H94.09V196.48H81.5Z M154.49 220.09H139.21L136.79 227H126.97L141.01 189.09H152.66L166.71 227H156.88ZM141.64 213.06H152.03L146.85 197.98Z M195.62 205.9Q198.69 205.9 200.03 204.76Q201.36 203.62 201.36 201Q201.36 198.41 200.03 197.29Q198.69 196.18 195.62 196.18H191.51V205.9ZM191.51 212.65V227H181.73V189.09H196.66Q204.15 189.09 207.64 191.61Q211.13 194.12 211.13 199.55Q211.13 203.31 209.32 205.72Q207.5 208.13 203.85 209.28Q205.85 209.73 207.44 211.35Q209.03 212.96 210.65 216.23L215.96 227H205.55L200.93 217.58Q199.53 214.74 198.1 213.7Q196.66 212.65 194.28 212.65Z" fill="#cc1212"/>
-      <rect x="33.8" y="246.0" width="183.2" height="8" fill="url(#gBarBottom)"/>
-    </g>
-  </g>
-
-  <!-- FLIX (mesma fonte e tamanho de STAR) + barra superior: saem do meio para a direita -->
-  <g clip-path="url(#clipR)">
-    <g>
-      <animateTransform attributeName="transform" type="translate" from="-70 0" to="0 0" begin="0.4s" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.22 0.61 0.36 1"/>
-      <rect x="230.0" y="192.1" width="158.1" height="8" fill="url(#gBarTop)"/>
-      <path d="M234.77 220.09H261.15V227.48H244.55V234.54H260.16V241.93H244.55V258H234.77Z M280.29 220.09H290.07V250.61H307.23V258H280.29Z M323.43 220.09H333.21V258H323.43Z M373.9 238.65 387.05 258H376.87L368.01 245.05L359.23 258H348.99L362.15 238.65L349.5 220.09H359.71L368.01 232.3L376.29 220.09H386.55Z" fill="#fbe27c"/>
-    </g>
-  </g>
-</svg>
-{% endif %}
+{% set art_loop = false %}{% set art_svg_id = none %}{% include "_preload_art.html" %}
 </div>
 <script>
 (function () {

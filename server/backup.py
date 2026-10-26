@@ -1,8 +1,11 @@
 """Backup do banco (51.1): cópia consistente (VACUUM INTO) + fotos de perfil em data/backups/starflix-AAAAMMDD-HHMMSS.zip."""
+import importlib.util
+import json
 import logging
 import os
 import re
 import sqlite3
+import sys
 import threading
 import time
 import zipfile
@@ -12,7 +15,7 @@ from flask import Blueprint, abort, jsonify, request, send_from_directory
 import config
 from server.auth import admin_required
 from server.db import get_db
-from server.i18n import jerr
+from server.i18n import E, jerr
 
 bp = Blueprint("backup", __name__)
 log = logging.getLogger("starflix.backup")
@@ -236,3 +239,74 @@ def route_download(name):
 def route_delete(name):
     os.remove(os.path.join(config.BACKUPS_DIR, _safe(name)))
     return jsonify(_payload())
+
+
+# ---- Restaurar pelo Painel (60.10) ----
+def _script():
+    """Carrega scripts/restore_backup.py (a mesma lógica da linha de comando)."""
+    path = os.path.join(config.BASE_DIR, "scripts", "restore_backup.py")
+    spec = importlib.util.spec_from_file_location("sf_restore_backup", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def restore_soon(path, delay=1.5):
+    """Troca o processo (execv, mesmo PID, o systemd não percebe) pelo restore_backup.py --exec-server, que restaura com a porta livre e
+    devolve o processo ao servidor. Antes: encerra o mDNS e fecha o WAL no arquivo do banco (o banco atual vai para .antes-restore completo).
+    Só roda sob run.py (`config.RESTART_ON_PORT`); em testes devolve False e não faz nada."""
+    if not config.RESTART_ON_PORT:
+        return False
+
+    def go():
+        time.sleep(delay)
+        try:
+            from server import discovery
+            discovery._stop()
+        except Exception:
+            pass
+        try:
+            with sqlite3.connect(config.DB_PATH, timeout=10) as c:
+                c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except sqlite3.Error:
+            pass
+        os.environ["STARFLIX_BOOT_ARGV"] = json.dumps(sys.argv)
+        os.execv(sys.executable, [sys.executable, os.path.join(config.BASE_DIR, "scripts", "restore_backup.py"), path, "--exec-server"])
+    threading.Thread(target=go, daemon=True, name="backup-restore").start()
+    return True
+
+
+@bp.route("/admin/backup/<name>/restore", methods=["POST"])
+@admin_required
+def route_restore(name):
+    """Valida o backup e, se estiver tudo certo, reinicia o servidor restaurando-o (202). O resultado vem em /admin/backup/restore-result."""
+    path = os.path.join(config.BACKUPS_DIR, _safe(name))
+    if _lock.locked():
+        return jerr("err.ja_ha_backup_andamento", 409)
+    rs = _script()
+    try:
+        rs.validate(path)
+    except rs.RestoreError as e:
+        return jerr(E(e.key, **e.vars), 400)
+    if not config.RESTART_ON_PORT:
+        return jerr("err.restore_indisponivel", 400)
+    try:
+        os.remove(rs.RESULT)  # só vale o resultado desta restauração
+    except OSError:
+        pass
+    restore_soon(path)
+    return jsonify(ok=True, restarting=True), 202
+
+
+@bp.route("/admin/backup/restore-result")
+@admin_required
+def route_restore_result():
+    """Resultado da última restauração ({ok, name, key?, vars?, msg?}); lido uma vez. Sem arquivo: {ok: null}."""
+    path = _script().RESULT
+    try:
+        with open(path, encoding="utf-8") as f:
+            res = json.load(f)
+        os.remove(path)
+    except (OSError, ValueError):
+        return jsonify(ok=None)
+    return jsonify(res)

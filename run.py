@@ -220,9 +220,12 @@ def static_version(endpoint, values):
             pass
 
 
+BOOT_ID = secrets.token_hex(6)  # 60.10: muda a cada partida do processo (a tela de restauração sabe que o servidor reiniciou)
+
+
 @app.route("/health")
 def health():
-    return jsonify(status="ok")
+    return jsonify(status="ok", boot=BOOT_ID)
 
 
 @app.template_global("dtitle")
