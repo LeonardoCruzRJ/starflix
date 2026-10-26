@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_carousel.html" import carousel %}
+{% from "_home_cards.html" import cards %}
+{% block heading %}<span class="home-server">{{ server_name }}</span>{% endblock %}
+{% block actions %}
+<div class="zoom" style="margin-left:auto"><input type="range" class="zoom-range" aria-label="{{ t('library.zoom') }}" data-i18n-aria="library.zoom"></div>
+{% endblock %}
+{% block bodycls %}{{ 'm-home' if hero }} m-rows tvh-on{% endblock %}
+{% block content %}
+{% if hero %}{% include "_hero.html" %}{% endif %}
+{#- 56.3: destaque e pílulas do app da TV (computador, >700 px; o celular segue com o destaque de cima). Preenchido por js/tv-home.js -#}
+<div class="tvh" id="tvh">
+  <div class="tvh-top">
+    <div class="tvh-tabs" role="tablist" aria-label="{{ t('nav.home') }}" data-i18n-aria="nav.home">
+      <button type="button" class="tvh-tab on" role="tab" aria-selected="true" data-tab="rec" data-i18n="home.tab.recommended">{{ t('home.tab.recommended') }}</button>
+      <button type="button" class="tvh-tab" role="tab" aria-selected="false" data-tab="exp" hidden data-i18n="home.tab.explore">{{ t('home.tab.explore') }}</button>
+      <button type="button" class="tvh-tab" role="tab" aria-selected="false" data-tab="col" hidden data-i18n="home.tab.collections">{{ t('home.tab.collections') }}</button>
+    </div>
+  </div>
+  <div class="tvh-info" id="tvh-info">
+    <img class="tvh-logo" id="tvh-logo" alt="" hidden>
+    <h2 class="tvh-title" id="tvh-title"></h2>
+    <div class="tvh-sub" id="tvh-sub"></div>
+    <div class="tvh-meta"><span id="tvh-meta"></span><b class="tvh-rate" id="tvh-rate" hidden></b></div>
+    <p class="tvh-ov" id="tvh-ov"></p>
+  </div>
+</div>
+<div class="tvh-alt" id="tvh-alt" hidden></div>
+<div class="home-selbar">{% set kind = '' %}{% include "_selbar.html" %}</div>
+{#- 32.8: as 3 primeiras fileiras vêm prontas; as demais entram como cards fantasma e home.js busca GET /home/row/<key>?html=1 -#}
+{% for r in rows %}
+{% if loop.index <= 3 or (r.key == 'continue' and r['items']) %}
+{% call carousel(r.title, key=r.key, hero=(hero and r.key == hero_key)) %}{{ cards(r, nav_is_admin) }}{% endcall %}
+{% else %}
+{% call carousel(r.title, key=r.key, ghost=True, wide=(r.type == 'wide'), hero=(hero and r.key == hero_key)) %}{% endcall %}
+{% endif %}
+{% endfor %}
+{% if not rows %}
+<div class="empty" data-i18n="home.empty">{{ t('home.empty') }}</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/home.js') }}" defer></script>{% if hero %}<script src="{{ url_for('static', filename='js/home-hero.js') }}" defer></script>{% endif %}<script src="{{ url_for('static', filename='js/tv-home.js') }}" defer></script>{% endblock %}

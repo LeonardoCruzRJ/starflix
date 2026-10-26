@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_carousel.html" import carousel %}
+{% block heading %}{% endblock %}
+{% block content %}
+{#- Fundo (37.3): canto inferior direito da foto, bem ampliado e desfocado, sobre o cinza do site -#}
+<div class="pp-bg" aria-hidden="true">{% if has_big %}<i style="background-image:url('/person/{{ p.id }}?big=1')"></i>{% endif %}</div>
+<div class="lib-head mv-top pp-top"><span></span><div class="zoom"><input type="range" class="zoom-range" aria-label="{{ t('library.zoom') }}"></div></div>
+<div class="pp">
+  <div class="pp-photo"><span class="cast-ph" aria-hidden="true">{{ p.name[:1]|upper }}</span><img src="/person/{{ p.id }}?big=1" alt="" onerror="this.remove()"></div>
+  <div class="pp-info">
+    <h1 class="pp-name">{{ p.name }}</h1>
+    {% if roles %}<h2 class="pp-roles">{{ roles }}</h2>{% endif %}
+    {% if born %}<div class="pp-meta"><span class="pp-k">{{ t('person.born') }}</span><span class="pp-v">{{ born }}{% if age is not none and not died %} {{ t('person.age', n=age) }}{% endif %}</span></div>{% endif %}
+    {% if died %}<div class="pp-meta"><span class="pp-k">{{ t('person.died') }}</span><span class="pp-v">{{ died }}{% if age is not none %} {{ t('person.age_died', n=age) }}{% endif %}</span></div>{% endif %}
+    {% if social %}<div class="pp-soc">{% for s in social %}<a href="{{ s.url }}" target="_blank" rel="noopener noreferrer" data-tip="{{ s.name }}&#10;{{ s.handle }}" data-tip-pos="bottom" aria-label="{{ s.name }}"><svg class="ic"><use href="#{{ s.ic }}"/></svg></a>{% endfor %}</div>{% endif %}
+    {% if bio %}
+    <div class="mv-over-wrap pp-bio-wrap">
+      <p class="mv-over pp-bio" id="over">{{ bio }}</p>
+      <button type="button" class="mv-more" id="more" hidden>{{ t('det.more') }} <svg class="ic ic-sm"><use href="#i-chevron-down"/></svg></button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% if items %}
+<div class="mv-sec">
+{% call carousel(t("person.library_items")) %}
+  {% for x in items %}
+    {{ card(href="/" ~ x.type ~ "/" ~ x.id, img="/poster/" ~ x.id, title=x.title, sub=x.year or None, pct=x.pct or None, watched=x.seen and x.type == 'movie') }}
+  {% endfor %}
+{% endcall %}
+</div>
+{% endif %}
+{% if known %}
+<div class="mv-sec">
+{% call carousel(t("person.known_for")) %}
+  {% for k in known %}
+  <div class="pcard pp-kn{{ '' if k.local else ' nolink' }}">
+    <div class="pcard-poster">
+      <span class="pcard-ph" aria-hidden="true">{{ k.t }}</span>
+      {% if k.local %}<a class="pcard-link" href="/{{ k.kind }}/{{ k.local }}" tabindex="-1" aria-hidden="true"><img src="/poster/{{ k.local }}" alt="" loading="lazy" onerror="this.remove()"></a>
+      {% else %}<span class="pcard-link"><img src="/person-art/{{ p.id }}/{{ k.mt }}/{{ k.id }}" alt="" loading="lazy" onerror="this.remove()"></span>{% endif %}
+    </div>
+    {% if k.local %}<a class="pcard-title" href="/{{ k.kind }}/{{ k.local }}" title="{{ k.t }}">{{ k.t }}</a>{% else %}<span class="pcard-title" title="{{ k.t }}">{{ k.t }}</span>{% endif %}
+    {% if k.label %}<div class="pcard-sub">{{ k.label }}</div>{% endif %}
+    {% if k.third %}<div class="pcard-sub">{{ k.third }}</div>{% endif %}
+  </div>
+  {% endfor %}
+{% endcall %}
+</div>
+{% endif %}
+{% if tabs %}
+<div class="mv-sec pp-fil">
+  <h2 class="pp-h">{{ t('person.filmography') }}</h2>
+  <div class="pp-tabs" role="tablist">{% for tb in tabs %}<button type="button" class="pp-tab{{ ' on' if loop.first }}" role="tab" data-tab="{{ tb.key }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ tb.label }} ({{ tb.rows|length }})</button>{% endfor %}</div>
+  {% for tb in tabs %}
+  <ul class="pp-rows" data-panel="{{ tb.key }}" role="tabpanel"{% if not loop.first %} hidden{% endif %}>
+    {% for r in tb.rows %}<li><span class="pp-y">{{ r.y or '' }}</span><span class="pp-t">{{ r.t }}{% if r.sub %}<span class="pp-sub"> • {{ r.sub }}</span>{% endif %}</span>{% if r.url %}<a class="pp-in" href="{{ r.url }}">{{ t('person.in_starflix') }}</a>{% endif %}</li>{% endfor %}
+  </ul>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/detail.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/person.js') }}" defer></script>
+{% endblock %}

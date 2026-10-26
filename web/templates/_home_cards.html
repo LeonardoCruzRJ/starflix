@@ -1,0 +1,31 @@
+{#- 32.8: cards de uma fileira do Início (item do motor -> macros de _card.html). Uso: {{ cards(row, nav_is_admin) }} -#}
+{% from "_card.html" import card, ccard, plcard %}
+{% macro cards(r, admin=False) -%}
+{% for i in r['items'] %}
+  {% if r.type == 'wide' %}
+    {% if i.kind == 'episode' %}
+      {{ card(href="/watch/episode/" ~ i.id, img=i.still, title=i.show, sub=i.title or None, sub2=t('card.season_episode', s=i.season, e=i.episode),
+              pct=i.pct or None, kind="episode", id=i.id, edit=admin, more=True, wide=True) }}
+    {% else %}
+      {{ card(href="/watch/movie/" ~ i.id, img=i.still, title=i.title, sub=None if i.type == 'video' else (i.year or None), watched=i.watched,
+              pct=i.pct or None, kind="movie", id=i.id, edit=admin, more=True, wide=True, pick=i.id, lib=i.lib, ptype=("video" if i.type == 'video' else "movie")) }}
+    {% endif %}
+  {% elif r.type == 'playlist' %}
+    {{ plcard(i) }}
+  {% elif i.type == 'collection' %}
+    {{ ccard(i, admin) }}
+  {% elif i.type == 'video' %}
+    {{ card(href="/watch/movie/" ~ i.id, img=i.still, title=i.title, watched=i.watched, pct=i.pct or None, kind="movie", id=i.id, edit=admin, more=True,
+            wide=True, pick=i.id, lib=i.lib, ptype="video", bd=i.still) }}
+  {% else %}
+    {% set movie = i.type == 'movie' %}
+    {% set cw = r.key == 'continue' %}{#- 54.11: Continue assistindo é sempre o frame 16:9 (site e celular); sem backdrop, cai no pôster -#}
+    {{ card(href="/" ~ i.type ~ "/" ~ i.id, img=(i.bd if cw and i.bd else "/poster/" ~ i.id), fb=("/poster/" ~ i.id if cw and i.bd else None), wide=cw, title=i.title,
+            sub=(i.ep_title if i.season else ((t('card.new_eps', n=i.new) if i.new else None) or i.year or None)),
+            sub2=t('card.season_episode', s=i.season, e=i.episode) if i.season else None,
+            watched=i.watched, pct=i.pct or None, play=("/watch/movie/" ~ i.id) if movie else (("/watch/episode/" ~ i.episode_id) if i.episode_id else None),
+            kind=("movie" if movie else None), id=(i.id if movie else None), edit=admin, more=True,
+            pick=i.id, lib=i.lib, ptype=i.type, bd=i.bd, left=i.left) }}
+  {% endif %}
+{% endfor %}
+{%- endmacro %}

@@ -1,0 +1,54 @@
+# 59.7: exceções do scripts/i18n_check.py (formato no cabeçalho do script)
+# file <glob>            ignora o arquivo nos literais
+# lit <glob>::<trecho>   ignora o literal que contiver o trecho
+# key <prefixo>          chave (ou prefixo) que não conta como sem uso
+file server/schema.sql
+key app.name
+key adv.field
+key adv.op
+key lib.act
+key lib.col
+key sel.count
+key lang.
+key person.job
+key person.tab
+key pl.tab
+key player.sty
+key player.mark.saved
+key set.
+key fmt.month
+key page.err
+# 59.19: diagnóstico do operador (log, motivo de transcode/otimização, CLI), nomes de idioma na própria língua e regex
+file scripts/smoke_test.py
+file scripts/restore_backup.py
+file server/discovery.py
+lit server/*.py::Português
+lit server/*.py::Français
+lit server/i18n.py::Türkçe
+lit server/markers.py::\b(
+lit server/metadata.py::[a-zà
+lit server/subdl.py::forced|
+lit server/subdl.py::português
+lit server/subtitles.py::english|
+lit server/people.py::StarFlix/1.0
+lit server/people.py::Descrição acima
+lit server/stream.py::faixa de áudio escolhida
+lit server/stream.py::sem análise
+lit server/stream.py::ffmpeg ainda
+lit server/stream.py::contêiner
+lit server/stream.py::vídeo
+lit server/stream.py::áudio
+lit server/stream.py::versão otimizada
+lit server/optimize.py::saída
+lit server/optimize.py::ffprobe falhou
+lit server/optimize.py::duração
+lit server/optimize.py::ffmpeg não iniciou
+lit server/admin_media.py::falha ao corrigir
+lit server/backup.py::integrity_check
+lit server/phone_auth.py::QR do celular
+lit run.py::Erro não tratado
+file scripts/i18n_build.py
+# 59.28: mensagem interna (exceção do pool de descoberta, nunca mostrada)
+lit android/app/src/main/java/com/starflix/app/MainActivity.kt::outro servidor
+# 59.29: nomes dos idiomas na própria língua
+file android/app/src/main/java/com/starflix/app/AppLang.kt

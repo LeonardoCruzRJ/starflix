@@ -1,0 +1,18 @@
+{#- Carrossel horizontal com setas ‹ › (23.4).
+    Uso:  {% from "_carousel.html" import carousel %}
+          {% call carousel("Continuar assistindo") %}
+            {{ card(...) }} {{ card(...) }}
+          {% endcall %}
+    As setas somem quando não há rolagem; a esquerda fica apagada no início e a direita no fim. -#}
+{% macro carousel(title, key=None, ghost=False, wide=False, hero=False) -%}
+<section class="carousel"{% if key %} data-row="{{ key }}"{% endif %}{% if hero %} data-hero="1"{% endif %}{% if ghost %} data-ghost="1"{% endif %}>
+  <div class="carousel-head">
+    <h2 class="section-title">{{ title }}</h2>
+    <div class="carousel-arrows">
+      <button type="button" class="carousel-btn" data-dir="-1" aria-label="{{ t('common.prev') }}"><svg class="ic"><use href="#i-chevron-left"/></svg></button>
+      <button type="button" class="carousel-btn" data-dir="1" aria-label="{{ t('common.next') }}"><svg class="ic"><use href="#i-chevron-right"/></svg></button>
+    </div>
+  </div>
+  <div class="carousel-track">{% if ghost %}{% for _ in range(8) %}<div class="pcard pcard-ghost{{ ' pcard-wide' if wide }}"><div class="pcard-poster"></div><div class="ghost-line"></div></div>{% endfor %}{% else %}{{ caller() }}{% endif %}</div>
+</section>
+{%- endmacro %}

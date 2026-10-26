@@ -1,0 +1,5 @@
+{#- 57.19: seta de voltar das páginas de item no celular (≤700px; no computador fica oculta). Histórico se houver, senão o link. -#}
+{% macro mvback(href) %}
+<a class="mvm-back" id="mvm-back" href="{{ href }}" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a>
+<script>document.getElementById("mvm-back").addEventListener("click", function (e) { if (history.length > 1) { e.preventDefault(); history.back(); } });</script>
+{% endmacro %}

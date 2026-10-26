@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_prefs.html" import prefs_box %}
+{% from "_card.html" import card %}
+{% from "_stars.html" import star_rating %}
+{% set sname = t('det.specials') if n == 0 else t('det.season', n=n) %}
+{% from "_mvback.html" import mvback %}
+{% block heading %}{% endblock %}
+{% block bodycls %}tvh-md{% endblock %}
+{% block content %}
+{{ mvback('/show/' ~ m.id) }}
+{% if m['backdrop'] %}<div class="mv-bg" style="background-image:url('/backdrop/{{ m.id }}')"></div>{% endif %}
+<div class="lib-head mv-top">
+  <div class="lib-title">
+    <div class="lib-name"><h1><a href="/library/{{ lib.id }}">{{ lib.name }}</a></h1></div>
+    <div class="lib-server">StarFlix</div>
+  </div>
+  <div class="season-nav">
+    {% if prev_n is not none %}<a class="icon-btn" href="/show/{{ m.id }}/season/{{ prev_n }}" data-tip="{{ t('det.season_prev') }}" aria-label="{{ t('det.season_prev') }}"><svg class="ic ic-lg"><use href="#i-chevron-left"/></svg></a>{% else %}<span class="icon-btn off"><svg class="ic ic-lg"><use href="#i-chevron-left"/></svg></span>{% endif %}
+    {% if next_n is not none %}<a class="icon-btn" href="/show/{{ m.id }}/season/{{ next_n }}" data-tip="{{ t('det.season_next') }}" aria-label="{{ t('det.season_next') }}"><svg class="ic ic-lg"><use href="#i-chevron-right"/></svg></a>{% else %}<span class="icon-btn off"><svg class="ic ic-lg"><use href="#i-chevron-right"/></svg></span>{% endif %}
+  </div>
+</div>
+<div class="mv-pills" aria-label="{{ t('det.seasons') }}"><a href="/show/{{ m.id }}">{{ t('common.show') }}</a>{% for s in seasons %}<a class="{{ 'on' if s == n }}" href="/show/{{ m.id }}/season/{{ s }}">{{ t('det.specials') if s == 0 else t('det.season', n=s) }}</a>{% endfor %}</div>
+<div class="mv">
+  <div class="mv-side">
+    <div class="mv-poster"><span class="pcard-ph" aria-hidden="true">{{ sname }}</span><img src="/season-poster/{{ m.id }}/{{ n }}" alt="" onerror="this.remove()"></div>
+    {% if all_seen %}<div class="mv-seen"><svg class="ic ic-sm"><use href="#i-check"/></svg> {{ t('card.watched') }}</div>
+    {% elif play %}<div class="mv-seen mv-deck">{% if season_pct %}<span class="mv-prog"><i style="width: {{ [100, season_pct|round|int]|min }}%"></i></span>{% endif %}{{ t('det.next_up', s=play.season, e=play.episode) }}</div>{% endif %}
+  </div>
+  <div class="mv-info">
+    <img class="mv-logo" id="md-logo" src="/logo/{{ m.id }}" alt="{{ dtitle(m) }}" hidden>
+    <h1 class="mv-title" id="md-title"><a href="/show/{{ m.id }}">{{ dtitle(m) }}</a></h1>
+    <div class="mv-season">{{ sname }}</div>
+    {% if srow %}<div class="mv-rate">{{ star_rating("season", srow['id'], stars) }}</div>{% endif %}
+    {% if srow and srow['overview'] %}<div class="mv-over-wrap"><p class="mv-over" id="over">{{ srow['overview'] }}</p><button type="button" class="mv-more" id="more" hidden>{{ t('det.more') }} <svg class="ic ic-sm"><use href="#i-chevron-down"/></svg></button></div>{% endif %}
+    <div class="mv-actions">
+      {% if play %}<a class="mv-play" href="/show/{{ m.id }}/season/{{ n }}/play"><svg class="ic"><use href="#i-play"/></svg>{% if play.position %}{{ t('det.continue') }}{% else %}{{ t('card.play') }}{% endif %}</a>
+      <a class="mv-btn" href="/show/{{ m.id }}/season/{{ n }}/play?random=1" data-tip="{{ t('lib.shuffle') }}" aria-label="{{ t('lib.shuffle') }}"><svg class="ic"><use href="#i-reel"/></svg></a>{% endif %}
+<button type="button" class="mv-btn{{ ' on' if in_list }}" id="mylist" data-id="{{ m.id }}" data-on="{{ 1 if in_list else 0 }}" data-what="show" data-tip="{{ t('det.mylist.remove_show') if in_list else t('det.mylist.add_show') }}" aria-label="{{ t('home.row.mylist') }}"><svg class="ic"><use href="#{{ 'i-bookmark-fill' if in_list else 'i-bookmark' }}"/></svg></button>
+      <button type="button" class="mv-btn" id="share" data-tip="{{ t('det.copy_link') }}" aria-label="{{ t('det.copy_link') }}"><svg class="ic"><use href="#i-share"/></svg></button>
+      {% set mitems = ([{"l": "Aleatório", "h": "/show/" ~ m.id ~ "/season/" ~ n ~ "/play?random=1"}, {"sep": 1}] if play else []) + [{"l": t('det.copy_link'), "copy": ""}] %}
+      {% if nav_is_admin %}<button type="button" class="mv-btn" data-edit-item="season:{{ m.id }}-{{ n }}" data-tip="{{ t('common.edit') }}" aria-label="{{ t('common.edit') }}"><svg class="ic"><use href="#i-edit"/></svg></button>{% endif %}
+      <button type="button" class="mv-btn" data-admin-item="season:{{ m.id }}-{{ n }}" data-admin-name="{{ m.title }}" data-menu='{{ mitems|tojson }}' data-tip="{{ t('nav.more') }}" aria-label="{{ t('nav.more') }}"><svg class="ic"><use href="#i-dots-h"/></svg></button>
+    </div>
+    {{ prefs_box(prefs) }}
+  </div>
+</div>
+<h2 class="section-title mv-sec">{{ t('det.episodes', n=eps|length) }}</h2>
+{% if eps %}
+<div class="pgrid pgrid-wide mv-sec-tight">
+  {% for e in eps %}
+    {{ card(href="/episode/" ~ e.id, play="/watch/episode/" ~ e.id, img="/still/" ~ e.id, title=(e.title or t("det.episode_n", n=e.episode)), sub=t("det.episode_n", n=e.episode),
+            pct=(100 if e.watched else (e.pct or None)), watched=e.watched, kind="episode", id=e.id, edit=nav_is_admin, more=True, wide=True) }}
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">{{ t('det.no_episodes_season') }}</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/detail.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tv-detail.js') }}" defer></script>
+{% endblock %}

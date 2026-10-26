@@ -1,0 +1,8 @@
+{#- Dropdowns Áudio/Legendas das páginas de detalhe (23.27); valor padrão vem de prefs (Avançado) -#}
+{% macro prefs_box(prefs) -%}
+{% set langs = [] %}{% for c in ['pt','en','es','fr','de','it','ja','ko','zh','ru'] %}{% set _ = langs.append((c, t('lang.' ~ c))) %}{% endfor %}
+<div class="mv-prefs">
+  <label><span>{{ t('det.audio') }}</span><select id="pf-audio"><option value="">{{ t('det.default') }}</option>{% for v, n in langs %}<option value="{{ v }}" {{ 'selected' if prefs.get('audio_lang') == v }}>{{ n }}</option>{% endfor %}</select></label>
+  <label><span>{{ t('det.subtitles') }}</span><select id="pf-sub"><option value="">{{ t('det.default') }}</option><option value="off" {{ 'selected' if prefs.get('sub_mode') == 'off' }}>{{ t('det.subs_off') }}</option>{% for v, n in langs %}<option value="{{ v }}" {{ 'selected' if prefs.get('sub_lang') == v and prefs.get('sub_mode') != 'off' }}>{{ n }}</option>{% endfor %}</select></label>
+</div>
+{%- endmacro %}

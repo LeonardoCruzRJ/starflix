@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% from "_card.html" import card, ccard as _ccard, plcard %}
+{% from "_carousel.html" import carousel %}
+{% set kind = 'movie' if lib.type in ('movie', 'video') else 'show' %}
+{% set isvid = lib.type == 'video' %}
+{% block heading %}{% endblock %}
+{% block bodycls %}m-lib{% if tab == 'recommended' %} m-home m-rows tvh-on tvh-lib{% elif tab in ('library', 'collections') %} tvh-on tvh-lib tvh-exp{% endif %}{% if not (tab == 'recommended' and hero) %} m-lib-nohero{% endif %}{% endblock %}
+{% macro qs(tab=tab) %}tab={{ tab }}&sort={{ sort }}&dir={{ dir }}&filter={{ flt }}&genre={{ genre|urlencode }}{% endmacro %}
+{% macro lcard(m) -%}
+{% if isvid %}{{ card(href="/watch/movie/" ~ m.id, img="/thumb/" ~ m.id, title=m.title, pct=m.pct or None, watched=m.watched,
+        kind="movie", id=m.id, ptype="video", edit=nav_is_admin, more=True, wide=True, pick=(m.id if tab == 'library' else None)) }}{% else %}{{ card(href="/" ~ kind ~ "/" ~ m.id, img="/poster/" ~ m.id, title=m.title, sub=m.year or None, pct=m.pct or None, watched=m.watched,
+        play=("/watch/movie/" ~ m.id) if kind == 'movie' else None, kind=("movie" if kind == 'movie' else None),
+        id=(m.id if kind == 'movie' else None), edit=nav_is_admin, more=True, pick=(m.id if tab == 'library' else None)) }}{% endif %}
+{%- endmacro %}
+{% macro ccard(c) -%}{{ _ccard(c, nav_is_admin) }}{%- endmacro %}
+{% block content %}
+{% include "_libbar.html" %}
+{% if tab == 'recommended' and hero %}{% include "_hero.html" %}{% endif %}
+{% if tab in ('recommended', 'library', 'collections') %}
+{#- 56.5: destaque e pílulas do app da TV no Recomendado da biblioteca (computador, >700 px); preenchido por js/tv-home.js -#}
+<div class="tvh" id="tvh">
+  <div class="tvh-top">
+    <div class="tvh-tabs" role="tablist" aria-label="{{ t('nav.library') }}" data-i18n-aria="nav.library">
+      <a class="tvh-tab{{ ' on' if tab == 'recommended' }}" role="tab" aria-selected="{{ 'true' if tab == 'recommended' else 'false' }}" href="?{{ qs('recommended') }}" data-i18n="home.tab.recommended">{{ t('home.tab.recommended') }}</a>
+      <a class="tvh-tab{{ ' on' if tab == 'library' }}" role="tab" aria-selected="{{ 'true' if tab == 'library' else 'false' }}" href="?{{ qs('library') }}" data-i18n="home.tab.explore">{{ t('home.tab.explore') }}</a>
+      {% if show_cols %}<a class="tvh-tab{{ ' on' if tab == 'collections' }}" role="tab" aria-selected="{{ 'true' if tab == 'collections' else 'false' }}" href="?{{ qs('collections') }}" data-i18n="home.tab.collections">{{ t('home.tab.collections') }}</a>{% endif %}
+      {% if pls %}<a class="tvh-tab" role="tab" aria-selected="false" href="?{{ qs('playlists') }}" data-i18n="lib.tab.playlists">{{ t('lib.tab.playlists') }}</a>{% endif %}
+    </div>
+    <div class="tvh-right">
+      <div class="menu-wrap"><button type="button" class="icon-btn" data-lib-menu data-lib-id="{{ lib.id }}" data-lib-name="{{ lib.name }}" data-lib-type="{{ lib.type }}" aria-haspopup="true" aria-label="{{ t('nav.more') }}" data-i18n-aria="nav.more"><svg class="ic"><use href="#i-dots-v"/></svg></button></div>
+    </div>
+  </div>
+  {% if tab == 'recommended' %}<div class="tvh-info" id="tvh-info">
+    <img class="tvh-logo" id="tvh-logo" alt="" hidden>
+    <h2 class="tvh-title" id="tvh-title"></h2>
+    <div class="tvh-sub" id="tvh-sub"></div>
+    <div class="tvh-meta"><span id="tvh-meta"></span><b class="tvh-rate" id="tvh-rate" hidden></b></div>
+    <p class="tvh-ov" id="tvh-ov"></p>
+  </div>{% endif %}
+</div>
+{% endif %}
+<div class="lib-head">
+  <div class="lib-title">
+    <div class="lib-name">
+      <h1>{{ lib.name }}</h1>
+      <div class="menu-wrap">
+        <button type="button" class="icon-btn" data-lib-menu data-lib-id="{{ lib.id }}" data-lib-name="{{ lib.name }}" data-lib-type="{{ lib.type }}" aria-haspopup="true" aria-label="{{ t('nav.more') }}" data-i18n-aria="nav.more"><svg class="ic"><use href="#i-dots-v"/></svg></button>
+      </div>
+    </div>
+    <div class="lib-server">{{ server_name }}</div>
+  </div>
+  <nav class="lib-tabs">
+    <a href="?{{ qs('recommended') }}" class="{{ 'active' if tab == 'recommended' }}" data-i18n="home.tab.recommended">{{ t('home.tab.recommended') }}</a>
+    <a href="?{{ qs('library') }}" class="{{ 'active' if tab == 'library' }}" data-i18n="nav.library">{{ t('nav.library') }}</a>
+    {% if show_cols %}<a href="?{{ qs('collections') }}" class="{{ 'active' if tab == 'collections' }}" data-i18n="home.tab.collections">{{ t('home.tab.collections') }}</a>{% endif %}
+    {% if pls %}<a href="?{{ qs('playlists') }}" class="{{ 'active' if tab == 'playlists' }}" data-i18n="lib.tab.playlists">{{ t('lib.tab.playlists') }}</a>{% endif %}
+  </nav>
+  <div class="zoom"><input type="range" class="zoom-range" aria-label="{{ t('library.zoom') }}" data-i18n-aria="library.zoom">{% if tab == 'library' %}<button type="button" class="view-btn" data-view-menu aria-haspopup="true" aria-label="{{ t('lib.view_mode') }}" data-i18n-aria="lib.view_mode"><svg class="ic ic-lg"><use href="#i-grid" data-view-ic/></svg><svg class="ic ic-sm"><use href="#i-chevron-down"/></svg></button>{% else %}<svg class="ic ic-lg"><use href="#i-grid"/></svg>{% endif %}</div>
+</div>
+
+{% if tab == 'library' %}
+{% include "_selbar.html" %}
+{% set sort_items = [] %}{% for k, v in sorts.items() %}{% set _ = sort_items.append([k, t(v[0]), v[2]]) %}{% endfor %}
+{% set filters_t = [] %}{% for k, v in filters.items() %}{% set _ = filters_t.append([k, t(v)]) %}{% endfor %}
+{% set all_genres = t('lib.all_movies') if kind == 'movie' else t('lib.all_shows') %}
+<div class="lib-bar" id="lib-bar" data-kind="{{ kind }}" data-library="{{ lib.id }}" data-lib-name="{{ lib.name }}" data-sort="{{ sort }}" data-dir="{{ dir }}">
+  <div class="lib-filters">
+    <button type="button" class="dd-btn" data-dd="filter" data-cur="{{ flt }}" data-opts='{{ filters_t|tojson }}' aria-haspopup="true"><span>{{ t(filters[flt]) }}</span><svg class="ic ic-caret"><use href="#i-caret-down"/></svg></button>
+    {% if not isvid %}<button type="button" class="dd-btn" data-dd="genre" data-cur="{{ genre }}" data-genres='{{ genres|tojson }}' data-all="{{ all_genres }}" aria-haspopup="true"><span>{{ genre or all_genres }}</span><svg class="ic ic-caret"><use href="#i-caret-down"/></svg></button>{% endif %}
+    <button type="button" class="dd-btn" data-dd="sort" data-cur="{{ sort }}" data-opts='{{ sort_items|tojson }}' aria-haspopup="true"><span>{{ t(sorts[sort][0]) }}</span><svg class="ic ic-caret"><use href="#i-caret-down"/></svg></button>
+    <span class="lib-count" title="{{ t('lib.count_title') }}" data-i18n-title="lib.count_title">{{ total }}</span>
+  </div>
+  <div class="lib-actions">
+    <a class="icon-btn" href="/library/{{ lib.id }}/play?{{ qs() }}" data-tip="{{ t('lib.play_all') }}" data-i18n-tip="lib.play_all" aria-label="{{ t('lib.play_all') }}" data-i18n-aria="lib.play_all"><svg class="ic ic-lg"><use href="#i-play"/></svg></a>
+    <a class="icon-btn" href="/library/{{ lib.id }}/play?random=1&{{ qs() }}" data-tip="{{ t('lib.shuffle') }}" data-i18n-tip="lib.shuffle" aria-label="{{ t('lib.shuffle') }}" data-i18n-aria="lib.shuffle"><svg class="ic ic-lg"><use href="#i-shuffle"/></svg></a>
+    <button type="button" class="icon-btn" data-lb="addto" data-tip="{{ t('lib.add_to') }}" data-i18n-tip="lib.add_to" aria-haspopup="true" aria-label="{{ t('lib.add_to') }}" data-i18n-aria="lib.add_to"><svg class="ic ic-lg"><use href="#i-list-plus"/></svg></button>
+    <button type="button" class="icon-btn" data-lb="more" data-tip="{{ t('nav.more') }}" data-i18n-tip="nav.more" aria-haspopup="true" aria-label="{{ t('nav.more') }}" data-i18n-aria="nav.more"><svg class="ic ic-lg"><use href="#i-dots-h"/></svg></button>
+  </div>
+</div>
+{% if items or lib_cols %}
+<div class="pgrid{{ ' pgrid-wide' if isvid }}">
+  {% for c in lib_cols %}{{ ccard(c) }}{% endfor %}
+  {% for m in items %}{{ lcard(m) }}{% endfor %}
+</div>
+{% else %}
+<div class="empty">{{ t('lib.empty_filter') if flt != 'all' or genre else t('lib.empty') }}</div>
+{% endif %}
+{% elif tab == 'collections' %}
+{% if cols %}
+<div class="pgrid">
+  {% for c in cols %}{{ ccard(c) }}{% endfor %}
+</div>
+{% else %}
+<div class="empty" data-i18n="lib.no_collections">{{ t('lib.no_collections') }}</div>
+{% endif %}
+{% elif tab == 'playlists' %}
+<div class="pgrid">
+  {% for p in pls %}{{ plcard(p) }}{% endfor %}
+</div>
+{% else %}
+{% for title, how, list in rec %}
+{% call carousel(title, key=('continue' if how == 'cont' else None)) %}
+  {% for m in list %}
+    {% if how == 'cols' %}{{ ccard(m) }}
+    {% elif how == 'cont' and m.kind == 'episode' %}
+      {{ card(href="/watch/episode/" ~ m.id, img="/backdrop/" ~ m.media_id, fb=m.poster, wide=True, bd="/backdrop/" ~ m.media_id, left=m.left, title=m.show, sub=m.title or None, sub2="T" ~ m.season ~ " · E" ~ m.episode,
+              pct=(m.position / m.duration * 100) if m.duration else None, kind="episode", id=m.id, edit=nav_is_admin, more=True) }}
+    {% elif how == 'cont' %}
+      {{ card(href="/watch/movie/" ~ m.id, img=("/thumb/" ~ m.id) if isvid else ("/backdrop/" ~ m.id), fb=None if isvid else m.poster, wide=True,
+              bd=("/thumb/" ~ m.id) if isvid else ("/backdrop/" ~ m.id), left=m.left, title=m.title, sub=None if isvid else (m.year or None),
+              pct=(m.position / m.duration * 100) if m.duration else None, kind="movie", id=m.id, edit=nav_is_admin, more=True) }}
+    {% else %}{{ lcard(m) }}{% endif %}
+  {% endfor %}
+{% endcall %}
+{% endfor %}
+{% if not rec %}<div class="empty" data-i18n="lib.empty">{{ t('lib.empty') }}</div>{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/library-mbar.js') }}" defer></script>
+{% if tab == 'recommended' and hero %}<script src="{{ url_for('static', filename='js/home-hero.js') }}" defer></script>{% endif %}
+{% if tab == 'recommended' %}<script src="{{ url_for('static', filename='js/tv-home.js') }}" defer></script>{% endif %}
+{% if tab in ('library', 'collections') %}<script src="{{ url_for('static', filename='js/lib-alpha.js') }}" defer></script>{% endif %}
+{% if tab in ('library', 'collections') %}<script src="{{ url_for('static', filename='js/tv-explore.js') }}" defer></script>{% endif %}
+{% if nav_is_admin %}<script src="{{ url_for('static', filename='js/library-access.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/folder-picker.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-adv.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-edit.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-delete.js') }}" defer></script>{% endif %}
+<script src="{{ url_for('static', filename='js/library-menu.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-view.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-bar.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/advanced-filter.js') }}" defer></script>
+{% if nav_is_admin %}<script src="{{ url_for('static', filename='js/library-actions.js') }}" defer></script>{% endif %}
+{% endblock %}

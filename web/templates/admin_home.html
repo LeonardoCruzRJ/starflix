@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('nav.home_highlights') }}{% endblock %}
+{% block content %}
+<div class="la lm hl">
+  <h1 class="la-title" data-i18n="hl.title">{{ t('hl.title') }}</h1>
+  <p class="la-desc" data-i18n="hl.desc">{{ t('hl.desc') }}</p>
+  <div class="la-card">
+    <div class="la-bar pe-sec">
+      <b id="hl-count">…</b>
+      <span class="lm-btns">
+        <button type="button" class="la-btn" id="hl-reset" disabled data-i18n="brand.reset">{{ t('brand.reset') }}</button>
+        <button type="button" class="la-btn hl-save" id="hl-save" disabled data-i18n="common.save">{{ t('common.save') }}</button>
+      </span>
+    </div>
+    <div class="hl-opts">
+      <label class="hl-opt"><span data-i18n="hl.tmdb">{{ t('hl.tmdb') }}</span>
+        <select id="hl-tmdb" class="la-q hl-num" disabled></select>
+      </label>
+      <label class="hl-opt"><span data-i18n="hl.max">{{ t('hl.max') }}</span>
+        <input type="number" id="hl-max" class="la-q hl-num" min="1" inputmode="numeric" disabled>
+      </label>
+      <span class="hl-msg" id="hl-msg" role="status"></span>
+    </div>
+    <div id="hl-list" class="hl-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/home-layout.js') }}" defer></script>
+{% endblock %}

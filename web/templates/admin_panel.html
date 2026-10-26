@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('nav.panel') }}{% endblock %}
+{% block content %}
+<div class="la pn">
+  <h1 class="la-title" data-i18n="pn.title">{{ t('pn.title') }}</h1>
+  {% if no_fp %}<p class="pe-help">{{ t('pn.no_fp')|safe }}</p>{% endif %}
+  {% if no_tonemap %}<p class="pe-help">{{ t('pn.no_tonemap')|safe }}</p>{% endif %}
+  {% if dv5 %}<p class="pe-help">{{ t('pn.dv5', n=dv5) }}</p>{% endif %}
+  <div class="stats">
+    <a class="stat" href="/admin/users"><b>{{ stats.users }}</b><span data-i18n="pn.stat.users">{{ t('pn.stat.users') }}</span></a>
+    <a class="stat" href="/admin/libraries"><b>{{ stats.libraries }}</b><span data-i18n="pn.stat.libraries">{{ t('pn.stat.libraries') }}</span></a>
+    <div class="stat"><b>{{ stats.movies }}</b><span data-i18n="pn.stat.movies">{{ t('pn.stat.movies') }}</span></div>
+    <div class="stat"><b>{{ stats.shows }}</b><span data-i18n="pn.stat.shows">{{ t('pn.stat.shows') }}</span></div>
+    <div class="stat"><b>{{ stats.episodes }}</b><span data-i18n="pn.stat.episodes">{{ t('pn.stat.episodes') }}</span></div>
+  </div>
+  <div class="la-card" id="bk">
+    <div class="la-bar pe-sec">
+      <b data-i18n="bk.title">{{ t('bk.title') }}</b>
+      <span class="lm-btns"><button type="button" class="la-btn" id="bk-run" disabled>{{ t('bk.run') }}</button></span>
+    </div>
+    <p class="pe-help" id="bk-info">{{ t('common.loading') }}</p>
+    <div class="hl-opts">
+      <label class="hl-opt"><span data-i18n="bk.every">{{ t('bk.every') }}</span>
+        <input type="number" id="bk-days" class="la-q hl-num" min="0" max="365" inputmode="numeric" disabled>
+        <span data-i18n="bk.days_off">{{ t('bk.days_off') }}</span>
+      </label>
+      <label class="hl-opt"><span data-i18n="bk.keep">{{ t('bk.keep') }}</span>
+        <input type="number" id="bk-keep" class="la-q hl-num" min="1" max="30" inputmode="numeric" disabled>
+      </label>
+      <button type="button" class="la-btn" id="bk-save" disabled data-i18n="common.save">{{ t('common.save') }}</button>
+      <span class="hl-msg" id="bk-msg" role="status"></span>
+    </div>
+    <div class="lm-list" id="bk-list"></div>
+    <details class="pe-help"><summary data-i18n="bk.how">{{ t('bk.how') }}</summary>
+      <p data-i18n="bk.how1">{{ t('bk.how1') }}</p>
+      <p><code>sudo systemctl stop starflix</code><br><code>cd {{ base_dir }}</code><br><code>python3 scripts/restore_backup.py data/backups/<i>ARQUIVO</i>.zip</code><br><code>sudo systemctl start starflix</code></p>
+      <p>{{ t('bk.how3')|safe }}</p>
+    </details>
+    <p class="pe-help">{{ t('bk.warn')|safe }}</p>
+  </div>
+  <div class="la-card" id="dv">
+    <div class="la-bar pe-sec"><b data-i18n="dvc.title">{{ t('dvc.title') }}</b></div>
+    <p class="pe-help">{{ t('dvc.help')|safe }}</p>
+    <div class="lm-list" id="dv-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+  </div>
+  <div class="la-card" id="op">
+    <div class="la-bar pe-sec"><b data-i18n="pn.opt.title">{{ t('pn.opt.title') }}</b><span class="lm-btns"><button type="button" class="la-btn" id="op-pause">{{ t('pn.opt.pause') }}</button><button type="button" class="la-btn" id="op-clear" data-i18n="pn.opt.clear">{{ t('pn.opt.clear') }}</button></span></div>
+    <p class="pe-help" id="op-info">{{ t('common.loading') }}</p>
+    <div class="lm-list" id="op-list"></div>
+  </div>
+  <div class="la-card">
+    <div class="la-bar pe-sec">
+      <b>{{ t('pn.libs', n=libs|length) }}</b>
+      <form method="post" action="/admin/libraries/scan" class="lm-btns">
+        <input type="hidden" name="next" value="panel">
+        <button type="submit" class="la-btn" {% if scanning %}disabled{% endif %}>{{ t('lib.examining') if scanning else t('lib.examine') }}</button>
+      </form>
+    </div>
+    <div class="lm-list">
+      {% for l in libs %}
+      <div class="lm-row">
+        <svg class="ic"><use href="#{{ {'show': 'i-tv', 'video': 'i-video'}.get(l.type, 'i-film') }}"/></svg>
+        <div class="lm-name">{{ l.name }}</div>
+        <div class="lm-sub">{{ t('common.items', n=l['items']) }}</div>
+        <div class="lm-acts">
+          <form method="post" action="/admin/libraries/{{ l.id }}/scan">
+            <input type="hidden" name="next" value="panel">
+            <button type="submit" data-tip="{{ t('pn.scan_one') }}" aria-label="{{ t('pn.scan_one') }}" data-i18n-tip="pn.scan_one" data-i18n-aria="pn.scan_one"><svg class="ic"><use href="#i-refresh"/></svg></button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <p class="la-empty" data-i18n="pn.no_libs">{{ t('pn.no_libs') }}</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin-backup.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/admin-devices.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/admin-optimize.js') }}" defer></script>
+{% endblock %}

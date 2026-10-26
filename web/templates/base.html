@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="{{ ui_lang }}" data-seen="{{ nav_seen or 'all' }}" data-pid="{{ session.get('profile_id', '') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>StarFlix</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  {% include "_preload_head.html" %}
+  <script>try { if (localStorage.getItem("sf.sidebar") === "collapsed" && !/^\/(admin|account|tv|phone)(\/|$)|^\/profile(\/|$)/.test(location.pathname)) document.documentElement.classList.add("side-collapsed"); } catch (e) {}
+try { var z = parseInt(localStorage.getItem("sf.zoom"), 10); if (z >= 120 && z <= 200) { var st = document.documentElement.style; st.setProperty("--card-w", z + "px"); st.setProperty("--ep-w", Math.round(z * 2.2) + "px"); } } catch (e) {}</script>
+  <script>try { document.cookie = window.matchMedia("(max-width: 700px)").matches ? "sf_m=1; path=/; max-age=31536000; samesite=lax" : "sf_m=; path=/; max-age=0"; } catch (e) {}</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/starflix.css') }}">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/open-sans-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ url_for('static', filename='fonts/open-sans-latin-700-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  {% block head %}{% endblock %}
+</head>
+{% set in_prof_page = request.path == '/profile' or request.path.startswith('/profile/') or request.path.startswith('/account') or request.path == '/tv' or request.path == '/phone' or (request.path.startswith('/profiles/') and request.path.endswith('/edit')) %}{% set in_admin_mode = nav_is_admin and (request.path.startswith('/admin') or in_prof_page) %}{% set lean_menu = request.path.startswith('/admin') or in_prof_page %}
+<body class="{% block bodycls %}{% endblock %} tv-look{{ ' tvd-on' if not in_admin_mode }}{{ ' lean-page' if lean_menu }}">
+{% set preload_home = true %}{% include "_preload.html" %}
+{% include "_icons.html" %}
+{% set in_prof_page = request.path == '/profile' or request.path.startswith('/profile/') or request.path.startswith('/account') or request.path == '/tv' or request.path == '/phone' or (request.path.startswith('/profiles/') and request.path.endswith('/edit')) %}{% set in_admin_mode = nav_is_admin and (request.path.startswith('/admin') or in_prof_page) %}{% set lean_menu = request.path.startswith('/admin') or in_prof_page %}
+<header class="topbar{{ ' admin-mode' if in_admin_mode }}">
+  <button type="button" class="icon-btn" id="menu-toggle" aria-label="{{ t('nav.menu') }}" data-i18n-aria="nav.menu" title="{{ t('nav.menu') }}" data-i18n-title="nav.menu"><svg class="ic ic-lg"><use href="#i-menu"/></svg></button>
+  {% if brand and brand.logo %}<a class="logo logo-img" href="/" aria-label="StarFlix"><img src="{{ brand.logo }}" alt="StarFlix"></a>{% else %}<a class="logo" href="/">Star<span>Flix</span></a>{% endif %}
+  {% if not (request.path.startswith('/admin') or in_prof_page) %}
+  <form class="search" action="/search" method="get" role="search">
+    <svg class="ic ic-sm"><use href="#i-search"/></svg>
+    <input type="text" name="q" value="{{ request.args.get('q', '') if request.path == '/search' else '' }}" placeholder="{{ t('nav.search') }}" data-i18n-placeholder="nav.search" autocomplete="off" aria-label="{{ t('nav.search') }}" data-i18n-aria="nav.search">
+  </form>
+  {% endif %}
+  <div class="topbar-right">
+    {% if nav_is_admin and not lean_menu %}
+    <a class="icon-btn{{ ' active' if request.path == '/admin' }}" href="/admin" id="act-btn" aria-label="{{ t('nav.panel') }}" data-i18n-aria="nav.panel"><svg class="ic ic-lg"><use href="#i-activity"/></svg></a>
+    <a class="icon-btn{{ ' active' if request.path.startswith('/admin') and request.path != '/admin' }}" href="/admin/libraries" data-tip="{{ t('nav.settings') }}" data-i18n-tip="nav.settings" data-tip-pos="bottom" aria-label="{{ t('nav.settings') }}" data-i18n-aria="nav.settings"><svg class="ic ic-lg"><use href="#i-wrench"/></svg></a>
+    {% endif %}
+    {% if nav_profile %}
+    <div class="user">
+      <button type="button" class="user-btn" id="user-btn" aria-haspopup="true" aria-expanded="false">
+        <span class="user-av" {% if nav_avatar and not nav_user_avatar %}style="background:{{ nav_avatar }}"{% endif %}>{% if nav_user_avatar %}<img src="{{ nav_user_avatar }}" alt="">{% else %}{{ nav_profile[0]|upper }}{% endif %}</span>
+        <svg class="ic ic-sm"><use href="#i-chevron-down"/></svg>
+      </button>
+      <div class="menu user-menu" id="user-menu" hidden>
+        {% if not lean_menu %}
+        <div class="um-head">
+          <img class="um-photo" src="{{ nav_user_avatar or ('/pavatar/' ~ nav_pid) }}" alt="">
+          <div class="um-name">{{ nav_full_name or nav_username }}</div>
+          <div class="um-user">{{ nav_username }}</div>
+        </div>
+        <a href="/profile" data-i18n="nav.view_profile">{{ t('nav.view_profile') }}</a>
+        <a href="/account" data-i18n="nav.personal_settings">{{ t('nav.personal_settings') }}</a>
+        <a href="/tv" data-i18n="nav.connect_tv">{{ t('nav.connect_tv') }}</a>
+        <a href="/phone" data-i18n="nav.connect_phone">{{ t('nav.connect_phone') }}</a>
+        <div class="um-sep"></div>
+        {% endif %}
+        <a href="/profiles" data-i18n="nav.switch_user">{{ t('nav.switch_user') }}</a>
+        <a href="/logout" data-i18n="nav.logout">{{ t('nav.logout') }}</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</header>
+<div class="side-overlay" id="side-overlay"></div>
+<aside class="sidebar" id="sidebar">
+  <nav class="nav">
+    {% if in_admin_mode %}
+    <a href="/admin" class="nav-item {{ 'active' if request.path == '/admin' }}" title="{{ t('nav.panel') }}" data-i18n-title="nav.panel"><svg class="ic ic-lg"><use href="#i-gear"/></svg><span class="nav-label" data-i18n="nav.panel">{{ t('nav.panel') }}</span></a>
+    <a href="/admin/libraries" class="nav-item {{ 'active' if request.path.startswith('/admin/libraries') }}" title="{{ t('nav.libraries') }}" data-i18n-title="nav.libraries"><svg class="ic ic-lg"><use href="#i-list"/></svg><span class="nav-label" data-i18n="nav.libraries">{{ t('nav.libraries') }}</span></a>
+    <a href="/admin/users" class="nav-item {{ 'active' if request.path.startswith('/admin/users') }}" title="{{ t('nav.users') }}" data-i18n-title="nav.users"><svg class="ic ic-lg"><use href="#i-users"/></svg><span class="nav-label" data-i18n="nav.users">{{ t('nav.users') }}</span></a>
+    <a href="/admin/access" class="nav-item {{ 'active' if request.path.startswith('/admin/access') }}" title="{{ t('nav.library_access') }}" data-i18n-title="nav.library_access"><svg class="ic ic-lg"><use href="#i-lock"/></svg><span class="nav-label" data-i18n="nav.library_access">{{ t('nav.library_access') }}</span></a>
+    <a href="/admin/home" class="nav-item {{ 'active' if request.path.startswith('/admin/home') }}" title="{{ t('nav.home_highlights') }}" data-i18n-title="nav.home_highlights"><svg class="ic ic-lg"><use href="#i-home"/></svg><span class="nav-label" data-i18n="nav.home_highlights">{{ t('nav.home_highlights') }}</span></a>
+    <a href="/admin/agents" class="nav-item {{ 'active' if request.path.startswith('/admin/agents') }}" title="{{ t('nav.agents') }}" data-i18n-title="nav.agents"><svg class="ic ic-lg"><use href="#i-key"/></svg><span class="nav-label" data-i18n="nav.agents">{{ t('nav.agents') }}</span></a>
+    <a href="/admin/playback" class="nav-item {{ 'active' if request.path.startswith('/admin/playback') }}" title="{{ t('nav.playback') }}" data-i18n-title="nav.playback"><svg class="ic ic-lg"><use href="#i-play"/></svg><span class="nav-label" data-i18n="nav.playback">{{ t('nav.playback') }}</span></a>
+    <a href="/admin/server" class="nav-item {{ 'active' if request.path.startswith('/admin/server') }}" title="{{ t('nav.server') }}" data-i18n-title="nav.server"><svg class="ic ic-lg"><use href="#i-globe"/></svg><span class="nav-label" data-i18n="nav.server">{{ t('nav.server') }}</span></a>
+    <div class="nav-sep"><span data-i18n="nav.profile">{{ t('nav.profile') }}</span></div>
+    <a href="/profile" class="nav-item {{ 'active' if request.path == '/profile' or request.path.startswith('/profile/') or request.path.startswith('/profiles/') }}" title="{{ t('nav.view_profile') }}" data-i18n-title="nav.view_profile"><svg class="ic ic-lg"><use href="#i-user-circle"/></svg><span class="nav-label" data-i18n="nav.view_profile">{{ t('nav.view_profile') }}</span></a>
+    <a href="/account" class="nav-item {{ 'active' if request.path.startswith('/account') }}" title="{{ t('nav.personal_settings') }}" data-i18n-title="nav.personal_settings"><svg class="ic ic-lg"><use href="#i-sliders"/></svg><span class="nav-label" data-i18n="nav.personal_settings">{{ t('nav.personal_settings') }}</span></a>
+    <a href="/tv" class="nav-item {{ 'active' if request.path == '/tv' }}" title="{{ t('nav.connect_tv') }}" data-i18n-title="nav.connect_tv"><svg class="ic ic-lg"><use href="#i-cast"/></svg><span class="nav-label" data-i18n="nav.connect_tv">{{ t('nav.connect_tv') }}</span></a>
+    <a href="/phone" class="nav-item {{ 'active' if request.path == '/phone' }}" title="{{ t('nav.connect_phone') }}" data-i18n-title="nav.connect_phone"><svg class="ic ic-lg"><use href="#i-phone"/></svg><span class="nav-label" data-i18n="nav.connect_phone">{{ t('nav.connect_phone') }}</span></a>
+    {% else %}
+    <a href="/" class="nav-item {{ 'active' if request.path == '/' }}" title="{{ t('nav.home') }}" data-i18n-title="nav.home"><svg class="ic ic-lg"><use href="#i-home"/></svg><span class="nav-label" data-i18n="nav.home">{{ t('nav.home') }}</span></a>
+    {% for l in nav_libraries or [] %}
+    <a href="/library/{{ l.id }}" draggable="true" class="nav-item {{ 'active' if request.path == '/library/' ~ l.id }}" title="{{ l.name }}"><svg class="ic ic-lg"><use href="#{{ {'movie': 'i-film', 'video': 'i-video'}.get(l.type, 'i-tv') }}"/></svg><span class="nav-label">{{ l.name }}</span></a>
+    {% endfor %}
+    {% endif %}
+  </nav>
+</aside>
+{% if not in_admin_mode %}
+<!-- 56.2: painel lateral do app da TV (computador, >700 px): recolhido = pílula de 4 ícones; aberto = painel por cima do conteúdo -->
+<aside class="tvd" id="tvd" aria-label="{{ t('nav.menu') }}" data-i18n-aria="nav.menu">
+  <div class="tvd-pill">
+    <a class="tvd-ic tvd-av" href="/profile" aria-label="{{ t('nav.profile') }}" data-i18n-aria="nav.profile" title="{{ t('nav.profile') }}" data-i18n-title="nav.profile">{% if nav_profile %}<span class="user-av" {% if nav_avatar and not nav_user_avatar %}style="background:{{ nav_avatar }}"{% endif %}>{% if nav_user_avatar %}<img src="{{ nav_user_avatar }}" alt="">{% else %}{{ nav_profile[0]|upper }}{% endif %}</span>{% endif %}</a>
+    <a class="tvd-ic" href="/" aria-label="{{ t('nav.home') }}" data-i18n-aria="nav.home" title="{{ t('nav.home') }}" data-i18n-title="nav.home"><svg class="ic"><use href="#i-home"/></svg></a>
+    <button type="button" class="tvd-ic" id="tvd-pill-more" aria-label="{{ t('nav.more') }}" data-i18n-aria="nav.more" title="{{ t('nav.more') }}" data-i18n-title="nav.more"><svg class="ic"><use href="#i-dots-h"/></svg></button>
+  </div>
+  <nav class="tvd-panel" aria-label="{{ t('nav.main_menu') }}" data-i18n-aria="nav.main_menu">
+    <button type="button" class="tvd-row tvd-prof" id="tvd-prof" aria-haspopup="true" aria-expanded="false"><span class="user-av" {% if nav_avatar and not nav_user_avatar %}style="background:{{ nav_avatar }}"{% endif %}>{% if nav_user_avatar %}<img src="{{ nav_user_avatar }}" alt="">{% elif nav_profile %}{{ nav_profile[0]|upper }}{% endif %}</span><span class="tvd-t">{{ nav_profile or t('nav.profile') }}</span><svg class="ic tvd-go"><use href="#i-chevron-right"/></svg></button>
+    <a class="tvd-row {{ 'active' if request.path == '/' }}" href="/"><svg class="ic"><use href="#i-home"/></svg><span class="tvd-t" data-i18n="nav.home">{{ t('nav.home') }}</span></a>
+    {% if nav_libraries %}<div class="tvd-sep"><span data-i18n="nav.media_libraries">{{ t('nav.media_libraries') }}</span></div>{% endif %}
+    <div class="tvd-libs">
+    {% for l in nav_libraries or [] %}
+    <a class="tvd-row {{ 'active' if request.path == '/library/' ~ l.id }}" href="/library/{{ l.id }}" draggable="true"><svg class="ic"><use href="#{{ {'movie': 'i-film', 'video': 'i-video'}.get(l.type, 'i-tv') }}"/></svg><span class="tvd-t">{{ l.name }}</span></a>
+    {% endfor %}
+    </div>
+  </nav>
+  <div class="menu tvd-umenu" id="tvd-umenu" hidden>
+    {% if not lean_menu %}
+    <a href="/profile" data-i18n="nav.view_profile">{{ t('nav.view_profile') }}</a>
+    <a href="/account" data-i18n="nav.personal_settings">{{ t('nav.personal_settings') }}</a>
+    <div class="um-sep"></div>
+    {% endif %}
+    <a href="/profiles" data-i18n="nav.switch_user">{{ t('nav.switch_user') }}</a>
+    <a href="/logout" data-i18n="nav.logout">{{ t('nav.logout') }}</a>
+  </div>
+</aside>
+{% endif %}
+<main class="main">
+  <div class="page-head"><h1>{% block heading %}{% endblock %}</h1>{% block actions %}{% endblock %}</div>
+  <section class="content">{% block content %}{% endblock %}</section>
+</main>
+{% if not in_admin_mode %}
+<nav class="m-nav" aria-label="{{ t('nav.navigation') }}" data-i18n-aria="nav.navigation">
+  <a href="/" class="{{ 'on' if request.path == '/' }}"><svg class="ic ic-lg"><use href="#i-home"/></svg><span data-i18n="nav.home">{{ t('nav.home') }}</span></a>
+  {% set _ml = nav_libraries or [] %}<a href="{{ ('/library/' ~ _ml[0].id ~ '?tab=recommended') if _ml else '/' }}" id="m-lib" data-libs="{{ _ml|map(attribute='id')|join(',') }}" class="{{ 'on' if request.path.startswith('/library') }}"><svg class="ic ic-lg"><use href="#i-film"/></svg><span data-i18n="nav.library">{{ t('nav.library') }}</span></a>
+  <a href="/search" class="{{ 'on' if request.path == '/search' }}"><svg class="ic ic-lg"><use href="#i-search"/></svg><span data-i18n="nav.search">{{ t('nav.search') }}</span></a>
+  <a href="/profile" class="{{ 'on' if request.path.startswith('/profile') }}">{% if nav_profile %}<span class="user-av m-nav-av" {% if nav_avatar and not nav_user_avatar %}style="background:{{ nav_avatar }}"{% endif %}>{% if nav_user_avatar %}<img src="{{ nav_user_avatar }}" alt="">{% else %}{{ nav_profile[0]|upper }}{% endif %}</span>{% else %}<svg class="ic ic-lg"><use href="#i-user-circle"/></svg>{% endif %}<span data-i18n="nav.profile">{{ t('nav.profile') }}</span></a>
+</nav>
+{% endif %}
+<script>
+(function () {
+  var root = document.documentElement;
+  function mobile() { return window.matchMedia("(max-width: 900px)").matches; }
+  document.getElementById("menu-toggle").addEventListener("click", function () {
+    if (mobile()) { root.classList.toggle("side-open"); return; }
+    var c = root.classList.toggle("side-collapsed");
+    try { localStorage.setItem("sf.sidebar", c ? "collapsed" : "open"); } catch (e) {}
+  });
+  var ml = document.getElementById("m-lib");  // 54.14: Biblioteca abre o Recomendado da última biblioteca usada (ou da primeira)
+  if (ml) ml.addEventListener("click", function () {
+    try {
+      var last = localStorage.getItem("sf.lastlib");
+      if (last && (ml.dataset.libs || "").split(",").indexOf(last) >= 0) ml.setAttribute("href", "/library/" + last + "?tab=recommended");
+    } catch (e) {}
+  });
+  document.getElementById("side-overlay").addEventListener("click", function () { root.classList.remove("side-open"); });
+  var ub = document.getElementById("user-btn"), um = document.getElementById("user-menu");
+  function closeMenu() { if (um) { um.hidden = true; ub.setAttribute("aria-expanded", "false"); } }
+  if (ub) {
+    ub.addEventListener("click", function (e) { e.stopPropagation(); um.hidden = !um.hidden; ub.setAttribute("aria-expanded", um.hidden ? "false" : "true"); });
+    document.addEventListener("click", function (e) { if (!um.contains(e.target)) closeMenu(); });
+  }
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); root.classList.remove("side-open"); } });
+})();
+</script>
+<script>
+window.addEventListener("pageshow", function (e) { if (e.persisted) location.reload(); });
+</script>
+<script src="{{ url_for('static', filename='js/i18n.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/confirm.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/queue.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/playlist-add.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/sidebar-order.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/avatar-editor.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/cards.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/select.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/bulk-bar.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/carousel.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dominant.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tvd.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/search-box.js') }}" defer></script>
+{% if nav_is_admin %}{% include "_modal.html" %}<script src="{{ url_for('static', filename='js/edit-modal.js') }}" defer></script><script src="{{ url_for('static', filename='js/edit-general.js') }}" defer></script><script src="{{ url_for('static', filename='js/edit-images.js') }}" defer></script><script src="{{ url_for('static', filename='js/edit-tags.js') }}" defer></script><script src="{{ url_for('static', filename='js/edit-info.js') }}" defer></script><script src="{{ url_for('static', filename='js/item-actions.js') }}" defer></script><script src="{{ url_for('static', filename='js/collection-add.js') }}" defer></script><script>window.sfAdmin = true;</script><script src="{{ url_for('static', filename='js/activity.js') }}" defer></script><script src="{{ url_for('static', filename='js/scan-indicator.js') }}" defer></script>{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

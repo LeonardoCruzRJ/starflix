@@ -1,0 +1,26 @@
+{% extends "auth_base.html" %}
+{% block bodycls %}sw-body{% endblock %}
+{% block body %}
+<div class="sw sw-new" id="swn">
+  <header class="swn-bar"><a class="sw-back" href="/profiles?manage=1" aria-label="{{ t('common.back') }}" data-i18n-aria="common.back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a><h1 data-i18n="profiles.new.title">{{ t('profiles.new.title') }}</h1></header>
+  <div class="swn-photo" id="swn-photo"><span id="swn-letter">?</span><img id="swn-img" alt="" hidden></div>
+  <button type="button" class="sw-pill" id="swn-pick" data-i18n="profiles.new.add_photo">{{ t('profiles.new.add_photo') }}</button>
+  <label class="swn-lb" for="swn-name" data-i18n="profiles.new.name">{{ t('profiles.new.name') }}</label>
+  <input class="swn-input" id="swn-name" type="text" maxlength="30" placeholder="{{ t('profiles.new.name_ph') }}" data-i18n-placeholder="profiles.new.name_ph" autocomplete="off" autocapitalize="words">
+  <div class="swn-count" id="swn-count">0 / 30</div>
+  <div class="swn-foot"><p class="swn-err" id="swn-err"></p><button type="button" class="sw-btn swn-save" id="swn-save" disabled data-i18n="common.save">{{ t('common.save') }}</button></div>
+  <div class="sw-ov" id="swn-sheet" hidden>
+    <div class="sw-sheet" role="dialog" aria-modal="true" aria-label="{{ t('profiles.new.add_photo') }}" data-i18n-aria="profiles.new.add_photo">
+      <i class="sw-grab"></i>
+      <h3 data-i18n="profiles.new.add_photo">{{ t('profiles.new.add_photo') }}</h3>
+      <button type="button" data-pick="cam" data-i18n="profiles.new.take_photo">{{ t('profiles.new.take_photo') }}</button>
+      <button type="button" data-pick="lib" data-i18n="profiles.new.pick_lib">{{ t('profiles.new.pick_lib') }}</button>
+      <button type="button" data-pick="rm" id="swn-rm" hidden data-i18n="profiles.new.remove_photo">{{ t('profiles.new.remove_photo') }}</button>
+    </div>
+  </div>
+  <input type="file" id="swn-file-cam" accept="image/jpeg,image/png,image/webp" capture="user" hidden>
+  <input type="file" id="swn-file-lib" accept="image/jpeg,image/png,image/webp" hidden>
+</div>
+<script src="{{ url_for('static', filename='js/avatar-editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/profile-new.js') }}"></script>
+{% endblock %}

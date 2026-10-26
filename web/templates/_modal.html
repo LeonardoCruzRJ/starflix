@@ -1,0 +1,11 @@
+{#- Modal "Editar" (23.18): preenchido por js/edit-modal.js; abas e conteúdo vêm de GET /admin/item/<tipo>/<ref>/edit -#}
+<div class="em-overlay" id="em" hidden>
+  <div class="em-win" role="dialog" aria-modal="true" aria-labelledby="em-title">
+    <div class="em-head"><svg class="ic ic-sm"><use href="#i-edit"/></svg><span id="em-title"></span>
+      <button type="button" class="em-x" id="em-close" aria-label="{{ t('common.close') }}" data-i18n-aria="common.close">✕</button></div>
+    <div class="em-body"><nav class="em-tabs" id="em-tabs"></nav><div class="em-pane" id="em-pane"></div></div>
+    <div class="em-foot"><span class="em-err" id="em-err"></span>
+      <button type="button" class="em-btn em-cancel" id="em-cancel" data-i18n="common.cancel">{{ t('common.cancel') }}</button>
+      <button type="button" class="em-btn em-save" id="em-save" data-i18n="common.save_changes">{{ t('common.save_changes') }}</button></div>
+  </div>
+</div>

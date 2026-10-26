@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_card.html" import card, ccard %}
+{% block heading %}{{ t('search.title') }}{% endblock %}
+{% block bodycls %}m-search tvh-exp tvh-sr{% endblock %}
+{% block head %}<link rel="preload" href="{{ url_for('static', filename='fonts/space-grotesk-latin-500-normal.woff2') }}" as="font" type="font/woff2" crossorigin>{% endblock %}
+{% block content %}
+{#- 54.17: busca do celular — só a ilustração e o campo (mesma pílula da barra das bibliotecas); resultados ao digitar (js/search-mobile.js). Só aparece no celular (CSS). -#}
+<div class="m-search-wrap" id="m-search" data-q="{{ q }}">
+  <form class="m-sbar" id="m-sbar" role="search" action="/search" method="get" autocomplete="off">
+    <label><svg class="ic"><use href="#i-search"/></svg><input type="search" name="q" id="m-sinput" value="{{ q }}" placeholder="{{ t('nav.search') }}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="{{ t('nav.search') }}"></label>
+  </form>
+  <div class="m-sempty" id="m-sempty"><img src="{{ url_for('static', filename='img/search-empty.png') }}" alt=""><p id="m-snone" hidden></p></div>
+  <div class="m-sgrid" id="m-sgrid" hidden></div>
+</div>
+<div class="s-desk">
+{% if not q %}
+<div class="empty">{{ t('search.type_title') }}</div>
+{% elif not movies and not shows and not videos and not eps and not cols %}
+<div class="empty">{{ t('search.none', q=q) }}</div>
+{% else %}
+{% if cols %}
+<div class="row">
+  <h2 class="section-title">{{ t('home.tab.collections') }}</h2>
+  <div class="pgrid">
+    {% for c in cols %}{{ ccard(c, nav_is_admin) }}{% endfor %}
+  </div>
+</div>
+{% endif %}
+{% if movies %}
+<div class="row">
+  <h2 class="section-title">{{ t('lib.all_movies') }}</h2>
+  <div class="pgrid">
+    {% for m in movies %}
+    {{ card(href="/movie/" ~ m.id, img="/poster/" ~ m.id, title=m.title, sub=m.year or None, pct=m.pct or None, kind="movie", id=m.id, play="/watch/movie/" ~ m.id, edit=nav_is_admin, more=True) }}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% if shows %}
+<div class="row">
+  <h2 class="section-title">{{ t('lib.all_shows') }}</h2>
+  <div class="pgrid">
+    {% for m in shows %}
+    {{ card(href="/show/" ~ m.id, img="/poster/" ~ m.id, title=m.title, sub=m.year or None, pct=m.pct or None, edit=nav_is_admin, more=True) }}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% if videos %}
+<div class="row">
+  <h2 class="section-title">{{ t('search.videos') }}</h2>
+  <div class="pgrid">
+    {% for m in videos %}
+    {{ card(href="/watch/movie/" ~ m.id, img="/thumb/" ~ m.id, title=m.title, pct=m.pct or None, kind="movie", id=m.id, wide=True, ptype="video", edit=nav_is_admin, more=True) }}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% if eps %}
+<div class="row">
+  <h2 class="section-title">{{ t('search.episodes') }}</h2>
+  <div class="result-list">
+    {% for e in eps %}
+    <a href="/watch/episode/{{ e.id }}"><b>{{ e.show }}</b> · {{ t('card.season_episode', s=e.season, e=e.episode) }}{% if e.title %} - {{ e.title }}{% endif %}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/search-mobile.js') }}" defer></script><script src="{{ url_for('static', filename='js/tv-detail.js') }}" defer></script>{% endblock %}

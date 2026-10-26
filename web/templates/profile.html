@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block bodycls %}m-profile{% endblock %}
+{% block content %}
+{#- Celular (≤700px): tela própria, como a referência — foto com blur embaixo, números, Editar perfil e Continuar Assistindo. No desktop fica oculta (.pfm) e vale o bloco .pf abaixo. -#}
+<div class="pfm">
+  <a class="pfm-back" id="pfm-back" href="/" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a>
+  <div class="pfm-hero">
+    <img class="pfm-photo" src="{{ photo }}" alt="">
+    <div class="pfm-fade"></div>
+  </div>
+  <div class="pfm-id">
+    <h1 class="pfm-name">{{ display }}</h1>
+    <div class="pfm-user">{{ u.username }}</div>
+  </div>
+  <div class="pfm-stats">
+    <div><b>{{ movies }}</b><span>{{ t('pf.m.movies') }}</span></div>
+    <div><b>{{ shows }}</b><span>{{ t('pf.m.shows') }}</span></div>
+    <div><b>{{ eps }}</b><span>{{ t('pf.m.eps') }}</span></div>
+  </div>
+  {% if u.show_badge and year %}<div class="pfm-badge"><svg class="ic"><use href="#i-calendar"/></svg>{{ t('pf.joined', year=year) }}</div>{% endif %}
+  <a class="pfm-edit" href="/profile/edit"><svg class="ic"><use href="#i-edit"/></svg>{{ t('pf.edit_m') }}</a>
+  <a class="pfm-edit pfm-switch" href="/profiles"><svg class="ic"><use href="#i-users"/></svg>{{ t('pf.switch') }}</a>
+  <button type="button" class="pfm-edit pfm-switch pfm-tv" id="pfm-tv" hidden><svg class="ic"><use href="#i-tv"/></svg>{{ t('pf.auth_tv') }}</button>
+  {% if cont %}
+  <h2 class="pfm-h">{{ t('pf.continue') }}</h2>
+  <div class="pfm-row">
+    {% for c in cont %}
+    <a class="pfm-card" href="{{ c.href }}" title="{{ c.title }}">
+      <span class="pfm-ph" aria-hidden="true">{{ c.title }}</span>
+      <img src="{{ c.img }}" alt="" loading="lazy" onerror="this.remove()">
+      {% if c.pct %}<span class="pfm-bar"><i style="width: {{ c.pct }}%"></i></span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+<script>
+document.getElementById("pfm-back").addEventListener("click", function (e) {
+  if (history.length > 1) { e.preventDefault(); history.back(); }
+});
+
+// 58.25: só no app do celular (WebActivity expõe StarflixApp): abre o leitor do QR que a TV mostra
+var tvBtn = document.getElementById("pfm-tv");
+if (tvBtn && window.StarflixApp && typeof window.StarflixApp.scanTv === "function") {
+  tvBtn.hidden = false;
+  tvBtn.closest(".pfm").classList.add("pfm-tvon");
+  tvBtn.addEventListener("click", function () { window.StarflixApp.scanTv(); });
+}
+</script>
+<div class="pf">
+  <div class="pf-crumb">{{ t('pf.crumb') }} <span>•</span> {{ display }}</div>
+  <div class="pf-top">
+    <img class="pf-photo" src="{{ photo }}" alt="">
+    <div class="pf-info">
+      <h1 class="pf-name">{{ display }}</h1>
+      <div class="pf-user">{{ u.username }}</div>
+      {% if u.show_badge and year %}<span class="pf-badge"><svg class="ic ic-sm"><use href="#i-calendar"/></svg>{{ t('pf.joined', year=year) }}</span>{% endif %}
+      <div><a class="pf-btn" href="/profile/edit"><svg class="ic ic-sm"><use href="#i-edit"/></svg>{{ t('pf.edit') }}</a></div>
+    </div>
+    <div class="pf-stats">
+      <div class="pf-num"><b>{{ movies }}</b> {{ t('pf.stat.movies') }}</div>
+      <div class="pf-num"><b>{{ shows }}</b> {{ t('pf.stat.shows') }}</div>
+      <div class="pf-num"><b>{{ eps }}</b> {{ t('pf.stat.eps') }}</div>
+      <small>{{ t('pf.since') }}</small>
+    </div>
+  </div>
+  {% if start %}
+  <h2 class="pf-h">{{ t('pf.start') }}</h2>
+  <div class="pf-cards">
+    {% if "fill" in start %}<div class="pf-card"><span class="pf-ic"><svg class="ic ic-lg"><use href="#i-user-circle"/></svg></span><div><h3>{{ t('pf.c1.title') }}</h3><p>{{ t('pf.c1.text') }}</p><a href="/profile/edit">{{ t('pf.edit') }}</a></div></div>{% endif %}
+    {% if "rate" in start %}<div class="pf-card"><span class="pf-ic"><svg class="ic ic-lg"><use href="#i-star"/></svg></span><div><h3>{{ t('pf.c2.title') }}</h3><p>{{ t('pf.c2.text') }}</p><a href="/">{{ t('pf.discover') }}</a></div></div>{% endif %}
+    {% if "list" in start %}<div class="pf-card"><span class="pf-ic"><svg class="ic ic-lg"><use href="#i-bookmark"/></svg></span><div><h3>{{ t('pf.c3.title') }}</h3><p>{{ t('pf.c3.text') }}</p><a href="/">{{ t('pf.discover') }}</a></div></div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

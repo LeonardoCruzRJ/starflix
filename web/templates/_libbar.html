@@ -1,0 +1,17 @@
+{#- 54.14: barra superior do celular nas bibliotecas (ícones por tipo, como na barra lateral da web) + popup Recomendado / Biblioteca / Coleções.
+    Precisa de `lib`, `tab` e nav_libraries. Só aparece no celular (CSS). -#}
+{% set _libs = (nav_libraries or []) | list %}
+{% if lib.id not in (_libs | map(attribute='id') | list) %}{% set _ = _libs.append(lib) %}{% endif %}
+<nav class="m-libbar" id="m-libbar" aria-label="{{ t('nav.libraries') }}" data-i18n-aria="nav.libraries" data-cur="{{ lib.id }}" data-tab="{{ tab }}">
+  {% for l in _libs | sort(attribute='type') %}
+  <button type="button" class="{{ 'on' if l.id == lib.id }}" data-lib="{{ l.id }}" data-cols="{{ 1 if (nav_is_admin or l.id in cols_libs) else 0 }}" aria-haspopup="true" aria-expanded="false">
+    <svg class="ic ic-lg"><use href="#{{ {'movie': 'i-film', 'video': 'i-video'}.get(l.type, 'i-tv') }}"/></svg><span>{{ l.name }}</span>
+  </button>
+  {% endfor %}
+</nav>
+<div class="m-libpop" id="m-libpop" role="menu" hidden>
+  <i class="m-libpop-tip" aria-hidden="true"></i>
+  <a href="#" data-t="recommended" role="menuitem"><svg class="ic ic-lg"><use href="#i-star"/></svg><span data-i18n="home.tab.recommended">{{ t('home.tab.recommended') }}</span></a>
+  <a href="#" data-t="library" role="menuitem"><svg class="ic ic-lg"><use href="#i-grid"/></svg><span data-i18n="nav.library">{{ t('nav.library') }}</span></a>
+  <a href="#" data-t="collections" role="menuitem"><svg class="ic ic-lg"><use href="#i-folder"/></svg><span data-i18n="home.tab.collections">{{ t('home.tab.collections') }}</span></a>
+</div>

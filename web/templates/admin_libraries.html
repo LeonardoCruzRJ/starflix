@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('nav.libraries') }}{% endblock %}
+{% block content %}
+<div class="la lm">
+  <h1 class="la-title" data-i18n="lm.title">{{ t('lm.title') }}</h1>
+  <div class="la-card">
+    <div class="la-bar pe-sec">
+      <b id="lm-count">…</b>
+      <span class="lm-btns">
+        <button type="button" class="la-btn" id="lm-add" hidden data-i18n="lm.add">{{ t('lm.add') }}</button>
+        <button type="button" class="la-btn" id="lm-scan" data-i18n="lib.examine">{{ t('lib.examine') }}</button>
+      </span>
+    </div>
+    <div id="lm-list" class="lm-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+    <div class="lm-merge">
+      <label><input type="checkbox" id="lm-merge"> <span data-i18n="lm.merge">{{ t('lm.merge') }}</span></label>
+      <p data-i18n="lm.merge_help">{{ t('lm.merge_help') }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/folder-picker.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-adv.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-edit.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-wizard.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-delete.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/library-manager.js') }}" defer></script>
+{% endblock %}

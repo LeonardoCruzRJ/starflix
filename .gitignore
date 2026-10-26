@@ -1,0 +1,32 @@
+data/*.db
+data/secret.key
+data/posters/*
+data/transcode/*
+data/subs/*
+__pycache__/
+*.pyc
+data/*.db-*
+# 60.13: nada de dados do usuário no GitHub (backups e banco guardam as chaves de API)
+data/backups/*
+data/avatars/*
+data/optimized/*
+data/restore-result.json
+data/*.antes-restore*
+data/*.restore
+data/*.check
+data/*.rollback
+data/avatars.antes-restore/
+data/avatars.novo/
+!data/*/.gitkeep
+# ambiente e Android
+.env
+scripts/.env
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+*.jks
+*.keystore
+# mensagem do próximo commit (regra zero 7)
+commit.txt

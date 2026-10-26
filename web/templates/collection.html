@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_stars.html" import star_rating %}
+{% block heading %}{% endblock %}
+{% block bodycls %}tvh-col{% endblock %}
+{% block content %}
+{% if has_bd %}<div class="mv-bg" style="background-image:url('/collection-backdrop/{{ c.id }}')"></div>{% endif %}
+<div class="lib-head mv-top">
+  <div class="lib-title">
+    <div class="lib-name"><h1><a href="/library/{{ lib.id }}?tab=collections">{{ lib.name }}</a></h1></div>
+    <div class="lib-server">StarFlix</div>
+  </div>
+  <div class="zoom"><input type="range" class="zoom-range" aria-label="{{ t('library.zoom') }}"><svg class="ic ic-lg"><use href="#i-grid"/></svg></div>
+</div>
+<div class="mv">
+  <div class="mv-side">
+    <div class="mv-poster"><span class="pcard-ph" aria-hidden="true">{{ c.title }}</span><img src="/collection-poster/{{ c.id }}" alt="" onerror="this.remove()">
+      {% if nav_is_admin %}<button type="button" class="pcard-gear" data-edit-item="collection:{{ c.id }}" aria-label="{{ t('common.edit') }}"><svg class="ic ic-sm"><use href="#i-gear"/></svg></button>{% endif %}
+    </div>
+  </div>
+  <div class="mv-info">
+    <img class="mv-logo" id="col-logo" src="/collection-logo/{{ c.id }}" alt="{{ c.title }}" hidden>
+    <h1 class="mv-title" id="col-title">{{ c.title }}</h1>
+    {% if c['content_rating'] %}<div class="mv-meta"><span class="mv-cert">{{ c['content_rating'] }}</span></div>{% endif %}
+    <div class="mv-rate">{{ star_rating("collection", c.id, stars) }}</div>
+    <div class="mv-actions">
+      {% if nxt %}
+      <a class="mv-play" href="{{ '/watch/movie/' ~ nxt.id if kind == 'movie' else '/show/' ~ nxt.id }}"><svg class="ic"><use href="#i-play"/></svg>{{ t('card.play') }}</a>
+      <a class="mv-btn" id="col-random" href="#" data-tip="{{ t('lib.shuffle') }}" aria-label="{{ t('lib.shuffle') }}"><svg class="ic"><use href="#i-shuffle"/></svg></a>
+      {% endif %}
+      {% if nav_is_admin %}<button type="button" class="mv-btn" data-edit-item="collection:{{ c.id }}" data-tip="{{ t('common.edit') }}" aria-label="{{ t('common.edit') }}"><svg class="ic"><use href="#i-edit"/></svg></button>{% endif %}
+      {% set mitems = [{"l": t('det.copy_link'), "copy": ""}] %}
+      {% if nav_is_admin %}{% set mitems = mitems + [{"sep": 1}, {"l": t('col.delete'), "act": "delcol", "kind": "collection", "ref": c.id, "name": c.title, "next": "/library/" ~ lib.id ~ "?tab=collections"}] %}{% endif %}
+      <button type="button" class="mv-btn" data-menu='{{ mitems|tojson }}' data-tip="{{ t('nav.more') }}" aria-label="{{ t('nav.more') }}"><svg class="ic"><use href="#i-dots-h"/></svg></button>
+    </div>
+    <div class="mv-over-wrap">
+      <p class="mv-over" id="over">{{ c.summary or t('det.no_summary') }}</p>
+      <button type="button" class="mv-more" id="more" hidden>{{ t('det.more') }} <svg class="ic ic-sm"><use href="#i-chevron-down"/></svg></button>
+    </div>
+  </div>
+</div>
+<div class="col-items">
+  <h2 class="col-count">{{ t('col.movies' if kind == 'movie' else 'col.shows', n=items|length) }}</h2>
+  {% set kind = kind %}{% include "_selbar.html" %}
+  {% if items %}
+  <div class="pgrid">
+    {% for m in items %}
+    {{ card(href="/" ~ kind ~ "/" ~ m.id, img="/poster/" ~ m.id, title=m.title, sub=m.year or None, pct=m.pct or None, watched=m.watched,
+            play=("/watch/movie/" ~ m.id) if kind == 'movie' else None, kind=("movie" if kind == 'movie' else None),
+            id=(m.id if kind == 'movie' else None), edit=nav_is_admin, more=True, pick=m.id) }}
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty">{{ t('col.empty') }}</div>{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.sfCollection = {{ c.id }};
+/* 56.7: fundo e logo da coleção no visual da TV (computador, >700 px) */
+(function () {
+  if (!window.matchMedia('(min-width: 701px)').matches) return;
+  var lg = document.getElementById('col-logo'), tt = document.getElementById('col-title');
+  if (lg) {
+    lg.onload = function () { lg.hidden = false; tt.hidden = true; };
+    lg.onerror = function () { lg.remove(); };
+    if (lg.complete && lg.naturalWidth) lg.onload();
+  }
+  {% if has_bd %}document.addEventListener('DOMContentLoaded', function () { if (window.sfHeroBg) sfHeroBg.set('/collection-backdrop/{{ c.id }}'); });{% endif %}
+})();
+(function () {
+  var r = document.getElementById('col-random');
+  if (!r) return;
+  var ids = {{ items|map(attribute='id')|list|tojson }}, kind = '{{ kind }}';
+  r.addEventListener('click', function (e) {
+    e.preventDefault();
+    var id = ids[Math.floor(Math.random() * ids.length)];
+    location.href = kind === 'movie' ? '/watch/movie/' + id : '/show/' + id + '/random';
+  });
+})();
+</script>
+<script src="{{ url_for('static', filename='js/detail.js') }}" defer></script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block heading %}{{ t('home.row.mylist') }}{% endblock %}
+{% block bodycls %}tvh-exp tvh-sr{% endblock %}
+{% block content %}
+{% if not items %}
+<div class="empty">{{ t('mylist.empty') }}</div>
+{% else %}
+<div class="pgrid">
+  {% for m in items %}
+  {{ card(href=("/show/" if m.type == "show" else "/movie/") ~ m.id, img="/poster/" ~ m.id, title=m.title, sub=m.year or None, watched=m.watched, kind=("movie" if m.type == "movie" else None), id=(m.id if m.type == "movie" else None), play=("/watch/movie/" ~ m.id) if m.type == "movie" else None, lib=m.lib, ptype=m.type) }}
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/tv-detail.js') }}" defer></script>{% endblock %}

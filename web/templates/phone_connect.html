@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="{{ ui_lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StarFlix</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/starflix.css') }}">
+</head>
+<body class="auth-body">
+{% include "_auth_logo.html" %}
+<div class="auth-card">
+  {% if state == 'ok' %}
+  <h2>{{ t('pc.title') }}</h2>
+  <p>{{ t('pc.ask', server='\u0001', base=base)|e|replace('\u0001', '<b>%s</b>'|safe|format(server)) }}</p>
+  <a class="btn" href="{{ deep }}" id="open">{{ t('pc.open') }}</a>
+  <p class="auth-link">{{ t('pc.hint') }}</p>
+  <script>setTimeout(function () { location.href = {{ deep|tojson }}; }, 400);</script>
+  {% elif state == 'limit' %}
+  <h2>{{ t('page.err.429.title') }}</h2>
+  <p>{{ t('page.err.429.msg') }}</p>
+  {% else %}
+  <h2>{{ t('pc.invalid') }}</h2>
+  <p>{{ t('pc.invalid_msg') }}</p>
+  {% endif %}
+</div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "_stars.html" import star_rating %}
+{% set ep_title = e.title or t('det.episode_n', n=e.episode) %}
+{% from "_mvback.html" import mvback %}
+{% block heading %}{% endblock %}
+{% block bodycls %}tvh-md{% endblock %}
+{% block content %}
+{{ mvback('/show/' ~ m.id ~ '/season/' ~ e.season) }}
+{% if m['backdrop'] %}<div class="mv-bg" style="background-image:url('/backdrop/{{ m.id }}')"></div>
+<script>try { if (localStorage.getItem('sf.epbg') === '0') document.currentScript.previousElementSibling.hidden = true; var d = parseInt(localStorage.getItem('sf.castd'), 10); if (d >= 80 && d <= 200) document.documentElement.style.setProperty('--cast-d', d + 'px'); } catch (x) {}</script>{% endif %}
+<div class="lib-head mv-top ep-top">
+  <div class="lib-title">
+    <div class="lib-name"><h1><a href="/library/{{ lib.id }}">{{ lib.name }}</a></h1></div>
+    <div class="lib-server">StarFlix</div>
+  </div>
+  <div class="ep-tools">
+    <button type="button" class="icon-btn ep-bg-btn on" id="ep-bg" data-tip="{{ t('det.bg_hide') }}" aria-label="{{ t('det.bg_aria') }}" aria-pressed="true"{% if not m['backdrop'] %} disabled{% endif %}><svg class="ic ic-lg"><use href="#i-image"/></svg></button>
+    <div class="zoom ep-zoom"><input type="range" class="cast-range" id="cast-range" min="80" max="200" step="4" value="120" aria-label="{{ t('det.cast_size') }}"><span class="ep-grid" aria-hidden="true"><svg class="ic ic-lg"><use href="#i-grid"/></svg></span></div>
+    <span class="ep-sep" aria-hidden="true"></span>
+    <div class="season-nav">
+      {% if prev_id %}<a class="icon-btn" href="/episode/{{ prev_id }}" data-tip="{{ t('det.episode_prev') }}" aria-label="{{ t('det.episode_prev') }}"><svg class="ic ic-lg"><use href="#i-chevron-left"/></svg></a>{% else %}<span class="icon-btn off"><svg class="ic ic-lg"><use href="#i-chevron-left"/></svg></span>{% endif %}
+      <div class="ep-list-wrap">
+        <button type="button" class="icon-btn ep-list-btn" id="ep-list" data-tip="{{ t('det.episodes_tip') }}" aria-haspopup="true" aria-expanded="false" aria-label="{{ t('det.episode_list') }}"><svg class="ic ic-lg"><use href="#i-menu"/></svg><svg class="ic ic-sm" id="ep-list-caret"><use href="#i-chevron-down"/></svg></button>
+        <div class="ep-menu" id="ep-menu" hidden>
+          {% for s in season_eps %}<a href="/episode/{{ s.id }}" class="{{ 'cur' if s.id == e.id }}"><span>E{{ s.episode }} — {{ s.title or t('det.episode_n', n=s.episode) }}</span>{% if s.id == e.id %}<svg class="ic ic-sm"><use href="#i-check"/></svg>{% endif %}</a>{% endfor %}
+        </div>
+      </div>
+      {% if next_id %}<a class="icon-btn" href="/episode/{{ next_id }}" data-tip="{{ t('det.episode_next') }}" aria-label="{{ t('det.episode_next') }}"><svg class="ic ic-lg"><use href="#i-chevron-right"/></svg></a>{% else %}<span class="icon-btn off"><svg class="ic ic-lg"><use href="#i-chevron-right"/></svg></span>{% endif %}
+    </div>
+  </div>
+</div>
+<div class="mv-pills" aria-label="{{ t('det.seasons') }}"><a href="/show/{{ m.id }}">{{ t('common.show') }}</a><a class="on" href="/show/{{ m.id }}/season/{{ e.season }}">{{ t('det.specials') if e.season == 0 else t('det.season', n=e.season) }}</a></div>
+<div class="mv">
+  <div class="mv-side mv-side-ep">
+    <div class="mv-poster mv-poster-ep"><span class="pcard-ph" aria-hidden="true">{{ ep_title }}</span><img src="/still/{{ e.id }}" alt="" onerror="this.remove()"><a class="mv-playov" href="/watch/episode/{{ e.id }}" aria-label="{{ t('card.play') }}"><span class="pcard-play"><svg class="ic ic-lg"><use href="#i-play"/></svg></span></a></div>
+    {% if watched %}<div class="mv-seen"><svg class="ic ic-sm"><use href="#i-check"/></svg> {{ t('card.watched') }}</div>{% elif pct %}<div class="mv-seen"><span class="mv-prog"><i style="width: {{ [100, pct|round|int]|min }}%"></i></span>{{ t('det.left_pl', left=left) }}</div>{% endif %}
+  </div>
+  <div class="mv-info">
+    <img class="mv-logo" id="md-logo" src="/logo/{{ m.id }}" alt="{{ dtitle(m) }}" hidden>
+    <h1 class="mv-title" id="md-title"><a href="/show/{{ m.id }}">{{ dtitle(m) }}</a></h1>
+    <h2 class="ep-name">{{ ep_title }}</h2>
+    <div class="mv-meta ep-line">
+      <span><a href="/show/{{ m.id }}/season/{{ e.season }}">{{ t('det.specials') if e.season == 0 else t('det.season', n=e.season) }}</a></span><span>{{ t('det.episode_n', n=e.episode) }}</span>{% if left %}<span>{{ t('det.left_one', left=left) }}</span>{% endif %}
+    </div>
+    <div class="mv-meta ep-line2">
+      {% if cert %}<span class="mv-cert">{{ cert }}</span>{% endif %}
+      {% if air %}<span>{{ air }}</span>{% endif %}
+      {% if runtime_hm %}<span>{{ runtime_hm }}</span>{% endif %}
+    </div>
+    <div class="mv-rate">
+      {% if imdb %}<span class="ep-badge" title="{{ t('det.rating_imdb') }}"><b class="b-imdb">IMDb</b>{{ '%.1f'|format(imdb) }}</span>{% endif %}
+      {% if tmdb_pct %}<span class="ep-badge" title="{{ t('det.rating_tmdb') }}"><b class="b-tmdb">TMDB</b>{{ tmdb_pct }}%</span>{% endif %}
+      {{ star_rating("episode", e.id, stars) }}
+    </div>
+    <div class="mv-actions">
+      <a class="mv-play" href="/watch/episode/{{ e.id }}"><svg class="ic"><use href="#i-play"/></svg>{% if pct %}{{ t('det.continue') }}{% else %}{{ t('card.play') }}{% endif %}</a>
+      <button type="button" class="mv-btn{{ ' on' if in_list }}" id="mylist" data-id="{{ m.id }}" data-on="{{ 1 if in_list else 0 }}" data-what="show" data-tip="{{ t('det.mylist.remove_show') if in_list else t('det.mylist.add_show') }}" aria-label="{{ t('home.row.mylist') }}"><svg class="ic"><use href="#{{ 'i-bookmark-fill' if in_list else 'i-bookmark' }}"/></svg></button>
+      <button type="button" class="mv-btn{{ ' on' if watched }}" id="mark" data-kind="episode" data-id="{{ e.id }}" data-watched="{{ 0 if watched else 1 }}" data-tip="{{ t('card.mark_unwatched') if watched else t('card.mark_watched') }}" aria-label="{{ t('card.mark_unwatched') if watched else t('card.mark_watched') }}"><svg class="ic"><use href="#i-check-circle"/></svg></button>
+      {% if nav_is_admin %}<button type="button" class="mv-btn" data-edit-item="episode:{{ e.id }}" data-tip="{{ t('common.edit') }}" aria-label="{{ t('common.edit') }}"><svg class="ic"><use href="#i-edit"/></svg></button>{% endif %}
+      <button type="button" class="mv-btn" id="share" data-tip="{{ t('det.copy_link') }}" aria-label="{{ t('det.copy_link') }}"><svg class="ic"><use href="#i-share"/></svg></button>
+      {% set mitems = [{"l": (t('card.mark_unwatched') if watched else t('card.mark_watched')), "c": "#mark"}, {"l": t('det.copy_link'), "copy": ""}] %}
+      <button type="button" class="mv-btn" data-admin-item="episode:{{ e.id }}" data-admin-name="{{ m.title }}" data-menu='{{ mitems|tojson }}' data-tip="{{ t('nav.more') }}" aria-label="{{ t('nav.more') }}"><svg class="ic"><use href="#i-dots-h"/></svg></button>
+    </div>
+    <div class="mv-over-wrap">
+      <p class="mv-over" id="over">{{ e.overview or t('det.no_overview') }}</p>
+      <button type="button" class="mv-more" id="more" hidden>{{ t('det.more') }} <svg class="ic ic-sm"><use href="#i-chevron-down"/></svg></button>
+    </div>
+    <div class="ep-tech">
+      <div class="ep-row">
+        <span class="ep-k">{% if directors %}{{ t('det.directed_by') }}{% endif %}</span><span class="ep-v">{{ directors|map(attribute='name')|join(', ') }}</span>
+        <span class="ep-k">{% if video %}{{ t('det.video') }}{% endif %}</span><span class="ep-v">{{ video }}</span>
+      </div>
+      <div class="ep-row">
+        <span class="ep-k">{% if writers %}{{ t('det.written_by') }}{% endif %}</span><span class="ep-v">{{ writers|map(attribute='name')|join(', ') }}</span>
+        <span class="ep-k">{{ t('det.audio') }}</span>
+        <span class="ep-v"><select class="ep-sel" id="pf-audio" aria-label="{{ t('det.audio') }}">{% for v, n in audio %}<option value="{{ v }}" {{ 'selected' if v == sel_a }}>{{ n }}</option>{% else %}<option value="">{{ t('det.default') }}</option>{% endfor %}</select></span>
+      </div>
+      <div class="ep-row">
+        <span class="ep-k"></span><span class="ep-v"></span>
+        <span class="ep-k">{{ t('det.subtitles') }}</span>
+        <span class="ep-v"><select class="ep-sel" id="pf-sub" aria-label="{{ t('det.subtitles') }}">{% for v, n in subs %}<option value="{{ v }}" {{ 'selected' if v == sel_s }}>{{ n }}</option>{% endfor %}</select></span>
+      </div>
+    </div>
+  </div>
+</div>
+{% include "_extras.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/detail.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tv-detail.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/episode.js') }}" defer></script>
+{% endblock %}

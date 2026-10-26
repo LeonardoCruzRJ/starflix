@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('tvp.heading') }}{% endblock %}
+{% block content %}
+<div class="la tvp">
+  <h1 class="la-title">{{ t('tvp.heading') }}</h1>
+  <div class="la-card">
+    <div class="la-bar pe-sec"><b>{{ t('tvp.sec.auth') }}</b></div>
+    <div class="tvp-body">
+      <p class="tv-help">{{ t('tvp.help') }}</p>
+      <div class="tv-msg {{ 'ok' if result and result.ok else 'err' }}" id="tv-msg" role="status"{% if not result %} hidden{% endif %}>{{ result.text if result }}</div>
+      <form id="tv-form" autocomplete="off" class="tvp-form">
+        <input type="text" id="tv-code" class="la-q tv-code" value="{{ code }}" maxlength="12" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="ABC123" aria-label="{{ t('tvp.code_aria') }}" autofocus>
+        <button type="submit" class="la-btn" id="tv-go">{{ t('tvp.go') }}</button>
+      </form>
+      <button type="button" class="la-btn" id="tv-scan" hidden>{{ t('tvp.scan') }}</button>
+    </div>
+    <div class="la-bar pe-sec"><b>{{ t('tvp.sec.devices') }}</b></div>
+    <div class="tvp-body">
+      <ul class="tv-list" id="tv-list">
+        {% for d in devices %}
+        <li data-id="{{ d.id }}"><span class="tv-name">{{ d.name }}</span><span class="tv-when">{{ t('tvp.connected_at', date=d.created) }}{% if d.seen and d.seen != d.created %} · {{ t('dev.seen', date=d.seen) }}{% endif %}</span><button type="button" class="tv-rev" aria-label="{{ t('dev.revoke_aria', name=d.name) }}">{{ t('common.revoke') }}</button></li>
+        {% endfor %}
+      </ul>
+      <p class="tv-none" id="tv-none"{% if devices %} hidden{% endif %}>{{ t('tvp.none') }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/tv-page.js') }}" defer></script>{% endblock %}

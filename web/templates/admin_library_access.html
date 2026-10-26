@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="la">
+  <h1 class="la-title" data-i18n="la.title">{{ t('la.title') }}</h1>
+  <p class="la-desc" data-i18n="la.desc">{{ t('la.desc') }}</p>
+  <div class="la-card">
+    <div class="la-bar">
+      <b data-i18n="la.accounts">{{ t('la.accounts') }}</b>
+      <button type="button" class="la-btn" id="la-add" hidden data-i18n="la.grant">{{ t('la.grant') }}</button>
+    </div>
+    <div id="la-list" class="la-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/library-access.js') }}" defer></script><script src="{{ url_for('static', filename='js/library-access-page.js') }}" defer></script>{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('nav.agents') }}{% endblock %}
+{% block content %}
+<div class="la lm">
+  <h1 class="la-title" data-i18n="ag.title">{{ t('ag.title') }}</h1>
+  <p class="la-desc" data-i18n="ag.desc">{{ t('ag.desc') }}</p>
+  <div class="la-card">
+    <div class="la-bar pe-sec"><b id="ag-count">…</b></div>
+    <div id="ag-list" class="lm-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/agents.js') }}" defer></script>
+{% endblock %}

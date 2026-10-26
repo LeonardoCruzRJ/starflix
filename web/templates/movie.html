@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_prefs.html" import prefs_box %}
+{% from "_stars.html" import star_rating %}
+{% from "_mvback.html" import mvback %}
+{% block heading %}{% endblock %}
+{% block bodycls %}tvh-md{% endblock %}
+{% block content %}
+{{ mvback('/library/' ~ lib.id) }}
+{% if m['backdrop'] %}<div class="mv-bg" style="background-image:url('/backdrop/{{ m.id }}')"></div>{% endif %}
+<div class="lib-head mv-top">
+  <div class="lib-title">
+    <div class="lib-name"><h1><a href="/library/{{ lib.id }}">{{ lib.name }}</a></h1>{% if nav_is_admin %}<div class="menu-wrap"><button type="button" class="icon-btn" data-item-menu="movie:{{ m.id }}" data-item-name="{{ m.title }}" aria-haspopup="true" aria-label="{{ t('nav.more') }}"><svg class="ic"><use href="#i-dots-v"/></svg></button></div>{% endif %}</div>
+    <div class="lib-server">StarFlix</div>
+  </div>
+</div>
+<div class="mv">
+  <div class="mv-side">
+    <div class="mv-poster"><span class="pcard-ph" aria-hidden="true">{{ dtitle(m) }}</span><img src="/poster/{{ m.id }}" alt="" onerror="this.remove()"><a class="mv-playov" href="/watch/movie/{{ m.id }}" aria-label="{{ t('card.play') }}"><span class="pcard-play"><svg class="ic ic-lg"><use href="#i-play"/></svg></span></a></div>
+    {% if watched %}<div class="mv-seen"><svg class="ic ic-sm"><use href="#i-check"/></svg> {{ t('card.watched') }}</div>{% elif pct %}<div class="mv-seen"><span class="mv-prog"><i style="width: {{ [100, pct|round|int]|min }}%"></i></span>{{ t('det.left_pl', left=left) }}</div>{% endif %}
+  </div>
+  <div class="mv-info">
+    <img class="mv-logo" id="md-logo" src="/logo/{{ m.id }}" alt="{{ dtitle(m) }}" hidden>
+    <h1 class="mv-title" id="md-title">{{ dtitle(m) }}</h1>
+    {% if m['director'] %}<div class="mv-dir">{{ t('det.directed_by_name', name=m['director']) }}</div>{% endif %}
+    <div class="mv-meta">
+      {% if m['content_rating'] %}<span class="mv-cert">{{ m['content_rating'] }}</span>{% endif %}
+      {% if m.year %}<span>{{ m.year }}</span>{% endif %}
+      {% if runtime_hm %}<span>{{ runtime_hm }}</span>{% endif %}
+      {% if genres %}<span>{{ genres[:2]|join(', ') }}{% if genres|length > 2 %}{{ t('det.and_more') }}{% endif %}</span>{% endif %}
+    </div>
+    <div class="mv-rate">{% if rate %}<span{% if rate.cls %} class="{{ rate.cls }}"{% endif %} title="{{ rate.title }}">{{ rate.text }}</span>{% endif %}{{ star_rating("movie", m.id, stars) }}</div>
+    <div class="mv-actions">
+      <a class="mv-play" href="/watch/movie/{{ m.id }}"><svg class="ic"><use href="#i-play"/></svg>{% if position and not watched %}{{ t('det.continue_at', resume=resume) }}{% else %}{{ t('card.play') }}{% endif %}</a>
+      {% if position and not watched %}<a class="mv-restart" href="/watch/movie/{{ m.id }}?start=0">{{ t('det.from_start') }}</a>{% endif %}
+<button type="button" class="mv-btn{{ ' on' if in_list }}" id="mylist" data-id="{{ m.id }}" data-on="{{ 1 if in_list else 0 }}" data-what="movie" data-tip="{{ t('det.mylist.remove_movie') if in_list else t('det.mylist.add_movie') }}" aria-label="{{ t('home.row.mylist') }}"><svg class="ic"><use href="#{{ 'i-bookmark-fill' if in_list else 'i-bookmark' }}"/></svg></button>
+      <button type="button" class="mv-btn{{ ' on' if watched }}" id="mark" data-watched="{{ 0 if watched else 1 }}" data-tip="{{ t('card.mark_unwatched') if watched else t('card.mark_watched') }}" aria-label="{{ t('card.mark_unwatched') if watched else t('card.mark_watched') }}"><svg class="ic"><use href="#i-check-circle"/></svg></button>
+      <button type="button" class="mv-btn" id="share" data-tip="{{ t('det.copy_link') }}" aria-label="{{ t('det.copy_link') }}"><svg class="ic"><use href="#i-share"/></svg></button>
+      {% set mitems = [{"l": (t('card.mark_unwatched') if watched else t('card.mark_watched')), "c": "#mark"}, {"l": t('det.save_file'), "h": "/download/movie/" ~ m.id}, {"l": t('det.copy_link'), "copy": ""}] %}
+      {% if nav_is_admin %}<button type="button" class="mv-btn" data-edit-item="movie:{{ m.id }}" data-tip="{{ t('common.edit') }}" aria-label="{{ t('common.edit') }}"><svg class="ic"><use href="#i-edit"/></svg></button>{% endif %}
+      <button type="button" class="mv-btn" data-admin-item="movie:{{ m.id }}" data-admin-name="{{ m.title }}" data-menu='{{ mitems|tojson }}' data-tip="{{ t('nav.more') }}" aria-label="{{ t('nav.more') }}"><svg class="ic"><use href="#i-dots-h"/></svg></button>
+    </div>
+    <div class="mv-over-wrap">
+      <p class="mv-over" id="over">{{ m.overview or t('det.no_overview') }}</p>
+      <button type="button" class="mv-more" id="more" hidden>{{ t('det.more') }} <svg class="ic ic-sm"><use href="#i-chevron-down"/></svg></button>
+    </div>
+    {% if tech %}
+    <dl class="mv-tech">
+      {% if tech.video or tech.resolution %}<dt>{{ t('det.video') }}</dt><dd>{{ tech.resolution or '' }}{% if tech.video %} ({{ tech.video }}){% endif %}{% if tech.hdr %} · {{ tech.hdr }}{% endif %}</dd>{% endif %}
+    </dl>
+    {% endif %}
+    {{ prefs_box(prefs) }}
+  </div>
+</div>
+{% include "_extras.html" %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('mark').addEventListener('click', async function () {
+  var r = await fetch('/progress/movie/{{ m.id }}/watched', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({watched: this.dataset.watched})
+  });
+  if (r.status === 401) { location.href = '/login'; return; }
+  location.reload();
+});
+</script>
+<script src="{{ url_for('static', filename='js/detail.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tv-detail.js') }}" defer></script>
+{% if nav_is_admin %}<script src="{{ url_for('static', filename='js/item-menu.js') }}" defer></script>{% endif %}
+{% endblock %}

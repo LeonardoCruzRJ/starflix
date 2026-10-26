@@ -1,0 +1,11 @@
+{% extends "auth_base.html" %}
+{% block body %}
+{% include "_auth_logo.html" %}
+<form method="post" class="auth-card">
+  <h2 data-i18n="auth.setup.title">{{ t('auth.setup.title') }}</h2>
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+  <input type="text" name="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="{{ t('auth.username') }}" data-i18n-placeholder="auth.username" required autofocus autocomplete="username">
+  <input type="password" name="password" placeholder="{{ t('auth.password') }}" data-i18n-placeholder="auth.password" required autocomplete="new-password">
+  <button type="submit" class="btn" data-i18n="auth.setup.submit">{{ t('auth.setup.submit') }}</button>
+</form>
+{% endblock %}

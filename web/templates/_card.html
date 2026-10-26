@@ -1,0 +1,66 @@
+{#- Card de pôster estilo Plex (23.3).
+    Uso:  {% from "_card.html" import card %}
+          {{ card(href="/movie/1", img="/poster/1", title="Alien", sub="1979", pct=40, watched=False,
+                  kind="movie", id=1, edit=nav_is_admin, more=True) }}
+    - sub: 2ª linha (ano ou título do episódio); sub2: 3ª linha (ex.: "T1 · E2")
+    - pct: 0–100 -> barra de progresso laranja na base; watched -> selo ✓ no canto superior direito
+    - play: URL do ▶ do hover (padrão: href); kind/id ("movie"|"episode") habilitam o ○ (marcar assistido/não)
+    - edit/more: mostram ✎ (abre o modal Editar, 23.18) e ⋮ (menu, 23.10); sem JS ligado ainda ficam só como ganchos data-*
+    - lib/ptype: biblioteca e tipo (movie|show) do item — o Início (32.10) mistura bibliotecas e a barra de seleção precisa deles
+    - pick: id da mídia; liga a seleção múltipla (24.3) — o ○ do canto passa a marcar o card (em vez de assistido)
+    - wide=True: still 16:9 (episódios); fb: imagem de reserva se a principal falhar -#}
+{% macro card(href, img, title, sub=None, sub2=None, pct=None, watched=False, play=None, kind=None, id=None, edit=False, more=False, wide=False, pick=None, lib=None, ptype=None, bd=None, left=None, fb=None) -%}
+<div class="pcard{{ ' pcard-wide' if wide }}{{ ' pcard-t-movie' if href.startswith('/movie/') }}{{ ' pcard-t-show' if href.startswith('/show/') }}" {% if kind and id %}data-kind="{{ kind }}" data-id="{{ id }}"{% endif %}{% if pick %} data-pick="{{ pick }}"{% endif %}{% if lib %} data-lib="{{ lib }}"{% endif %}{% if ptype %} data-type="{{ ptype }}"{% endif %}>
+  <div class="pcard-poster">
+    <span class="pcard-ph" aria-hidden="true">{{ title }}</span>
+    <a class="pcard-link" href="{{ href }}" tabindex="-1" aria-hidden="true">
+      {% if img %}<img src="{{ img }}" alt="" loading="lazy"{% if fb %} data-fb="{{ fb }}" onerror="if(this.dataset.fb){this.src=this.dataset.fb;delete this.dataset.fb}else this.remove()"{% else %} onerror="this.remove()"{% endif %}>{% endif %}
+      {% if bd %}<img class="pcard-bd" src="{{ bd }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}
+    </a>
+    {% if left %}<span class="pcard-left">{{ left }}</span>{% endif %}
+    {% if watched %}<span class="pcard-seen" title="{{ t('card.watched') }}"><svg class="ic ic-sm"><use href="#i-check"/></svg></span>{% endif %}
+    {% if pct %}<span class="pcard-bar"><i style="width: {{ [100, pct|round|int]|min }}%"></i></span>{% endif %}
+    {% if pick %}<button type="button" class="pcard-pick" aria-pressed="false" aria-label="{{ t('card.select') }}"><svg class="ic off-ic"><use href="#i-circle"/></svg><svg class="ic on-ic"><use href="#i-check-circle"/></svg></button>{% endif %}
+    <div class="pcard-over">
+      <a class="pcard-play" href="{{ play or href }}" aria-label="{{ t('card.play') }}"><svg class="ic ic-lg"><use href="#i-play"/></svg></a>
+      {% if kind and id and not pick %}
+      <button type="button" class="pcard-sel{{ ' on' if watched }}" data-watched="{{ 0 if watched else 1 }}" aria-label="{{ t('card.mark_unwatched') if watched else t('card.mark_watched') }}"><svg class="ic"><use href="#{{ 'i-check-circle' if watched else 'i-circle' }}"/></svg></button>
+      {% endif %}
+      {% if edit %}<button type="button" class="pcard-edit" data-edit aria-label="{{ t('common.edit') }}"><svg class="ic ic-sm"><use href="#i-edit"/></svg></button>{% endif %}
+      {% if more %}<button type="button" class="pcard-more" data-more aria-label="{{ t('nav.more') }}"><svg class="ic ic-sm"><use href="#i-dots-v"/></svg></button>{% endif %}
+    </div>
+  </div>
+  <div class="pcard-txt"><a class="pcard-title" href="{{ href }}" title="{{ title }}">{{ title }}</a>
+  {% if sub %}<div class="pcard-sub pcard-sub1">{{ sub }}</div>{% endif %}
+  {% if sub2 %}<div class="pcard-sub pcard-sub2">{{ sub2 }}</div>{% endif %}</div>
+</div>
+{%- endmacro %}
+
+{#- Card de coleção (24.6): pôster, ⚙ (admin) e "N itens". Uso: {{ ccard(c, nav_is_admin) }} -#}
+{% macro ccard(c, admin=False) -%}
+  <div class="pcard" data-collection="{{ c.id }}">
+    <div class="pcard-poster">
+      <span class="pcard-ph" aria-hidden="true">{{ c.title }}</span>
+      <a class="pcard-link" href="/collection/{{ c.id }}" tabindex="-1" aria-hidden="true"><img src="/collection-poster/{{ c.id }}" alt="" loading="lazy" onerror="this.remove()"></a>
+      {% if admin %}<button type="button" class="pcard-gear" data-edit-item="collection:{{ c.id }}" aria-label="{{ t('common.edit') }}"><svg class="ic ic-sm"><use href="#i-gear"/></svg></button>{% endif %}
+    </div>
+    <a class="pcard-title" href="/collection/{{ c.id }}" title="{{ c.title }}">{{ c.title }}</a>
+    <div class="pcard-sub">{{ t('common.items', n=c.n) }}</div>
+  </div>
+{%- endmacro %}
+
+{#- Card de lista de reprodução (31.9): capa própria ou grade 2×2 com os pôsteres dos primeiros itens. Uso: {{ plcard(p) }} -#}
+{% macro plcover(poster, pid, thumbs) -%}
+  {% if poster %}<img src="/playlist-image/{{ pid }}/poster" alt="" loading="lazy" onerror="this.remove()">
+  {% elif thumbs %}<span class="pl-cover pl-cover-{{ [thumbs|length, 4]|min }}">{% for t in thumbs[:4] %}<img src="/poster/{{ t }}" alt="" loading="lazy" onerror="this.remove()">{% endfor %}</span>{% endif %}
+{%- endmacro %}
+{% macro plcard(p) -%}
+  <div class="pcard" data-playlist="{{ p.id }}">
+    <div class="pcard-poster">
+      <span class="pcard-ph" aria-hidden="true">{{ p.title }}</span>
+      <a class="pcard-link" href="/playlist/{{ p.id }}" tabindex="-1" aria-hidden="true">{{ plcover(p.poster, p.id, p.thumbs) }}</a>
+    </div>
+    <a class="pcard-title" href="/playlist/{{ p.id }}" title="{{ p.title }}">{{ p.title }}</a>
+    <div class="pcard-sub">{{ p.dur or t('common.items', n=p.n) }}</div>
+  </div>
+{%- endmacro %}

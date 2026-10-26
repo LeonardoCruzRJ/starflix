@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="{{ ui_lang }}" data-pid="{{ session.get('profile_id', '') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StarFlix</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/starflix.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/player.css') }}">
+</head>
+<body class="player-body">
+{% include "_icons.html" %}
+<div id="player" data-kind="{{ kind }}" data-id="{{ item_id }}" data-back="{{ back }}" data-audio="{{ pref_audio }}" data-sub="{{ pref_sub }}" data-submode="{{ pref_submode }}" data-sdh="{{ pref_sdh }}" data-forced="{{ pref_forced }}" data-skipintro="{{ skip_intro }}" data-autonext="{{ auto_next }}">
+  <video id="video" playsinline></video>
+  <div id="subtitle" class="sub-style" data-ssize="{{ sub_style.sub_size }}" data-scolor="{{ sub_style.sub_color }}" data-sbg="{{ sub_style.sub_bg }}" data-spos="{{ sub_style.sub_pos }}"></div>
+  <div id="osd"></div>
+  <div id="spinner" hidden></div>
+  <button type="button" id="skip" class="p-skip" hidden><span data-i18n="player.skip_intro">{{ t('player.skip_intro') }}</span> <kbd>S</kbd></button>
+  <div id="nextcard" class="p-nextcard" hidden>
+    <div class="p-nc-t" data-i18n="player.next_ep">{{ t('player.next_ep') }}</div>
+    <div id="nc-sub" class="p-nc-s"></div>
+    <div class="p-nc-b"><button type="button" id="nc-go" class="p-nc-go" data-i18n="player.play_now">{{ t('player.play_now') }}</button><button type="button" id="nc-cancel" class="p-nc-x" data-i18n="common.cancel">{{ t('common.cancel') }}</button></div>
+  </div>
+  <div id="error" hidden></div>
+  {% if nav_is_admin %}
+  <div id="ss" class="ss" hidden>
+    <div class="ss-win" role="dialog" aria-label="{{ t('player.ss.title') }}" data-i18n-aria="player.ss.title">
+      <div class="ss-head"><span data-i18n="player.ss.title">{{ t('player.ss.title') }}</span><button type="button" id="ss-x" class="p-btn" aria-label="{{ t('common.close') }}" data-i18n-aria="common.close">&times;</button></div>
+      <div class="ss-bar"><label><span data-i18n="player.ss.lang">{{ t('player.ss.lang') }}</span> <select id="ss-lang"></select></label><span id="ss-budget"></span><button type="button" id="ss-refresh" class="p-dreset" data-i18n="player.ss.refresh">{{ t('player.ss.refresh') }}</button></div>
+      <div id="ss-msg" class="ss-msg"></div>
+      <ul id="ss-list" class="ss-list"></ul>
+      <div id="ss-have" class="ss-have" hidden></div>
+    </div>
+  </div>
+  {% endif %}
+  <div id="ui">
+    <div class="p-top">
+      <a href="{{ back }}" id="back" data-tip="{{ t('common.back') }}" data-i18n-tip="common.back" data-tip-pos="bottom" aria-label="{{ t('common.back') }}" data-i18n-aria="common.back"><svg class="ic ic-lg"><use href="#i-chevron-down"/></svg></a>
+      <span class="grow"></span>
+      <button type="button" id="fs" class="p-btn" data-tip="{{ t('player.fullscreen') }}" data-i18n-tip="player.fullscreen" data-tip-pos="bottom" aria-label="{{ t('player.fullscreen') }}" data-i18n-aria="player.fullscreen"><svg class="ic ic-lg"><use href="#i-fullscreen"/></svg></button>
+    </div>
+    <div class="p-bottom">
+      <div id="seek-tip" hidden><div id="seek-img"></div><span id="seek-time"></span></div>
+      <input type="range" id="seek" min="0" max="1000" value="0" step="1" aria-label="{{ t('player.position') }}" data-i18n-aria="player.position">
+      <div class="p-row">
+        <div class="p-left">
+          <div class="p-name">{{ title }}</div>
+          {% if sub %}<div class="p-sub">{{ sub }}</div>{% endif %}
+          <div id="time">0:00 / 0:00</div>
+        </div>
+        <div class="p-center">
+          <button type="button" id="back10" class="p-btn" data-tip="{{ t('player.back10_tip') }}" data-i18n-tip="player.back10_tip" aria-label="{{ t('player.back10') }}" data-i18n-aria="player.back10"><svg class="ic ic-lg"><use href="#i-replay-10"/></svg></button>
+          <button type="button" id="play" class="p-btn p-main" aria-label="{{ t('player.playpause') }}" data-i18n-aria="player.playpause"><svg class="ic ic-lg"><use href="#i-play"/></svg></button>
+          <button type="button" id="fwd30" class="p-btn" data-tip="{{ t('player.fwd30_tip') }}" data-i18n-tip="player.fwd30_tip" aria-label="{{ t('player.fwd30') }}" data-i18n-aria="player.fwd30"><svg class="ic ic-lg"><use href="#i-forward-30"/></svg></button>
+          <button type="button" id="next" class="p-btn" data-tip="{{ t('player.next_ep') }}" data-i18n-tip="player.next_ep" aria-label="{{ t('player.next_ep') }}" data-i18n-aria="player.next_ep" hidden><svg class="ic ic-lg"><use href="#i-skip-next"/></svg></button>
+          <button type="button" id="stop" class="p-btn" data-tip="{{ t('player.stop') }}" data-i18n-tip="player.stop" aria-label="{{ t('player.stop') }}" data-i18n-aria="player.stop"><svg class="ic ic-lg"><use href="#i-stop"/></svg></button>
+        </div>
+        <div class="p-right">
+          <div class="p-pop-wrap">
+            <button type="button" id="settings-btn" class="p-btn" data-tip="{{ t('player.settings') }}" data-i18n-tip="player.settings" aria-label="{{ t('player.settings') }}" data-i18n-aria="player.settings" aria-expanded="false"><svg class="ic ic-lg"><use href="#i-sliders"/></svg></button>
+            <div id="settings" class="p-pop" hidden>
+              <label><span data-i18n="player.audio">{{ t('player.audio') }}</span> <select id="audio"></select></label>
+              <label><span data-i18n="player.subs">{{ t('player.subs') }}</span> <select id="subs"></select></label>
+              <div class="p-delay" id="delay-row">
+                <span data-i18n="player.delay">{{ t('player.delay') }}</span>
+                <div class="p-delay-ctl">
+                  <button type="button" id="delay-minus" class="p-dbtn" data-tip="{{ t('player.delay_minus_tip') }}" data-i18n-tip="player.delay_minus_tip" aria-label="{{ t('player.delay_minus') }}" data-i18n-aria="player.delay_minus">&minus;</button>
+                  <output id="delay-val">0,0 s</output>
+                  <button type="button" id="delay-plus" class="p-dbtn" data-tip="{{ t('player.delay_plus_tip') }}" data-i18n-tip="player.delay_plus_tip" aria-label="{{ t('player.delay_plus') }}" data-i18n-aria="player.delay_plus">+</button>
+                  <button type="button" id="delay-reset" class="p-dreset" data-i18n="player.delay_reset">{{ t('player.delay_reset') }}</button>
+                </div>
+              </div>
+              <button type="button" id="sty-btn" class="p-dreset p-sty-btn" aria-expanded="false" data-i18n="player.sty_btn">{{ t('player.sty_btn') }}</button>
+              <div id="sty-panel" class="p-sty" hidden>
+                {% for key, attr in [('sub_size','ssize'),('sub_color','scolor'),('sub_bg','sbg'),('sub_pos','spos')] %}
+                <label><span data-i18n="player.sty.{{ key }}">{{ t('player.sty.' ~ key) }}</span> <select data-sty="{{ key }}" data-attr="{{ attr }}">{% for v, n in sub_opts[key] %}<option value="{{ v }}" data-i18n="player.sty.{{ key }}.{{ v }}" {{ 'selected' if sub_style[key] == v }}>{{ t('player.sty.' ~ key ~ '.' ~ v) }}</option>{% endfor %}</select></label>
+                {% endfor %}
+              </div>
+              {% if nav_is_admin and kind == 'episode' %}
+              <div class="p-delay p-mark" id="mark-row">
+                <span data-i18n="player.mark.title">{{ t('player.mark.title') }}</span>
+                <div class="p-delay-ctl">
+                  <select id="mark-kind"><option value="intro" data-i18n="player.mark.intro">{{ t('player.mark.intro') }}</option><option value="credits" data-i18n="player.mark.credits">{{ t('player.mark.credits') }}</option></select>
+                  <output id="mark-val">&mdash;</output>
+                </div>
+                <div class="p-delay-ctl">
+                  <button type="button" id="mark-start" class="p-dreset" data-i18n="player.mark.start_here">{{ t('player.mark.start_here') }}</button>
+                  <button type="button" id="mark-end" class="p-dreset" data-i18n="player.mark.end_here">{{ t('player.mark.end_here') }}</button>
+                  <button type="button" id="mark-clear" class="p-dreset" data-i18n="player.mark.clear">{{ t('player.mark.clear') }}</button>
+                </div>
+              </div>
+              {% endif %}
+              {% if nav_is_admin %}<button type="button" id="ss-open" class="p-dreset p-sty-btn" data-i18n="player.ss.open">{{ t('player.ss.open') }}</button>{% endif %}
+              <div id="hdr-note" class="p-note" hidden></div>
+              <label><span data-i18n="player.quality">{{ t('player.quality') }}</span> <select id="quality"></select></label>
+            </div>
+          </div>
+          <div class="p-vol">
+            <button type="button" id="mute" class="p-btn" data-tip="{{ t('player.volume') }}" data-i18n-tip="player.volume" aria-label="{{ t('player.mute') }}" data-i18n-aria="player.mute"><svg class="ic ic-lg"><use href="#i-volume"/></svg></button>
+            <input type="range" id="vol" min="0" max="100" step="1" value="100" aria-label="{{ t('player.volume') }}" data-i18n-aria="player.volume">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/confirm.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hls.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/queue.js') }}"></script>
+<script src="{{ url_for('static', filename='js/caps.js') }}"></script>
+<script src="{{ url_for('static', filename='js/player.js') }}"></script>
+</body>
+</html>

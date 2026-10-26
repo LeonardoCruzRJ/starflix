@@ -1,0 +1,16 @@
+{#- Barra de seleção múltipla (24.4): substitui a linha de filtros quando há cards marcados (body.sel-on).
+    Uso: {% set kind = 'movie'|'show' %}{% include "_selbar.html" %} — comportamento em js/bulk-bar.js -#}
+<div class="sel-bar" id="sel-bar" data-kind="{{ kind }}" data-library="{{ lib.id if lib is defined else '' }}">
+  <span class="sel-count"><svg class="ic ic-sm"><use href="#i-check"/></svg><span id="sel-lbl">{{ t('sel.count.other', n=0) }}</span></span>
+  <div class="sel-actions">
+    <button type="button" class="icon-btn" data-act="play" data-tip="{{ t('card.play') }}" data-i18n-tip="card.play" data-tip-pos="bottom" aria-label="{{ t('card.play') }}" data-i18n-aria="card.play"><svg class="ic ic-lg"><use href="#i-play"/></svg></button>
+    <button type="button" class="icon-btn" data-act="list" data-tip="{{ t('sel.my_list') }}" data-i18n-tip="sel.my_list" data-tip-pos="bottom" aria-label="{{ t('sel.my_list') }}" data-i18n-aria="sel.my_list"><svg class="ic ic-lg"><use href="#i-bookmark"/></svg></button>
+    <button type="button" class="icon-btn" data-act="watched" data-tip="{{ t('card.mark_watched') }}" data-i18n-tip="card.mark_watched" data-tip-pos="bottom" aria-label="{{ t('card.mark_watched') }}" data-i18n-aria="card.mark_watched"><svg class="ic ic-lg"><use href="#i-check-circle"/></svg></button>
+    <button type="button" class="icon-btn" data-act="addto" data-tip="{{ t('lib.add_to') }}" data-i18n-tip="lib.add_to" data-tip-pos="bottom" aria-label="{{ t('lib.add_to') }}" data-i18n-aria="lib.add_to"><svg class="ic ic-lg"><use href="#i-list-plus"/></svg></button>
+    {% if nav_is_admin %}
+    <button type="button" class="icon-btn" data-act="edit" data-tip="{{ t('common.edit') }}" data-i18n-tip="common.edit" data-tip-pos="bottom" aria-label="{{ t('common.edit') }}" data-i18n-aria="common.edit"><svg class="ic ic-lg"><use href="#i-edit"/></svg></button>
+    {% endif %}
+    <button type="button" class="icon-btn" data-act="more" data-tip="{{ t('nav.more') }}" data-i18n-tip="nav.more" data-tip-pos="bottom" aria-label="{{ t('nav.more') }}" data-i18n-aria="nav.more"><svg class="ic ic-lg"><use href="#i-dots-h"/></svg></button>
+  </div>
+  <button type="button" class="sel-clear" data-act="clear"><svg class="ic ic-sm"><use href="#i-close"/></svg><span data-i18n="sel.clear">{{ t('sel.clear') }}</span></button>
+</div>

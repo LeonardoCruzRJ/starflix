@@ -1,0 +1,5 @@
+flask>=3,<4
+requests>=2.31
+waitress>=3,<4
+zeroconf>=0.130
+segno>=1.6

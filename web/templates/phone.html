@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('ph.heading') }}{% endblock %}
+{% block content %}
+<div class="la tvp ph-card" data-admin="{{ 1 if is_admin else 0 }}">
+  <h1 class="la-title">{{ t('ph.heading') }}</h1>
+  <div class="la-card">
+    <div class="la-bar pe-sec"><b>{{ t('ph.sec.qr') }}</b></div>
+    <div class="tvp-body">
+      <ol class="ph-steps">
+        <li>{{ t('ph.step1') }}</li>
+        <li>{{ t('ph.step2')|safe }}</li>
+        <li>{{ t('ph.step3') }}</li>
+      </ol>
+      <div class="ph-qr" id="ph-qr" aria-live="polite"><span class="ph-wait">{{ t('ph.generating') }}</span></div>
+      <div class="ph-bar" id="ph-bar" hidden><i id="ph-fill"></i></div>
+      <div class="tv-msg err" id="ph-msg" role="status" hidden></div>
+      <p class="tv-help" id="ph-note" hidden></p>
+      <p class="tv-help" id="ph-qrhelp">{{ t('ph.qr_help') }}</p>
+      <p class="tv-help" id="ph-mobile" hidden>{{ t('ph.mobile')|safe }}</p>
+    </div>
+    <div class="la-bar pe-sec"><b>{{ t('ph.sec.link') }}</b></div>
+    <div class="tvp-body">
+      <div><button type="button" class="la-btn" id="ph-link-go" data-t-again="{{ t('ph.link_again') }}">{{ t('ph.link_go') }}</button></div>
+      <div class="ph-link" id="ph-link" hidden>
+        <input type="text" id="ph-link-url" class="la-q" readonly aria-label="{{ t('ph.link_aria') }}">
+        <button type="button" class="la-btn" id="ph-copy">{{ t('common.copy') }}</button>
+      </div>
+      <p class="tv-help" id="ph-link-info" hidden>{{ t('ph.link_info') }}</p>
+    </div>
+    <div class="la-bar pe-sec"><b id="ph-devs-title">{{ t('ph.sec.devices') }}</b></div>
+    <div class="tvp-body">
+      <ul class="tv-list" id="ph-list"></ul>
+      <p class="tv-none" id="ph-none">{{ t('ph.none') }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/phone-page.js') }}" defer></script>{% endblock %}

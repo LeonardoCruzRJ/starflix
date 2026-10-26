@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="{{ ui_lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StarFlix</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  {% include "_preload_head.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/starflix.css') }}">
+</head>
+<body class="auth-body">
+{% include "_preload.html" %}
+<div class="auth-lang"><select id="auth-lang" data-lang-select aria-label="{{ t('common.language') }}">{% for code, nm in i18n_langs %}<option value="{{ code }}" {{ 'selected' if code == ui_lang }}>{{ nm }}</option>{% endfor %}</select></div>
+{% block body %}{% endblock %}
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/confirm.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lang-select.js') }}"></script>
+</body>
+</html>

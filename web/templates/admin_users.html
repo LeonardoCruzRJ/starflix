@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block heading %}{{ t('nav.users') }}{% endblock %}
+{% block content %}
+<div class="la lm">
+  <h1 class="la-title" data-i18n="um.title">{{ t('um.title') }}</h1>
+  <div class="la-card">
+    <div class="la-bar pe-sec">
+      <b id="um-count">…</b>
+      <span class="lm-btns">
+        <button type="button" class="la-btn" id="um-add" hidden data-i18n="um.add">{{ t('um.add') }}</button>
+      </span>
+    </div>
+    <div id="um-list" class="lm-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+  </div>
+  <div class="la-card">
+    <div class="la-bar pe-sec"><b id="tva-count" data-i18n="tva.title">{{ t('tva.title') }}</b></div>
+    <div id="tva-list" class="lm-list"><p class="la-empty">{{ t('common.loading') }}</p></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/user-manager.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tv-admin.js') }}" defer></script>
+{% endblock %}

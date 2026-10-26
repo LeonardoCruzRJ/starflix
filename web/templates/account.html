@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block bodycls %}m-pedit{% endblock %}
+{% macro sel(key, label) %}<label class="pe-lb" for="st-{{ key }}">{{ label }}</label><select id="st-{{ key }}" data-key="{{ key }}">{% for v, n in st[key][1] %}<option value="{{ v }}" {{ 'selected' if pf[key] == v }}>{{ ol(key, v) }}</option>{% endfor %}</select>{% endmacro %}
+{% macro opt(key) %}{{ ol(key, pf[key]) }}{% endmacro %}
+{% block content %}
+{#- Celular (≤700px): lista + uma tela por item (mesmo padrão do Editar Perfil, #hash). Só os itens de "Configurações"; usuário, nome, foto e senha ficam no Editar Perfil. No desktop fica oculto e vale o bloco .acc abaixo. -#}
+{% set mscreens = [
+  ("idioma", t('common.language'), t('account.lang.help'), [("lang", t('acc.lang.preferred'), "sel", None)]),
+  ("audio", t('acc.audio.title'), t('acc.audio.help'),
+    [("auto", t('acc.audio.auto'), "chk", None), ("audio_lang", t('acc.audio.lang'), "sel", None), ("sub_lang", t('acc.audio.sublang'), "sel", None),
+     ("sub_mode", t('acc.audio.submode'), "sel", None), ("sdh", t('acc.audio.sdh'), "sel", None), ("forced", t('acc.audio.forced'), "sel", None)]),
+  ("abertura", t('acc.skip.title'), None,
+    [("skip_intro", t('acc.skip.when'), "sel", t('acc.skip.note')),
+     ("auto_next", t('acc.skip.next'), "sel", t('acc.skip.next_note'))]),
+  ("legenda", t('acc.sty.title'), t('acc.sty.help'),
+    [("sub_size", t('acc.sty.size'), "sel", None), ("sub_color", t('acc.sty.color'), "sel", None), ("sub_bg", t('acc.sty.bg'), "sel", None), ("sub_pos", t('acc.sty.pos'), "sel", None)]),
+  ("assistidos", t('acc.seen.title'), t('acc.seen.help'), [("seen", t('acc.seen.label'), "sel", None)]),
+  ("avaliacoes", t('acc.rev.title'), t('acc.rev.help'), [("reviews", t('acc.rev.label'), "sel", None)]),
+] %}
+<div class="pem" id="accm">
+  <section class="pem-s" data-s="">
+    <header class="pem-bar"><a class="pem-back" href="/profile/edit" data-back="main" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a><h1>{{ t('acc.play_title') }}</h1></header>
+    <div class="pem-list pem-plain">
+      {% for sid, title, help, ctls in mscreens %}
+      <a class="pem-row pem-r2" href="#{{ sid }}"><div class="pem-r2t"><span class="pem-l">{{ title }}</span><small class="pem-sum" data-sum="{{ sid }}"></small></div><svg class="ic pem-chev"><use href="#i-chevron-right"/></svg></a>
+      {% endfor %}
+    </div>
+  </section>
+  {% for sid, title, help, ctls in mscreens %}
+  <section class="pem-s" data-s="{{ sid }}" hidden>
+    <header class="pem-bar"><a class="pem-back" href="#" data-back="sub" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a><h1>{{ title }}</h1></header>
+    {% if help %}<p class="pem-help">{{ help }}</p>{% endif %}
+    {% for key, label, kind, note in ctls %}
+      {% if kind == "chk" %}
+      <label class="pem-check"><span>{{ label }}</span><input type="checkbox" data-key="{{ key }}" {{ 'checked' if pf[key] }}></label>
+      {% else %}
+      {% if ctls|length > 1 %}<label class="pem-lb" for="m-{{ key }}">{{ label }}</label>{% endif %}
+      <select class="pem-input" id="m-{{ key }}" data-key="{{ key }}" aria-label="{{ label }}">{% for v, n in st[key][1] %}<option value="{{ v }}" {{ 'selected' if pf[key] == v }}>{{ ol(key, v) }}</option>{% endfor %}</select>
+      {% if note %}<p class="pem-note">{{ note }}</p>{% endif %}
+      {% endif %}
+    {% endfor %}
+    {% if sid == "legenda" %}<div class="sub-prev sub-style" id="m-sub-prev" data-ssize="{{ pf.sub_size }}" data-scolor="{{ pf.sub_color }}" data-sbg="{{ pf.sub_bg }}" data-spos="{{ pf.sub_pos }}"><span>{{ t('acc.sty.preview') }}</span></div>{% endif %}
+    <div class="pem-foot"><p class="pem-err"></p><button type="button" class="pem-save" disabled>{{ t('common.save') }}</button></div>
+  </section>
+  {% endfor %}
+</div>
+<div class="acc">
+  <nav class="acc-nav">
+    <div class="acc-group">{{ display }}</div>
+    <a href="/account" class="active">{{ t('acc.title') }}</a>
+  </nav>
+  <div class="acc-main">
+    <h1 class="acc-title">{{ t('acc.title') }}</h1>
+    <div class="pe-sec">{{ t('acc.sec.personal') }}</div>
+    <div class="pe-row" id="pe-photo">
+      <div class="pe-top"><label>{{ t('acc.photo') }}</label><a href="#" class="pe-act" id="pe-photo-edit">{{ t('common.edit') }}</a></div>
+      <img class="pe-photo" src="{{ photo }}" alt="">
+    </div>
+    <div class="pe-row" data-field="username" data-value="{{ u.username }}" data-empty="" data-nocap="1" data-reload="1" data-help="{{ t('acc.username.help') }}" data-max="40">
+      <div class="pe-top"><label>{{ t('acc.username') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+    </div>
+    <div class="pe-row" data-field="full_name" data-value="{{ u.full_name or '' }}" data-empty="{{ t('acc.fullname.empty') }}" data-reload="1" data-help="{{ t('acc.fullname.help') }}" data-max="60">
+      <div class="pe-top"><label>{{ t('acc.fullname') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+    </div>
+    <div class="pe-sec">{{ t('acc.sec.security') }}</div>
+    <div class="pe-row" id="pw-row">
+      <div class="pe-top"><label>{{ t('acc.password') }}</label><a href="#" class="pe-act" id="pw-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}" data-t-changed="{{ t('acc.pw.changed') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val" id="pw-val">••••••••</div>
+      <div class="pe-edit" id="pw-form" hidden>
+        <label class="pe-lb" for="pw-new">{{ t('acc.pw.new') }}</label>
+        <input type="password" id="pw-new" autocomplete="new-password">
+        <p class="pe-help">{{ t('acc.pw.min') }}</p>
+        <label class="pe-lb" for="pw-conf">{{ t('acc.pw.confirm') }}</label>
+        <input type="password" id="pw-conf" autocomplete="new-password">
+        <label class="pe-lb" for="pw-cur">{{ t('acc.pw.current') }}</label>
+        <input type="password" id="pw-cur" autocomplete="current-password">
+        <label class="pe-check pe-gap"><input type="checkbox" id="pw-out"> {{ t('acc.pw.logout_others') }}</label>
+        <div class="pe-foot"><p class="pe-err" id="pw-err"></p><button type="button" class="pe-save" id="pw-save" disabled>{{ t('common.save_changes') }}</button></div>
+      </div>
+    </div>
+    <div class="pe-sec">{{ t('acc.sec.settings') }}</div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('common.language') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ opt('lang') }}</div>
+      <div class="pe-edit" hidden>{{ sel('lang', t('acc.lang.preferred')) }}<p class="pe-help">{{ t('account.lang.help') }}</p>
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('acc.audio.title') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ audio_txt }}</div><div class="pe-val">{{ search_txt }}</div>
+      <div class="pe-edit" hidden>
+        <p class="pe-help">{{ t('acc.audio.help') }}</p>
+        <label class="pe-check pe-gap"><input type="checkbox" data-key="auto" {{ 'checked' if pf.auto }}> {{ t('acc.audio.auto') }}</label>
+        {{ sel('audio_lang', t('acc.audio.lang')) }}{{ sel('sub_lang', t('acc.audio.sublang')) }}{{ sel('sub_mode', t('acc.audio.submode')) }}
+        {{ sel('sdh', t('acc.audio.sdh')) }}{{ sel('forced', t('acc.audio.forced')) }}
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('acc.skip.title') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ skip_txt }}</div>
+      <div class="pe-edit" hidden>{{ sel('skip_intro', t('acc.skip.when')) }}<p class="pe-help">{{ t('acc.skip.note') }}</p>
+        {{ sel('auto_next', t('acc.skip.next')) }}<p class="pe-help">{{ t('acc.skip.next_note') }}</p>
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('acc.sty.title') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ sub_txt }}</div>
+      <div class="pe-edit" hidden>
+        <p class="pe-help">{{ t('acc.sty.help') }}</p>
+        {{ sel('sub_size', t('acc.sty.size')) }}{{ sel('sub_color', t('acc.sty.color')) }}{{ sel('sub_bg', t('acc.sty.bg')) }}{{ sel('sub_pos', t('acc.sty.pos')) }}
+        <div class="sub-prev sub-style" id="sub-prev" data-ssize="{{ pf.sub_size }}" data-scolor="{{ pf.sub_color }}" data-sbg="{{ pf.sub_bg }}" data-spos="{{ pf.sub_pos }}"><span>{{ t('acc.sty.preview') }}</span></div>
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('acc.seen.title') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ opt('seen') }}</div>
+      <div class="pe-edit" hidden>{{ sel('seen', t('acc.seen.label')) }}<p class="pe-help">{{ t('acc.seen.help') }}</p>
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('acc.rev.title') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ opt('reviews') }}</div>
+      <div class="pe-edit" hidden>{{ sel('reviews', t('acc.rev.label')) }}<p class="pe-help">{{ t('acc.rev.help') }}</p>
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/profile-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/password-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/settings-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/account-m.js') }}" defer></script>{% endblock %}

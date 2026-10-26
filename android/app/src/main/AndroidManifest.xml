@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 58.11: câmera só no leitor de QR da tela de conexão -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- 52.15: publicar na linha "Reproduzir a seguir" do launcher da TV -->
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
+
+    <!-- 40.7: o mesmo APK roda no celular e na TV (Android TV sem tela de toque) -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:localeConfig="@xml/locales_config"
+        android:banner="@drawable/starflix_banner"
+        android:icon="@mipmap/ic_starflix"
+        android:roundIcon="@mipmap/ic_starflix"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.StarFlix"
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".MainActivity"
+            android:banner="@drawable/starflix_banner"
+            android:icon="@mipmap/ic_starflix"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- 52.16: link direto starflix://item?type=movie|episode&id=...&play=1 (linha "Reproduzir a seguir"); singleTask: o link chega em onNewIntent -->
+        <activity
+            android:name=".TvActivity"
+            android:banner="@drawable/starflix_banner"
+            android:icon="@mipmap/ic_starflix"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.StarFlix.Tv">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="starflix" android:host="item" />
+            </intent-filter>
+        </activity>
+        <!-- 58.10/58.11: tela de conexão; link starflix://connect?u=<origem>&t=<token> (página /c/<token> do site); singleTask: o link chega em onNewIntent -->
+        <activity
+            android:name=".ConnectActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="starflix" android:host="connect" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".QrScanActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="false" />
+        <activity
+            android:name=".WebActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|locale|layoutDirection"
+            android:exported="false" />
+        <activity
+            android:name=".PlayerActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:supportsPictureInPicture="true"
+            android:theme="@style/Theme.StarFlix" />
+        <!-- 59.29: guarda o idioma escolhido no Android 12 ou menor (AppCompat) -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data android:name="autoStoreLocales" android:value="true" />
+        </service>
+        <!-- 54.20: foto tirada pela câmera para o input de arquivo do site (cache/camera/) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
+        <!-- 52.16: imagens da linha da TV (somente leitura, só cacheDir/watchnext/) -->
+        <provider
+            android:name=".StarflixImageProvider"
+            android:authorities="com.starflix.app.watchnext"
+            android:exported="true"
+            android:grantUriPermissions="false" />
+    </application>
+</manifest>

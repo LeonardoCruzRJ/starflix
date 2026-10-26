@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block bodycls %}m-pedit{% endblock %}
+{% block content %}
+{#- Celular (≤700px): telas próprias (.pem), uma por assunto, trocadas por #hash (a seta e o voltar do aparelho funcionam). No desktop fica oculto e vale o bloco .pe abaixo. -#}
+<div class="pem" id="pem" data-lang="{{ lang }}" data-avurl="/profiles/{{ pid }}/avatar" data-pid="{{ pid }}"{% if pm %} data-pm="1"{% endif %}>
+  <section class="pem-s" data-s="">
+    <header class="pem-bar"><a class="pem-back" href="{{ '/profiles?manage=1' if pm else '/profile' }}" data-back="main" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a><h1>{{ t('pe.title') }}</h1></header>
+    <img class="pem-photo" src="{{ photo }}" alt="">
+    <button type="button" class="pem-pill" id="pem-photo-btn">{{ t('pe.change_photo') }}</button>
+    <h2 class="pem-h">{{ t('pe.sec.public') }}</h2>
+    <div class="pem-list">
+      <a class="pem-row" href="#perfil"><b>{{ t('pe.pname') }}</b><span data-v="pname">{{ pname }}</span></a>
+{% if not pm %}      <a class="pem-row" href="#login"><b>{{ t('pe.login') }}</b><span data-v="username">{{ u.username }}</span></a>
+      <a class="pem-row" href="#nome"><b>{{ t('acc.fullname') }}</b><span data-v="full_name" data-empty="{{ t('pe.fullname.add') }}">{{ u.full_name or '' }}</span></a>
+      <a class="pem-row" href="#selos"><b>{{ t('pe.badges') }}</b><span data-v="show_badge" data-t-on="{{ t('pe.badge_joined') }}" data-t-off="{{ t('pe.badge_none') }}">{{ t('pe.badge_joined') if u.show_badge else t('pe.badge_none') }}</span></a>
+      <a class="pem-row" href="#local"><b>{{ t('pe.location') }}</b><span data-v="location" data-empty="{{ t('pe.location.add_m') }}">{{ u.location or '' }}</span></a>
+      <a class="pem-row" href="#bio"><b>{{ t('pe.bio') }}</b><span data-v="bio" data-empty="{{ t('pe.bio.add_m') }}">{{ (u.bio or '')|replace('\n', ' ') }}</span></a>
+      <a class="pem-row" href="#link"><b>{{ t('pe.link') }}</b><span data-v="link" data-empty="{{ t('pe.link.add_m') }}">{{ u.link or '' }}</span></a>
+{% endif %}
+    </div>
+{% if not pm %}
+    <h2 class="pem-h">{{ t('acc.sec.settings') }}</h2>
+    <div class="pem-list">
+      <a class="pem-row" href="#conta"><b>{{ t('acc.title') }}</b><svg class="ic pem-chev"><use href="#i-chevron-right"/></svg></a>
+    </div>
+{% elif can_delete %}
+    <form method="post" action="/profiles/{{ pid }}/delete" class="pem-del" data-confirm="{{ t('pe.delete_q') }}" data-title="{{ t('pe.delete_title') }}" data-ok="{{ t('pe.delete_ok') }}" data-danger><button type="submit">{{ t('pe.delete') }}</button></form>
+{% endif %}
+  </section>
+
+  {#- telas de um campo: título, texto de ajuda, campo, contador e Salvar (montadas pelo profile-edit-m.js) -#}
+  <section class="pem-s" data-s="perfil" data-title="{{ t('pe.pname') }}" data-field="pname" data-url="/profiles/{{ pid }}/name" data-value="{{ pname }}" data-max="30" data-ph="{{ t('pe.pname') }}" data-help="{{ t('pe.pname.help') }}"></section>
+  <section class="pem-s" data-s="login" data-title="{{ t('pe.login') }}" data-field="username" data-value="{{ u.username }}" data-max="40" data-nocap="1" data-help="{{ t('acc.username.help') }}"></section>
+  <section class="pem-s" data-s="usuario" data-title="{{ t('acc.username') }}" data-field="username" data-value="{{ u.username }}" data-max="40" data-nocap="1" data-help="{{ t('acc.username.help') }}"></section>
+  <section class="pem-s" data-s="nome" data-title="{{ t('acc.fullname') }}" data-field="full_name" data-value="{{ u.full_name or '' }}" data-max="60" data-ph="{{ t('pe.fullname.add') }}" data-help="{{ t('acc.fullname.help') }}"></section>
+  <section class="pem-s" data-s="selos" data-title="{{ t('pe.badges') }}" data-field="show_badge" data-type="check" data-value="{{ u.show_badge }}" data-label="{{ t('pe.badge.label_m') }}"></section>
+  <section class="pem-s" data-s="local" data-title="{{ t('pe.location') }}" data-field="location" data-value="{{ u.location or '' }}" data-max="60" data-ph="{{ t('pe.location.add_m') }}" data-help="{{ t('pe.location.help_m') }}"></section>
+  <section class="pem-s" data-s="bio" data-title="{{ t('pe.bio') }}" data-field="bio" data-type="area" data-value="{{ u.bio or '' }}" data-max="500" data-ph="{{ t('pe.bio.add_m') }}" data-help="{{ t('pe.bio.help_m') }}"></section>
+  <section class="pem-s" data-s="link" data-title="{{ t('pe.link') }}" data-field="link" data-value="{{ u.link or '' }}" data-max="200" data-nocount="1" data-nocap="1" data-ph="{{ t('pe.link.add_m') }}" data-help="{{ t('pe.link.help_m') }}"></section>
+
+  <section class="pem-s" data-s="conta">
+    <header class="pem-bar"><a class="pem-back" href="#" data-back="sub" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a><h1>{{ t('acc.title') }}</h1></header>
+    <div class="pem-list pem-plain">
+      <a class="pem-row" href="#usuario"><span class="pem-l">{{ t('acc.username') }}</span><span data-v="username">{{ u.username }}</span></a>
+      <a class="pem-row" href="#senha"><span class="pem-l">{{ t('acc.password') }}</span><span>••••••••</span></a>
+      <a class="pem-row" href="#idioma"><span class="pem-l">{{ t('common.language') }}</span><span data-v="lang">{{ lang_txt }}</span></a>
+      <a class="pem-row" href="/account"><span class="pem-l">{{ t('acc.play_title') }}</span><svg class="ic pem-chev"><use href="#i-chevron-right"/></svg></a>
+      <a class="pem-row" href="#sair" id="pem-out"><span class="pem-l">{{ t('pe.logout') }}</span></a>
+    </div>
+  </section>
+
+  <section class="pem-s" data-s="idioma" data-title="{{ t('common.language') }}">
+    <header class="pem-bar"><a class="pem-back" href="#" data-back="sub" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a><h1>{{ t('common.language') }}</h1></header>
+    <p class="pem-help">{{ t('account.lang.help') }}</p>
+    <select class="pem-input" id="pem-lang" aria-label="{{ t('common.language') }}">{% for v, n in lang_opts %}<option value="{{ v }}" {{ 'selected' if v == lang }}>{{ n }}</option>{% endfor %}</select>
+    <div class="pem-foot"><p class="pem-err"></p><button type="button" class="pem-save" id="pem-lang-save" disabled>{{ t('common.save') }}</button></div>
+  </section>
+
+  <section class="pem-s" data-s="senha">
+    <header class="pem-bar"><a class="pem-back" href="#" data-back="sub" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a><h1>{{ t('acc.password') }}</h1></header>
+    <p class="pem-help">{{ t('acc.pw.min') }}</p>
+    <input class="pem-input pem-pw" type="password" id="pem-pw-new" placeholder="{{ t('acc.pw.new') }}" autocomplete="new-password" aria-label="{{ t('acc.pw.new') }}">
+    <input class="pem-input pem-pw" type="password" id="pem-pw-conf" placeholder="{{ t('acc.pw.confirm') }}" autocomplete="new-password" aria-label="{{ t('acc.pw.confirm') }}">
+    <input class="pem-input pem-pw" type="password" id="pem-pw-cur" placeholder="{{ t('acc.pw.current') }}" autocomplete="current-password" aria-label="{{ t('acc.pw.current') }}">
+    <label class="pem-check pem-pwout"><span>{{ t('acc.pw.logout_others') }}</span><input type="checkbox" id="pem-pw-out"></label>
+    <div class="pem-foot"><p class="pem-err"></p><button type="button" class="pem-save" id="pem-pw-save" disabled>{{ t('common.save') }}</button></div>
+  </section>
+
+  <div class="pem-ov" id="pem-sheet" hidden>
+    <div class="pem-sheet" role="dialog" aria-modal="true" aria-label="{{ t('pe.change_photo') }}">
+      <i class="pem-grab"></i>
+      <h3>{{ t('pe.change_photo') }}</h3>
+      <button type="button" data-pick="cam">{{ t('pe.cam') }}</button>
+      <button type="button" data-pick="lib">{{ t('pe.lib') }}</button>
+    </div>
+  </div>
+  <input type="file" id="pem-file-cam" accept="image/jpeg,image/png,image/webp" capture="user" hidden>
+  <input type="file" id="pem-file-lib" accept="image/jpeg,image/png,image/webp" hidden>
+
+  <div class="pem-ov pem-ov-c" id="pem-dlg" hidden>
+    <div class="pem-dlg" role="alertdialog" aria-modal="true" aria-labelledby="pem-dlg-t">
+      <div class="pem-dlg-h"><h3 id="pem-dlg-t">{{ t('pe.logout') }}</h3><button type="button" class="pem-dlg-x" data-no aria-label="{{ t('common.close') }}"><svg class="ic"><use href="#i-close"/></svg></button></div>
+      <p>{{ t('pe.logout_q') }}</p>
+      <div class="pem-dlg-b"><button type="button" data-no>{{ t('common.cancel') }}</button><button type="button" id="pem-dlg-ok">{{ t('common.continue') }}</button></div>
+    </div>
+  </div>
+</div>
+<div class="pe" data-avurl="/profiles/{{ pid }}/avatar">
+  <div class="pf-crumb"><a href="{{ '/profiles?manage=1' if pm else '/profile' }}">{{ t('pe.crumb_profiles') if pm else t('pf.crumb') }}</a> <span>•</span> {{ display }} <span>•</span> {{ t('common.edit') }}</div>
+  <div class="pe-row" id="pe-photo">
+    <div class="pe-top"><label>{{ t('acc.photo') }}</label><a href="#" class="pe-act" id="pe-photo-edit">{{ t('common.edit') }}</a></div>
+    <img class="pe-photo" src="{{ photo }}" alt="">
+  </div>
+  <div class="pe-sec">{{ t('pe.sec.public') }}</div>
+  <div class="pe-row" data-field="pname" data-url="/profiles/{{ pid }}/name" data-reload="1" data-value="{{ pname }}" data-empty="{{ t('pe.pname.add') }}" data-help="{{ t('pe.pname.help') }}" data-max="30">
+    <div class="pe-top"><label>{{ t('pe.pname') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+  </div>
+{% if not pm %}
+  <div class="pe-row">
+    <div class="pe-top"><label>{{ t('acc.username') }}</label><a href="/account" class="pe-act">{{ t('pe.goto_account') }}</a></div>
+    <div class="pe-val">{{ u.username }}</div>
+  </div>
+  <div class="pe-row" data-field="full_name" data-reload="1" data-value="{{ u.full_name or '' }}" data-empty="{{ t('acc.fullname.empty') }}" data-help="{{ t('acc.fullname.help') }}" data-max="60">
+    <div class="pe-top"><label>{{ t('acc.fullname') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+  </div>
+  <div class="pe-row" data-field="show_badge" data-value="{{ u.show_badge }}" data-type="check" data-label="{{ t('pe.badge.label') }}" data-t-off="{{ t('pe.badge_off') }}">
+    <div class="pe-top"><label>{{ t('pe.badges_d') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+  </div>
+  <div class="pe-row" data-field="location" data-value="{{ u.location or '' }}" data-empty="{{ t('pe.location.add') }}" data-help="{{ t('pe.location.help') }}" data-max="60">
+    <div class="pe-top"><label>{{ t('pe.location') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+  </div>
+  <div class="pe-row" data-field="bio" data-value="{{ u.bio or '' }}" data-type="area" data-empty="{{ t('pe.bio.add') }}" data-help="{{ t('pe.bio.help') }}" data-max="500">
+    <div class="pe-top"><label>{{ t('pe.bio') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+  </div>
+  <div class="pe-row" data-field="link" data-value="{{ u.link or '' }}" data-empty="{{ t('pe.link.add') }}" data-help="{{ t('pe.link.help') }}" data-max="200">
+    <div class="pe-top"><label>{{ t('pe.link_d') }}</label><a href="#" class="pe-act">{{ t('common.edit') }}</a></div><div class="pe-val"></div>
+  </div>
+{% elif can_delete %}
+  <form method="post" action="/profiles/{{ pid }}/delete" class="pe-del" data-confirm="{{ t('pe.delete_q') }}" data-title="{{ t('pe.delete_title') }}" data-ok="{{ t('pe.delete_ok') }}" data-danger><button type="submit" class="pe-save">{{ t('pe.delete') }}</button></form>
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/profile-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/profile-edit-m.js') }}" defer></script>{% endblock %}

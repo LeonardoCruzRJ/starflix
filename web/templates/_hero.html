@@ -1,0 +1,17 @@
+{#- 54.2: destaque do celular (Início e Recomendado das bibliotecas). Uso: {% include "_hero.html" %} com `hero` = lista de itens -#}
+<div class="m-hero" id="m-hero" role="region" aria-label="{{ t('home.hero') }}">
+  <div class="m-hero-track">
+    {% for h in hero %}
+    <article class="m-hero-slide">
+      <img class="m-hero-bg" src="{{ h.bd }}" alt="" {% if loop.index > 1 %}loading="lazy"{% endif %}>
+      <div class="m-hero-body">
+        {% if h.logo %}<img class="m-hero-logo" src="/logo/{{ h.id }}" alt="{{ h.title }}" onerror="this.replaceWith(Object.assign(document.createElement('h2'),{className:'m-hero-title',textContent:this.alt}))">
+        {% else %}<h2 class="m-hero-title">{{ h.title }}</h2>{% endif %}
+        <div class="m-hero-meta">{{ t('common.show') if h.type == 'show' else t('common.movie') }}{% if h.genre %} • {{ h.genre }}{% endif %}{% if h.year %} • {{ h.year }}{% endif %}</div>
+        <a class="m-hero-btn" href="/{{ h.type }}/{{ h.id }}">{{ t('common.details') }}</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% if hero|length > 1 %}<div class="m-hero-dots" aria-hidden="true">{% for h in hero %}<i></i>{% endfor %}</div>{% endif %}
+</div>

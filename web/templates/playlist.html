@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_card.html" import plcover %}
+{% block heading %}{% endblock %}
+{% block content %}
+<div class="lib-head pl-head">
+  <div class="lib-title">
+    <div class="lib-name"><h1><a href="/library/{{ lib.id }}">{{ lib.name }}</a></h1><span class="pl-crumb">{{ p.title }}</span></div>
+    <div class="lib-server">StarFlix</div>
+  </div>
+  <div class="lib-actions pl-actions">
+    {% if nxt %}
+    <a class="icon-btn" href="{{ '/watch/movie/' ~ nxt.id if kind == 'movie' else '/show/' ~ nxt.id }}" data-tip="{{ t('card.play') }}" aria-label="{{ t('card.play') }}"><svg class="ic ic-lg"><use href="#i-play"/></svg></a>
+    <button type="button" class="icon-btn" id="pl-random" data-tip="{{ t('lib.shuffle') }}" aria-label="{{ t('lib.shuffle') }}"><svg class="ic ic-lg"><use href="#i-shuffle"/></svg></button>
+    {% endif %}
+    <button type="button" class="icon-btn" id="pl-edit" data-tip="{{ t('common.edit') }}" aria-label="{{ t('common.edit') }}"><svg class="ic ic-lg"><use href="#i-edit"/></svg></button>
+    <button type="button" class="icon-btn" id="pl-more" data-tip="{{ t('nav.more') }}" aria-haspopup="true" aria-label="{{ t('nav.more') }}"><svg class="ic ic-lg"><use href="#i-dots-v"/></svg></button>
+  </div>
+</div>
+<div class="pl-top">
+  <div class="pl-art"><span class="pcard-ph" aria-hidden="true">{{ p.title }}</span>{{ plcover(p.poster, p.id, covers) }}</div>
+  <div class="pl-info">
+    <h1 class="pl-title">{{ p.title }}</h1>
+    {% if p.summary %}<p class="pl-sum">{{ p.summary }}</p>{% endif %}
+  </div>
+</div>
+<div class="pl-count"><b>{{ t('col.movies' if kind == 'movie' else 'col.shows', n=rows|length) }}</b>{% if total_txt %}<span class="pl-total">{{ total_txt }}</span>{% endif %}</div>
+{% if rows %}
+<div class="pl-list">
+  {% for r in rows %}
+  <div class="pl-row" data-id="{{ r.id }}" data-title="{{ r.title }}">
+    <span class="pl-n">{{ r.n }}</span>
+    <a class="pl-thumb" href="{{ '/watch/movie/' ~ r.id if kind == 'movie' else '/show/' ~ r.id }}"><img src="/poster/{{ r.id }}" alt="" loading="lazy" onerror="this.remove()">{% if r.pct %}<span class="pcard-bar"><i style="width: {{ [100, r.pct|round|int]|min }}%"></i></span>{% endif %}</a>
+    <a class="pl-name" href="{{ '/movie/' ~ r.id if kind == 'movie' else '/show/' ~ r.id }}"><span>{{ r.title }}</span>{% if r.year %}<small>{{ r.year }}</small>{% endif %}</a>
+    {% if r.watched %}<svg class="ic ic-sm pl-seen"><use href="#i-check"/></svg>{% endif %}
+    <span class="pl-dur">{{ r.dur }}</span>
+    <button type="button" class="pl-rm-more" data-rowmenu aria-label="{{ t('nav.more') }}"><svg class="ic ic-sm"><use href="#i-dots-v"/></svg></button>
+  </div>
+  {% endfor %}
+</div>
+{% else %}<div class="empty">{{ t('pl.empty') }}</div>{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>window.sfPlaylist = {{ {"id": p.id, "name": p.title, "smart": p.smart == 1, "kind": kind, "library": lib.id, "ids": rows|map(attribute='id')|list}|tojson }};</script>
+<script src="{{ url_for('static', filename='js/playlist-edit.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/playlist-page.js') }}" defer></script>
+{% endblock %}

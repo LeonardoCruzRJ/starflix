@@ -1,0 +1,42 @@
+{#- Elenco & Equipe, Avaliações & Análises e relacionados (23.17). Cada bloco só aparece se houver dado. -#}
+{% from "_card.html" import card %}
+{% from "_carousel.html" import carousel %}
+{% from "_stars.html" import star_static %}
+{% if cast %}
+<div class="mv-sec">
+{% call carousel(t("det.cast")) %}
+  {% for c in cast %}
+  <a class="cast" href="/people/{{ c.id }}" title="{{ c.name }}">
+    <div class="cast-img"><span class="cast-ph" aria-hidden="true">{{ c.name[:1]|upper }}</span><img src="/person/{{ c.id }}" alt="" loading="lazy" onerror="this.remove()"></div>
+    <div class="cast-name">{{ c.name }}</div>
+    {% if c.label %}<div class="cast-role">{{ c.label }}</div>{% endif %}
+  </a>
+  {% endfor %}
+{% endcall %}
+</div>
+{% endif %}
+{% if reviews %}
+<div class="mv-sec">
+{% call carousel(t("det.reviews")) %}
+  {% for r in reviews %}
+  <article class="rv">
+    <div class="rv-head">
+      <span class="rv-av" aria-hidden="true">{{ (r.author or '?')[:1]|upper }}</span>
+      <div><div class="rv-author">{{ r.author or t('det.anonymous') }}</div>{% if r.created %}<div class="rv-date">{{ r.created }}</div>{% endif %}</div>
+    </div>
+    {% if r.rating %}<div class="rv-stars">{{ star_static(r.rating|round|int) }}</div>{% endif %}
+    <p class="rv-text">{{ r.text }}</p>
+  </article>
+  {% endfor %}
+{% endcall %}
+</div>
+{% endif %}
+{% if related %}
+<div class="mv-sec">
+{% call carousel(related_title) %}
+  {% for x in related %}
+    {{ card(href="/" ~ related_kind ~ "/" ~ x.id, img="/poster/" ~ x.id, title=x.title, sub=x.year or None, pct=x.pct or None, watched=x.seen and related_kind == 'movie') }}
+  {% endfor %}
+{% endcall %}
+</div>
+{% endif %}
