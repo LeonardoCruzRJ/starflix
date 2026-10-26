@@ -23,8 +23,18 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq git python3 python3-pip ffmpeg curl ca-certificates >/dev/null
 
+# 60.14: a pasta imagens/ (figuras do README, só para o GitHub) não vai para a máquina: fica fora do checkout (sparse-checkout) e, no clone novo,
+# nem os arquivos são baixados (--filter=blob:none). Arquivo escrito à mão em .git/info/sparse-checkout: funciona em qualquer git, antigo ou novo.
+no_images() {
+  git -C "$DIR" config core.sparseCheckout true
+  mkdir -p "$DIR/.git/info"
+  printf '/*\n!/imagens/\n' > "$DIR/.git/info/sparse-checkout"
+}
+
 say "Baixando o StarFlix em $DIR"
 if [ -d "$DIR/.git" ]; then
+  no_images
+  git -C "$DIR" read-tree -mu HEAD 2>/dev/null || true
   git -C "$DIR" fetch --quiet origin "$BRANCH"
   git -C "$DIR" checkout --quiet "$BRANCH"
   git -C "$DIR" pull --quiet --ff-only origin "$BRANCH"
@@ -32,7 +42,10 @@ elif [ -e "$DIR" ] && [ -n "$(ls -A "$DIR" 2>/dev/null)" ]; then
   die "$DIR já existe e não é um repositório do StarFlix."
 else
   mkdir -p "$(dirname "$DIR")"
-  git clone --quiet --branch "$BRANCH" "$REPO" "$DIR"
+  git clone --quiet --no-checkout --filter=blob:none --branch "$BRANCH" "$REPO" "$DIR" 2>/dev/null \
+    || git clone --quiet --no-checkout --branch "$BRANCH" "$REPO" "$DIR"
+  no_images
+  git -C "$DIR" checkout --quiet -f "$BRANCH"
 fi
 cd "$DIR"
 
@@ -50,6 +63,18 @@ sed "s|@DIR@|$DIR|g" scripts/starflix.service > "/etc/systemd/system/$SERVICE.se
 systemctl daemon-reload
 systemctl enable "$SERVICE" >/dev/null 2>&1
 systemctl restart "$SERVICE"
+
+# 60.1: a porta pode ter sido trocada em Configurações → Servidor (guardada no banco); sem valor, 32000
+PORT="$(python3 - <<'PY' 2>/dev/null || echo 32000
+import sqlite3
+try:
+    r = sqlite3.connect("file:data/starflix.db?mode=ro", uri=True).execute("SELECT value FROM settings WHERE key = 'server_port'").fetchone()
+    p = int(r[0]) if r else 0
+except Exception:
+    p = 0
+print(p if 1024 <= p <= 65535 else 32000)
+PY
+)"
 
 say "Aguardando o servidor subir"
 for _ in $(seq 1 30); do
