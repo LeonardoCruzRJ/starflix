@@ -408,7 +408,7 @@ class PlayerActivity : AppCompatActivity() {
                     val q = a.getJSONObject(i)
                     val kbps = q.optInt("kbps", 0)
                     val mbps = kbps / 1000.0
-                    val mbpsTxt = (if (mbps == Math.floor(mbps)) mbps.toInt().toString() else "%.1f".format(java.util.Locale("pt", "BR"), mbps))
+                    val mbpsTxt = Fmt.decimal(mbps)
                     ql.add(Triple(q.getString("id"), q.getString("id"), getString(R.string.quality_info, mbpsTxt, Math.round(kbps * 0.45))))
                 }
             }
@@ -799,7 +799,7 @@ class PlayerActivity : AppCompatActivity() {
     private fun timerName(m: Int) = when (m) {
         0 -> getString(R.string.timer_off)
         -1 -> getString(R.string.timer_end)
-        else -> "$m min"
+        else -> Fmt.mins(m)
     }
 
     private val timerRun = Runnable {

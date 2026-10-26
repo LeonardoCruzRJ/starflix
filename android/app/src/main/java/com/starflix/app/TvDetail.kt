@@ -121,7 +121,7 @@ object TvDetailApi {
         (0 until a.length()).map { val c = a.getJSONObject(it); CastLine(c.str("name"), c.str("label").ifEmpty { c.str("role") }, c.str("image")) }
     }.orEmpty()
 
-    private fun minutes(sec: Int) = if (sec <= 0) "" else if (sec >= 3600) "${sec / 3600} h ${sec % 3600 / 60} min" else "${maxOf(1, sec / 60)} min"
+    private fun minutes(sec: Int) = Fmt.minutes(sec)
 
     private fun meta(vararg parts: String) = parts.filter { it.isNotBlank() }.joinToString(" · ")
 
@@ -186,7 +186,7 @@ object TvDetailApi {
                         val e = ea!!.getJSONObject(i)
                         val n = e.optInt("episode")
                         val ttl = e.str("title")
-                        TvCard("episode", e.optLong("id"), if (ttl.isEmpty()) Txt.s(R.string.tv_episode, n) else "$n. $ttl", "T${t.n} · E$n", e.str("image"),
+                        TvCard("episode", e.optLong("id"), if (ttl.isEmpty()) Txt.s(R.string.tv_episode, n) else "$n. $ttl", Fmt.ep(t.n, n), e.str("image"),
                             e.optInt("pct"), e.optBoolean("watched"), true, e.str("play").ifEmpty { null }, sid, e.optInt("position"))  // n = posição salva (s)
                     }
                     val nums = j.optJSONArray("seasons")?.let { a -> (0 until a.length()).map { a.getInt(it) } }.orEmpty()
@@ -202,7 +202,7 @@ object TvDetailApi {
                     val s = j.optInt("season")
                     val n = j.optInt("episode")
                     base.copy(title = j.str("title").ifEmpty { Txt.s(R.string.tv_episode, n) }, overview = j.str("overview"),
-                        meta = meta(j.str("show"), "T$s · E$n", j.str("air_date"), minutes(j.optInt("duration"))),
+                        meta = meta(j.str("show"), Fmt.ep(s, n), j.str("air_date"), minutes(j.optInt("duration"))),
                         backdrop = j.str("image"), poster = j.str("image"),
                         playPath = j.str("play").ifEmpty { null }, playLabel = playLabel(pos), playTitle = "${j.str("show")} · T$s E$n", position = pos,
                         watchKind = "episode", watched = j.optBoolean("watched"))
@@ -231,14 +231,14 @@ object TvDetailApi {
     }
 
     private fun dateBr(raw: String): String = try {
-        java.text.SimpleDateFormat("d 'de' MMM 'de' yyyy", java.util.Locale("pt", "BR")).format(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(raw.take(10))!!)
+        Fmt.date(raw)
     } catch (e: Exception) { raw }
 
     /** Metadados do episódio em foco: `T1 • E2  data  duração`, sinopse, nota IMDb, direção e selos técnicos. */
     fun episodeInfo(server: String, token: String, profile: Long, id: Long): EpInfo? = try {
         val (code, j) = TvApi.authed("GET", server, "/api/tv/episode/$id", token, profile)
         if (code != 200 || j == null) null else {
-            val parts = mutableListOf("T${j.optInt("season")} • E${j.optInt("episode")}")
+            val parts = mutableListOf(Fmt.ep(j.optInt("season"), j.optInt("episode"), true))
             j.str("air_date").takeIf { it.isNotEmpty() }?.let { parts.add(dateBr(it)) }
             minutes(j.optInt("duration")).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
             val b = buildList { if (!j.isNull("imdb") && j.optDouble("imdb") > 0) add("IMDb " + "%.1f".format(java.util.Locale.US, j.optDouble("imdb"))) }
@@ -809,7 +809,7 @@ private fun Stars(rating: Double, modifier: Modifier = Modifier) {
 }
 
 private fun reviewDate(raw: String): String = try {
-    java.text.SimpleDateFormat("d 'de' MMMM 'de' yyyy", java.util.Locale("pt", "BR")).format(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(raw.take(10))!!)
+    Fmt.date(raw, true)
 } catch (e: Exception) { raw }
 
 @Composable

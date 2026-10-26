@@ -84,7 +84,7 @@ object TvHomeApi {
     fun parseCard(o: JSONObject): TvCard {
         var sub = o.str("sub")
         if (!o.isNull("season") && o.has("episode") && !o.isNull("episode")) {
-            val ep = "T${o.optInt("season")} · E${o.optInt("episode")}"
+            val ep = Fmt.ep(o.optInt("season"), o.optInt("episode"))
             sub = if (sub.isEmpty()) ep else "$ep — $sub"
         }
         return TvCard(
@@ -134,14 +134,13 @@ object TvHomeApi {
         val raw = str(k)
         if (raw.isEmpty()) return ""
         return try {
-            val d = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(raw.take(10))!!
-            java.text.SimpleDateFormat("d 'de' MMM 'de' yyyy", java.util.Locale("pt", "BR")).format(d)
+            Fmt.date(raw)
         } catch (e: Exception) { raw }
     }
 
     private fun minutes(sec: Double): String {
         val m = Math.round(sec / 60.0).toInt()
-        return if (m <= 0) "" else if (m >= 60) "${m / 60}h ${m % 60} min" else "$m min"
+        return Fmt.minutes(m * 60)
     }
 
     /** Destaque do item em foco (43.2): backdrop, logo, subtítulo, linha de metadados, classificação e sinopse. Episódio usa a série + o próprio episódio. Falha = sem destaque. */
@@ -167,7 +166,7 @@ object TvHomeApi {
                 if (c.type == "episode") {
                     val (c2, e) = TvApi.authed("GET", server, "/api/tv/episode/${c.id}", token, profile)
                     if (c2 == 200 && e != null) {
-                        parts.add("T${e.optInt("season")} • E${e.optInt("episode")}")
+                        parts.add(Fmt.ep(e.optInt("season"), e.optInt("episode"), true))
                         e.dateBr("air_date").let { if (it.isNotEmpty()) parts.add(it) }
                         minutes(e.optDouble("duration", 0.0)).let { if (it.isNotEmpty()) parts.add(it) }
                         sub = e.str("title")

@@ -194,4 +194,8 @@
     <string name="tv_watched_count">%1$s/%2$s assistidos</string>
     <string name="tv_in_my_list">✓ Minha Lista</string>
     <string name="tv_add_my_list">+ Minha Lista</string>
+    <string name="dur_h_m">%1$s h %2$s min</string>
+    <string name="dur_m">%1$s min</string>
+    <string name="ep_short">T%1$s · E%2$s</string>
+    <string name="ep_bullet">T%1$s • E%2$s</string>
 </resources>

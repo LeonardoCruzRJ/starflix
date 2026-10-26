@@ -1529,5 +1529,9 @@
   "android.tv_my_list": "Minha Lista",
   "android.tv_watched_count": "{watched}/{total} assistidos",
   "android.tv_in_my_list": "✓ Minha Lista",
-  "android.tv_add_my_list": "+ Minha Lista"
+  "android.tv_add_my_list": "+ Minha Lista",
+  "android.dur_h_m": "{h} h {m} min",
+  "android.dur_m": "{m} min",
+  "android.ep_short": "T{s} · E{e}",
+  "android.ep_bullet": "T{s} • E{e}"
 }
