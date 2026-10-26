@@ -47,6 +47,7 @@ NEW_COLUMNS = {
     "media": [
         ("original_title", "TEXT"), ("sort_title", "TEXT"), ("release_date", "TEXT"), ("content_rating", "TEXT"),
         ("rating", "REAL"), ("tagline", "TEXT"), ("backdrop", "TEXT"), ("logo", "TEXT"), ("square", "TEXT"),
+        ("data_lang", "TEXT"),  # 59.41: idioma em que os metadados do item foram gravados
         ("locks", "TEXT"), ("prefs", "TEXT"), ("meta_ok", "INTEGER"),
         ("imdb_id", "TEXT"), ("imdb_rating", "REAL"), ("rt_rating", "INTEGER"),
     ],

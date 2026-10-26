@@ -425,3 +425,12 @@ CREATE TABLE IF NOT EXISTS optimized (
     created_at INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (item_type, item_id)
 );
+
+-- 59.41: metadados já buscados em cada idioma (reaproveitados quando o usuário volta a ele); kind = media | season | episode
+CREATE TABLE IF NOT EXISTS meta_cache (
+    lang TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    ref INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (lang, kind, ref)
+);

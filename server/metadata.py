@@ -288,7 +288,7 @@ def _apply(conn, media_id, d, kind):
         ("imdb_rating", imdb, "imdb_rating", True),
         ("rt_rating", rt, "rt_rating", True),
     ]
-    sets, vals = ["tmdb_id = ?"], [d["id"]]
+    sets, vals = ["tmdb_id = ?", "data_lang = ?"], [d["id"], _lang()]  # 59.41: idioma em que estes dados foram gravados
     for col, val, lock, coalesce in fields:
         if col != "title" and locks.get(lock):
             continue
@@ -361,15 +361,24 @@ def match_movie(title, year=None):
 _RESET_LIBS = "(SELECT id FROM libraries WHERE type IN ('movie', 'show'))"
 
 
-def reset_for_language(conn):
-    """59.37: o idioma mudou — o próximo exame refaz capa, sinopse, título, gêneros, elenco, temporadas e episódios de TODOS os itens
-    das bibliotecas de filmes e séries; campos travados (locks) e edições de episódio ficam. Pessoas refazem a biografia quando abertas."""
-    conn.execute(f"UPDATE media SET meta_ok = NULL WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS}")
-    conn.execute(
-        "UPDATE episodes SET title = NULL, overview = NULL WHERE (locks IS NULL OR locks IN ('', '{}')) "
-        f"AND media_id IN (SELECT id FROM media WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS})")
-    conn.execute(f"UPDATE episodes SET crew_ok = NULL WHERE media_id IN (SELECT id FROM media WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS})")
+def reset_for_language(conn, new):
+    """59.41: o idioma mudou para `new`. Guarda os dados do idioma anterior (meta_cache) e devolve os já guardados em `new`; só o que nunca
+    foi buscado nesse idioma é marcado para o próximo exame (meta_ok, título/sinopse/crew_ok dos episódios sem trava, biografias).
+    Campos travados (locks) ficam; itens que já estão em `new` não são tocados."""
+    from server import meta_cache
+    r = conn.execute("SELECT value FROM settings WHERE key = 'data_lang'").fetchone()
+    legacy = (r["value"] if r and r["value"] else None) or new
+    meta_cache.save(conn, legacy, new)
+    done = meta_cache.restore(conn, legacy, new)
+    todo = (f"SELECT id FROM media WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS} AND COALESCE(data_lang, ?) != ?", (legacy, new))
+    ids = [x["id"] for x in conn.execute(*todo) if x["id"] not in done]
+    for i in range(0, len(ids), 500):
+        part, q = ids[i:i + 500], ",".join("?" * len(ids[i:i + 500]))
+        conn.execute(f"UPDATE media SET meta_ok = NULL WHERE id IN ({q})", part)
+        conn.execute(f"UPDATE episodes SET title = NULL, overview = NULL WHERE (locks IS NULL OR locks IN ('', '{{}}')) AND media_id IN ({q})", part)
+        conn.execute(f"UPDATE episodes SET crew_ok = NULL WHERE title IS NULL AND media_id IN ({q})", part)
     conn.execute("UPDATE people SET info_ok = 0, info_at = 0 WHERE tmdb_id IS NOT NULL AND bio IS NOT NULL")
+    conn.execute("INSERT INTO settings (key, value) VALUES ('data_lang', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (new,))
 
 
 @_in_library(True)

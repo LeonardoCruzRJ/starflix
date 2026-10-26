@@ -49,7 +49,10 @@ def load(conn):
         lang = _get(conn, "lang_tmdb")
     if lang not in MAP:
         lang = _get(conn, "default_lang")
-    _apply(lang if lang in MAP else DEFAULT)
+    lang = lang if lang in MAP else DEFAULT
+    _apply(lang)
+    if not _get(conn, "data_lang"):  # 59.41: idioma em que os dados já gravados estão
+        _set(conn, "data_lang", lang)
 
 
 def follow(lang):

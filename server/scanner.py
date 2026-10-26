@@ -508,9 +508,10 @@ _pending_lang = threading.Event()  # 59.37: troca de idioma pedida com um exame 
 
 
 def _reset_language():
+    from server import meta_lang
     from server.metadata import reset_for_language
     with get_db() as conn:
-        reset_for_language(conn)
+        reset_for_language(conn, meta_lang.current())
 
 
 def refresh_language_async():
