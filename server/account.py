@@ -257,12 +257,13 @@ def render_profile_edit(p, pm=True):
     uid = session["user_id"]
     with get_db() as conn:
         u = conn.execute("SELECT username, full_name, avatar, location, bio, link, show_badge, is_admin FROM users WHERE id = ?", (uid,)).fetchone()
-        n = conn.execute("SELECT COUNT(*) FROM profiles WHERE user_id = ?", (uid,)).fetchone()[0]
+        from server.profiles import can_delete_profile
+        pdel = can_delete_profile(conn, p["id"]) if p else False
     if not u or not p:
         abort(404)
     lang = user_prefs()["lang"] if session.get("profile_id") else "pt-BR"
     return render_template("profile_edit.html", u=u, display=(p["name"] or "").strip() or u["username"], pm=pm, pid=p["id"], pname=p["name"] or "",
-                           can_delete=pm and n > 1 and not u["is_admin"], photo=profile_photo_url(p["id"], p["photo"]) or f"/pavatar/{p['id']}",
+                           can_delete=pm and pdel, photo=profile_photo_url(p["id"], p["photo"]) or f"/pavatar/{p['id']}",
                            lang=lang, lang_opts=SETTINGS["lang"][1], lang_txt=dict(SETTINGS["lang"][1]).get(lang, lang))
 
 

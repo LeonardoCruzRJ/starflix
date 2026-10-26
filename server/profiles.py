@@ -1,7 +1,7 @@
 import os
 import secrets
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, session
+from flask import Blueprint, abort, g, jsonify, redirect, render_template, request, session
 
 from server.auth import login_required
 from server.db import get_db
@@ -10,6 +10,21 @@ from server.i18n import jerr
 bp = Blueprint("profiles", __name__)
 
 COLORS = ["#e5a00d", "#e74c3c", "#3498db", "#2ecc71", "#9b59b6", "#1abc9c"]
+
+
+def _is_app():
+    """61.1: pedido vindo do app (WebView do Android, "; wv)" no agente) ou da TV (Bearer): perfil não se exclui por eles."""
+    return bool(g.get("tv_device")) or "; wv)" in request.headers.get("User-Agent", "")
+
+
+def can_delete_profile(conn, pid):
+    """61.4: o perfil-chave (o primeiro criado da conta) nunca é excluído; de resto, o perfil em uso só exclui a si mesmo,
+    exceto o perfil-chave, que exclui qualquer perfil da família."""
+    uid, active = session["user_id"], session.get("profile_id")
+    key = conn.execute("SELECT MIN(id) FROM profiles WHERE user_id = ?", (uid,)).fetchone()[0]
+    if not active or key is None or pid == key:
+        return False
+    return active == key or active == pid
 
 
 def _own(conn, pid):
@@ -28,8 +43,9 @@ def list_profiles():
         rows = conn.execute(
             "SELECT * FROM profiles WHERE user_id = ? ORDER BY fold(name), id", (session["user_id"],)
         ).fetchall()
+        dels = {r["id"]: can_delete_profile(conn, r["id"]) for r in rows}
     from server.account import profile_photo_url
-    rows = [dict(r, photo_url=profile_photo_url(r["id"], r["photo"])) for r in rows]
+    rows = [dict(r, photo_url=profile_photo_url(r["id"], r["photo"]), can_del=dels[r["id"]]) for r in rows]
     return render_template("profiles.html", profiles=rows, colors=COLORS, manage=(request.args.get("manage") == "1" or not rows),
                            can_back=bool(session.get("profile_id")))
 
@@ -136,13 +152,16 @@ def select(pid):
 @bp.route("/profiles/<int:pid>/delete", methods=["POST"])
 @login_required
 def delete(pid):
+    """61.4: só perfis da própria conta, pela regra de can_delete_profile (perfil-chave nunca); só na web."""
+    if _is_app():
+        abort(403)  # 61.1: excluir perfil só na versão web
     with get_db() as conn:
         old = _own(conn, pid)
-        if conn.execute("SELECT is_admin FROM users WHERE id = ?", (session["user_id"],)).fetchone()["is_admin"]:
-            abort(403)  # 54.24: administrador não exclui perfil
+        if not can_delete_profile(conn, pid):
+            abort(403)  # 61.4: perfil-chave, ou perfil que o perfil em uso não pode excluir
         conn.execute("DELETE FROM profiles WHERE id = ?", (pid,))
     from server.account import _remove_avatar_file
     _remove_avatar_file(old["photo"])
     if session.get("profile_id") == pid:
         session.pop("profile_id")
-    return redirect("/profiles")
+    return redirect("/profiles?manage=1")

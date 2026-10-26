@@ -120,4 +120,4 @@
 {% endif %}
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/profile-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/profile-edit-m.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script>if (window.StarflixApp) document.querySelectorAll(".pe-del, .pem-del").forEach(function (n) { n.remove(); });  /* 61.1: excluir perfil só na web */</script><script src="{{ url_for('static', filename='js/profile-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/profile-edit-m.js') }}" defer></script>{% endblock %}

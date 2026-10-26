@@ -1997,6 +1997,14 @@ body.sw-body { display: block; padding: 0; background: radial-gradient(ellipse a
 .sw-name { max-width: 100%; text-align: center; font-size: 17px; font-weight: 500; line-height: 1.25; color: #fff; overflow-wrap: anywhere; }
 .sw-pen { position: absolute; right: -6px; bottom: -6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #fff; color: #111; box-shadow: 0 0 0 3px #0c0c0c; }
 .sw-pen svg { width: 18px; height: 18px; }
+/* 61.1: bolinha com a lixeira no lado esquerdo do avatar (só no modo gerenciar, só na web, nunca para o administrador) */
+.sw { --sw-d: clamp(96px, 30vw, 132px); }
+.sw-item { position: relative; }
+.sw-del { display: none; position: absolute; z-index: 1; left: -6px; top: calc(var(--sw-d) - 28px); margin: 0; }
+.sw-trash { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #111; box-shadow: 0 0 0 3px #0c0c0c; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.sw-trash svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sw-manage .sw-del { display: block; }
+.sw-app .sw-del { display: none !important; }
 .sw-plus { display: flex; align-items: center; justify-content: center; border: 2px solid var(--border); background: #1a1a1a; box-shadow: none; color: var(--muted); }
 .sw-plus svg { width: 40px; height: 40px; stroke-width: 1.6; }
 .sw-add .sw-name { color: var(--muted); }
