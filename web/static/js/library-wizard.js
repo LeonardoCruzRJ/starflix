@@ -44,12 +44,7 @@
     var a = el('label', 'lw-f'); a.appendChild(el('span', '', T('lm.w.name')));
     var name = el('input'); name.type = 'text'; name.maxLength = 100; name.value = st.name; name.autocomplete = 'off';
     name.addEventListener('input', function () { st.name = name.value; st.nameEdited = true; nextBtn(); });
-    a.appendChild(name); f.appendChild(a);
-    var b = el('label', 'lw-f'); b.appendChild(el('span', '', T('common.language')));
-    var sel = el('select');
-    Object.keys(data.langs).forEach(function (k) { var o = el('option', '', data.langs[k]); o.value = k; if (k === st.lang) o.selected = true; sel.appendChild(o); });
-    sel.addEventListener('change', function () { st.lang = sel.value; });
-    b.appendChild(sel); f.appendChild(b); pane.appendChild(f);
+    a.appendChild(name); f.appendChild(a); pane.appendChild(f);
   }
 
   function pane2(pane) {
@@ -83,7 +78,7 @@
     st.saving = true; nextBtn(); err.textContent = '';
     fetch('/admin/libraries/add', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ name: st.name.trim(), type: st.type, lang: st.lang, folders: st.folders, prefs: st.prefs })
+      body: JSON.stringify({ name: st.name.trim(), type: st.type, folders: st.folders, prefs: st.prefs })
     }).then(function (r) {
       if (r.status === 401) { location.href = '/login'; return null; }
       return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(SF_I18N.msg(j) || T('lm.w.fail')); return j; });
@@ -117,7 +112,7 @@
 
   window.sfLibWizard = {
     open: function (d) {
-      data = d; st = { step: 1, type: null, name: '', nameEdited: false, lang: 'pt-BR', folders: [], prefs: JSON.parse(JSON.stringify(d.defaults || {})), saving: false };
+      data = d; st = { step: 1, type: null, name: '', nameEdited: false, folders: [], prefs: JSON.parse(JSON.stringify(d.defaults || {})), saving: false };
       if (!ov) { ov = el('div', 'em-overlay'); document.body.appendChild(ov); ov.addEventListener('mousedown', function (e) { if (e.target === ov) close(); }); }
       ov.textContent = ''; win = el('div', 'em-win lw-win'); win.setAttribute('role', 'dialog'); win.setAttribute('aria-modal', 'true'); ov.appendChild(win);
       ov.hidden = false; document.addEventListener('keydown', onKey, true); draw();

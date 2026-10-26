@@ -82,6 +82,8 @@ def migrate(conn):
             except sqlite3.OperationalError as e:  # outro processo adicionou entre a checagem e o ALTER
                 if "duplicate column" not in str(e).lower():
                     raise
+    # 59.37: o idioma dos metadados é o do usuário (server/meta_lang.py); a coluna libraries.lang não é mais usada
+    conn.execute("UPDATE libraries SET lang = NULL WHERE lang IS NOT NULL")
     # 28.1: toda biblioteca existente ganha sua pasta atual em library_folders (idempotente)
     conn.execute(
         "INSERT OR IGNORE INTO library_folders (library_id, path, ord) "

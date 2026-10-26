@@ -39,12 +39,15 @@ TRIES = 3            # candidatas testadas por legenda
 
 # código SubDL -> (marca no nome do arquivo, idioma-base)
 LANGS = {"BR_PT": ("pt-BR", "pt"), "PT": ("pt-PT", "pt"), "EN": ("en", "en"), "ES": ("es", "es"),
-         "FR": ("fr", "fr"), "DE": ("de", "de"), "IT": ("it", "it"), "JA": ("ja", "ja")}
+         "FR": ("fr", "fr"), "DE": ("de", "de"), "IT": ("it", "it"), "JA": ("ja", "ja"),
+         "RU": ("ru", "ru"), "ZH": ("zh", "zh"), "TR": ("tr", "tr")}  # 59.37: os 10 idiomas do StarFlix
 ALIASES = {
     "pt": {"pt", "por", "pob", "ptbr", "portuguese", "brazilian", "portugues", "português", "brasil"},
     "en": {"en", "eng", "english"}, "es": {"es", "spa", "esp", "spanish", "espanol", "español"},
     "fr": {"fr", "fra", "fre", "french"}, "de": {"de", "deu", "ger", "german"},
     "it": {"it", "ita", "italian"}, "ja": {"ja", "jpn", "japanese"},
+    "ru": {"ru", "rus", "russian", "русский"}, "zh": {"zh", "zho", "chi", "chs", "cht", "chinese", "中文", "简体中文"},
+    "tr": {"tr", "tur", "turkish", "türkçe", "turkce"},
 }
 _FORCED = re.compile(r"forced|for[cç]ad[ao]s?", re.I)
 _SXE = re.compile(r"s(\d{1,2})[ ._-]?e(\d{1,3})|(\d{1,2})x(\d{2,3})", re.I)
@@ -509,7 +512,8 @@ def fetch_subtitles(library_id, media_id=None):
 
 # ---------------------------------------------------------------- busca manual no player (47.3)
 LANG_LABELS = {"BR_PT": "lang.pt_br", "PT": "lang.pt_pt", "EN": "lang.en", "ES": "lang.es",
-               "FR": "lang.fr", "DE": "lang.de", "IT": "lang.it", "JA": "lang.ja"}  # chaves; traduzidas em subtitles.subs_search
+               "FR": "lang.fr", "DE": "lang.de", "IT": "lang.it", "JA": "lang.ja",
+               "RU": "lang.ru", "ZH": "lang.zh", "TR": "lang.tr"}  # chaves; traduzidas em subtitles.subs_search
 CACHE_TTL = 24 * 3600
 MAX_SHOWN = 40
 _cache = {}  # (tipo, id, idioma) -> {"at", "cands", "tried"}; evita gastar cota ao reabrir a janela

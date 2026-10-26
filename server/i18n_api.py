@@ -1,10 +1,12 @@
 """59.3: API de idiomas. GET /api/i18n/<idioma> (catálogo completo, ETag, pública) e POST /api/i18n/set (cookie `sf_lang` +
-preferência do perfil, ou da conta se ainda não há perfil escolhido; sem login só o cookie)."""
+preferência do perfil, ou da conta se ainda não há perfil escolhido; sem login só o cookie).
+59.37: com login, também ajusta o idioma dos agentes e refaz os metadados de todas as bibliotecas (server/meta_lang.py)."""
 import json
+import logging
 
 from flask import Blueprint, Response, jsonify, request, session
 
-from server import i18n
+from server import i18n, meta_lang
 from server.i18n import jerr
 from server.db import get_db
 
@@ -61,6 +63,12 @@ def set_lang():
     if not isinstance(lang, str) or lang not in i18n.CODES:
         return jerr("err.idioma_nao_suportado", 400)
     _save(lang)
-    r = jsonify(ok=True, lang=lang)
+    meta = False
+    if session.get("user_id"):  # 59.37: os agentes seguem o idioma do usuário; a troca refaz os metadados de todas as bibliotecas
+        try:
+            meta = meta_lang.follow(lang)
+        except Exception:
+            logging.exception("falha ao aplicar o idioma %s nos agentes", lang)
+    r = jsonify(ok=True, lang=lang, metadata_refresh=meta)
     r.set_cookie("sf_lang", lang, max_age=COOKIE_MAX_AGE, samesite="Lax", httponly=True)
     return r

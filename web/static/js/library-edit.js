@@ -8,8 +8,8 @@
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
   function icon(id, c) { var s = document.createElementNS(NS, 'svg'); s.setAttribute('class', 'ic ' + (c || '')); var u = document.createElementNS(NS, 'use'); u.setAttribute('href', '#' + id); s.appendChild(u); return s; }
   function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
-  function changed() { return st.name !== lib.name || st.lang !== (lib.lang || 'pt-BR') || !same(st.folders, lib.folders) || !same(st.prefs, lib.prefs); }
-  function metaChanged() { return st.lang !== (lib.lang || 'pt-BR') || st.prefs.cert_country !== lib.prefs.cert_country; }
+  function changed() { return st.name !== lib.name || !same(st.folders, lib.folders) || !same(st.prefs, lib.prefs); }
+  function metaChanged() { return st.prefs.cert_country !== lib.prefs.cert_country; }
   function close(force) {
     if (!force && changed()) { sfConfirm(T('lm.discard_q'), {title: T('lm.discard_title'), ok: T('lm.discard'), danger: true}).then(function (ok) { if (ok) close(true); }); return; }
     ov.hidden = true; ov.textContent = ''; document.removeEventListener('keydown', onKey, true);
@@ -43,11 +43,6 @@
     var name = el('input'); name.type = 'text'; name.maxLength = 100; name.value = st.name; name.autocomplete = 'off';
     name.addEventListener('input', function () { st.name = name.value; refresh(); });
     a.appendChild(name); f.appendChild(a);
-    var b = el('label', 'lw-f'); b.appendChild(el('span', '', T('common.language')));
-    var sel = el('select');
-    Object.keys(data.langs).forEach(function (k) { var o = el('option', '', data.langs[k]); o.value = k; if (k === st.lang) o.selected = true; sel.appendChild(o); });
-    sel.addEventListener('change', function () { st.lang = sel.value; refresh(); });
-    b.appendChild(sel); f.appendChild(b);
     pane.appendChild(f);
     pane.appendChild(el('p', 'lw-upd', lib.scanned_at ? T('lm.e.updated', {ago: ago(lib.scanned_at)}) : T('lm.e.never')));
   }
@@ -76,7 +71,7 @@
 
   function save() {
     st.saving = true; refresh(); err.textContent = '';
-    var body = { name: st.name.trim(), lang: st.lang, prefs: st.prefs, folders: st.folders };
+    var body = { name: st.name.trim(), prefs: st.prefs, folders: st.folders };
     fetch('/admin/libraries/' + lib.id + '/update', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body)
     }).then(function (r) {
@@ -112,7 +107,7 @@
   window.sfLibEdit = {
     open: function (l, d) {
       data = d; lib = l;
-      st = { tab: 1, name: l.name, lang: l.lang || 'pt-BR', folders: l.folders.slice(), prefs: JSON.parse(JSON.stringify(l.prefs)), saving: false };
+      st = { tab: 1, name: l.name, folders: l.folders.slice(), prefs: JSON.parse(JSON.stringify(l.prefs)), saving: false };
       if (!ov) { ov = el('div', 'em-overlay'); document.body.appendChild(ov); ov.addEventListener('mousedown', function (e) { if (e.target === ov) close(); }); }
       ov.textContent = ''; win = el('div', 'em-win lw-win'); win.setAttribute('role', 'dialog'); win.setAttribute('aria-modal', 'true'); ov.appendChild(win);
       ov.hidden = false; document.addEventListener('keydown', onKey, true); draw();

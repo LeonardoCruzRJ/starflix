@@ -1,6 +1,6 @@
-"""46.1: agente SubDL (legendas): chave + idioma (código do SubDL, ex. BR_PT) como os demais.
-45.7: cada agente também guarda o idioma (TMDB: idioma + região atrelada, ex. pt-BR → BR; TVDB: código de 3 letras) na tabela settings (`lang_tmdb`, `lang_tvdb`); o OMDB não tem idioma.
-45.5: página Agentes (/admin/agents) — chaves de API do TMDB, TVDB e OMDB guardadas no banco (tabela settings), não mais no .env.
+"""59.37: o idioma dos agentes (TMDB, TVDB, SubDL) não é mais escolhido aqui: segue o idioma do usuário (server/meta_lang.py).
+46.1: agente SubDL (legendas): chave como os demais.
+45.5: página Agentes (/admin/agents) — chaves de API do TMDB, TVDB, OMDB e SubDL guardadas no banco (tabela settings), não mais no .env.
 Salvar já vale na hora: o valor é gravado em `config` (lido a cada uso pelos módulos) e o token em cache do TVDB é descartado.
 Na 1ª partida com chaves ainda no ambiente/.env elas são copiadas para o banco (uma vez); depois o banco manda e o .env pode ficar sem elas."""
 import os
@@ -12,6 +12,7 @@ from flask import Blueprint, jsonify, render_template, request
 import config
 from server.auth import admin_required
 from server.db import get_db
+from server import meta_lang
 from server.i18n import E, jerr, tr
 
 bp = Blueprint("agents", __name__)
@@ -29,36 +30,6 @@ AGENTS = {
 }
 _KEY_OK = re.compile(r"\S{1,200}")
 
-# 45.7: idiomas oferecidos (TMDB, ex. "pt-BR": a região é a parte depois do hífen; TVDB: código de 3 letras)
-LANGS = [("pt-BR", "Português (Brasil)", "por"), ("en-US", "English (US)", "eng"), ("es-ES", "Español (España)", "spa"),
-         ("fr-FR", "Français (France)", "fra"), ("de-DE", "Deutsch (Deutschland)", "deu"), ("it-IT", "Italiano (Italia)", "ita"),
-         ("ja-JP", "日本語 (日本)", "jpn")]
-# 46.1: SubDL — (código da API, nome, marca no nome do arquivo .srt salvo ao lado do vídeo)
-SUBDL_LANGS = [("BR_PT", "Português (Brasil)", "pt-BR"), ("PT", "Português (Portugal)", "pt-PT"), ("EN", "English", "en"),
-               ("ES", "Español", "es"), ("FR", "Français", "fr"), ("DE", "Deutsch", "de"), ("IT", "Italiano", "it"), ("JA", "日本語", "ja")]
-LANG_DEFAULT = {"tmdb": "pt-BR", "tvdb": "por", "subdl": "BR_PT"}
-LANG_ENV = {"tmdb": "TMDB_LANG", "tvdb": "TVDB_LANG"}  # variáveis legadas (só migração)
-
-
-def lang_options(aid):
-    """[{value, label}] do agente; [] se ele não tem idioma (OMDB)."""
-    if aid == "tmdb":
-        return [{"value": c, "label": f"{n} · {c}"} for c, n, _t in LANGS]
-    if aid == "tvdb":
-        return [{"value": t, "label": f"{n} · {t}"} for _c, n, t in LANGS]
-    if aid == "subdl":
-        return [{"value": c, "label": f"{n} · {c}"} for c, n, _t in SUBDL_LANGS]
-    return []
-
-
-def _lang_ok(aid, v):
-    return any(o["value"] == v for o in lang_options(aid))
-
-
-def region_of(lang):
-    """pt-BR -> BR (a região do TMDB acompanha o idioma)."""
-    return lang.split("-")[1] if "-" in lang else lang.upper()
-
 
 def _skey(aid):
     return "api_key_" + aid
@@ -67,25 +38,6 @@ def _skey(aid):
 def _get(conn, aid):
     r = conn.execute("SELECT value FROM settings WHERE key = ?", (_skey(aid),)).fetchone()
     return (r["value"] or "").strip() if r else ""
-
-
-def _lkey(aid):
-    return "lang_" + aid
-
-
-def _get_lang(conn, aid):
-    r = conn.execute("SELECT value FROM settings WHERE key = ?", (_lkey(aid),)).fetchone()
-    v = (r["value"] or "").strip() if r else ""
-    return v if _lang_ok(aid, v) else LANG_DEFAULT[aid]
-
-
-def _apply_lang(aid, lang):
-    if aid == "tmdb":
-        config.TMDB_LANG, config.TMDB_REGION = lang, region_of(lang)
-    elif aid == "tvdb":
-        config.TVDB_LANG = lang
-    elif aid == "subdl":
-        config.SUBDL_LANG = lang
 
 
 def _apply(aid, value):
@@ -108,13 +60,7 @@ def load_keys():
                     conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (_skey(aid), legacy))
                     v = legacy
             setattr(config, attr, v)
-        for aid, env in LANG_ENV.items():  # 45.7: idioma — 1ª partida copia o do ambiente/.env, depois o banco manda
-            if not conn.execute("SELECT 1 FROM settings WHERE key = ?", (_lkey(aid),)).fetchone():
-                legacy = (os.environ.get(env) or "").strip()
-                if _lang_ok(aid, legacy):
-                    conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (_lkey(aid), legacy))
-        for aid in LANG_DEFAULT:  # banco -> config (inclui agentes sem variável legada, como o SubDL)
-            _apply_lang(aid, _get_lang(conn, aid))
+        meta_lang.load(conn)  # 59.37: idioma dos agentes = idioma escolhido pelo usuário (banco -> config)
 
 
 def _mask(v):
@@ -125,11 +71,7 @@ def _item(conn, aid):
     _a, _e, name, desc, url = AGENTS[aid]
     desc = tr(desc)
     v = _get(conn, aid)
-    item = {"id": aid, "name": name, "desc": desc, "url": url, "set": bool(v), "masked": _mask(v)}
-    if lang_options(aid):
-        item["lang"] = _get_lang(conn, aid)
-        item["langs"] = lang_options(aid)
-    return item
+    return {"id": aid, "name": name, "desc": desc, "url": url, "set": bool(v), "masked": _mask(v)}
 
 
 def check_key(aid, key):
@@ -217,31 +159,21 @@ def data():
 @bp.route("/admin/agents/<aid>", methods=["POST"])
 @admin_required
 def save(aid):
-    """Corpo: {key?, lang?}. `key` vazio/ausente mantém a chave salva; só uma chave nova a troca. A chave nunca volta na resposta."""
+    """Corpo: {key}. A chave nunca volta na resposta. O idioma não é daqui: segue o do usuário (59.37)."""
     if aid not in AGENTS:
         return jerr("err.agente_nao_encontrado", 404)
     d = request.get_json(silent=True)
     d = d if isinstance(d, dict) else {}
     key = str(d.get("key") or "").strip()
-    lang = str(d.get("lang") or "").strip()
     if key and not _KEY_OK.fullmatch(key):
         return jerr("err.chave_nao_pode_ter_espacos", 400)
-    if lang and not _lang_ok(aid, lang):
-        return jerr("err.idioma_invalido", 400)
+    if not key:
+        return jerr("err.nada_salvar", 400)
     with get_db() as conn:
-        if not key and not lang:
-            return jerr("err.nada_salvar", 400)
-        lang_changed = bool(lang) and lang != _get_lang(conn, aid)
-        if key:
-            conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (_skey(aid), key))
-        if lang:
-            conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (_lkey(aid), lang))
+        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (_skey(aid), key))
         item = _item(conn, aid)
-    if key:
-        _apply(aid, key)
-    if lang:
-        _apply_lang(aid, lang)
-    if aid == "tmdb" and (key or lang_changed):  # as listas do TMDB do Início (por idioma/região) são baixadas em segundo plano
+    _apply(aid, key)
+    if aid == "tmdb":  # as listas do TMDB do Início (por idioma/região) são baixadas em segundo plano
         try:
             from server.tmdb_lists import ensure_fresh
             ensure_fresh()

@@ -504,6 +504,24 @@ def exclusive():
         _lock.release()
 
 
+_pending_lang = threading.Event()  # 59.37: troca de idioma pedida com um exame em andamento
+
+
+def _reset_language():
+    from server.metadata import reset_for_language
+    with get_db() as conn:
+        reset_for_language(conn)
+
+
+def refresh_language_async():
+    """59.37: nova varredura de metadados de todas as bibliotecas de filmes e séries no idioma ativo dos agentes (capa, sinopse,
+    título, elenco, temporadas, episódios; campos travados ficam). Com um exame em andamento, começa assim que ele terminar."""
+    if scan_async(None, before=_reset_language):
+        return True
+    _pending_lang.set()
+    return False
+
+
 def _run(library_id, before=None):
     try:
         if before:
@@ -532,6 +550,9 @@ def _run(library_id, before=None):
         scanstate.clear()
         scanstate.reset()
         _lock.release()
+        if _pending_lang.is_set():  # 59.37: o idioma mudou durante este exame: refaz tudo no idioma novo
+            _pending_lang.clear()
+            refresh_language_async()
 
 
 def scan_async(library_id=None, before=None, manual=False):

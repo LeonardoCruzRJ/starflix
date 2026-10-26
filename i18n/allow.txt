@@ -29,6 +29,7 @@ lit server/markers.py::\b(
 lit server/metadata.py::[a-zà
 lit server/subdl.py::forced|
 lit server/subdl.py::português
+lit server/subdl.py::türkçe
 lit server/subtitles.py::english|
 lit server/people.py::StarFlix/1.0
 lit server/people.py::Descrição acima

@@ -1,5 +1,6 @@
 """Conta do usuário (Fase 26): foto de perfil (26.2)."""
 import json
+import logging
 import os
 import re
 import secrets
@@ -365,6 +366,12 @@ def settings_save():
         if "lang" not in vals and not had_lang:  # 59.3: o padrão não vira escolha (senão trava o perfil em pt-BR e ignora o idioma do navegador)
             cur.pop("lang", None)
         conn.execute("UPDATE profiles SET prefs = ? WHERE id = ? AND user_id = ?", (json.dumps(cur), session["profile_id"], session["user_id"]))
+    if "lang" in vals:  # 59.37: os agentes seguem o idioma do usuário (nova varredura de metadados se mudou)
+        try:
+            from server import meta_lang
+            meta_lang.follow(cur["lang"])
+        except Exception:
+            logging.exception("falha ao aplicar o idioma nos agentes")
     return jsonify(ok=True)
 
 

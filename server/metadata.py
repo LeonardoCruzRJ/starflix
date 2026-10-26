@@ -17,7 +17,7 @@ TMDB_API = "https://api.themoviedb.org/3"
 
 # 28.4: opções da biblioteca em uso (idioma, país, adulto, agente), por thread; sem contexto valem as variáveis de ambiente
 _ctx = threading.local()
-TVDB_LANGS = {"pt": "por", "en": "eng", "es": "spa", "fr": "fra", "de": "deu", "it": "ita", "ja": "jpn"}
+TVDB_LANGS = {"pt": "por", "en": "eng", "es": "spa", "fr": "fra", "de": "deu", "it": "ita", "ja": "jpn", "ru": "rus", "zh": "zho", "tr": "tur"}
 
 
 def _opts():
@@ -31,11 +31,11 @@ def _lang():
 @contextlib.contextmanager
 def library_context(library_id):
     with get_db() as conn:
-        row = conn.execute("SELECT lang, prefs FROM libraries WHERE id = ?", (library_id,)).fetchone()
-    lang = row["lang"] if row else None
+        row = conn.execute("SELECT prefs FROM libraries WHERE id = ?", (library_id,)).fetchone()
     p = lib_prefs(row or {"prefs": None})
     prev = getattr(_ctx, "opts", None)
-    _ctx.opts = {"lang": lang, "tvdb_lang": TVDB_LANGS.get(lang[:2]) if lang else None,
+    # 59.37: o idioma dos metadados é o do usuário (config.TMDB_LANG / TVDB_LANG, ver server/meta_lang.py), não mais o da biblioteca
+    _ctx.opts = {"lang": None, "tvdb_lang": None,
                  "cert_country": p["cert_country"], "adult": p["adult"], "agent": p["agent"], "lang_art": p["lang_art"], "local_art": p["local_art"]}
     try:
         yield
@@ -358,6 +358,20 @@ def match_movie(title, year=None):
     return tmdb_details("movie", results[0]["id"])
 
 
+_RESET_LIBS = "(SELECT id FROM libraries WHERE type IN ('movie', 'show'))"
+
+
+def reset_for_language(conn):
+    """59.37: o idioma mudou — o próximo exame refaz capa, sinopse, título, gêneros, elenco, temporadas e episódios de TODOS os itens
+    das bibliotecas de filmes e séries; campos travados (locks) e edições de episódio ficam. Pessoas refazem a biografia quando abertas."""
+    conn.execute(f"UPDATE media SET meta_ok = NULL WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS}")
+    conn.execute(
+        "UPDATE episodes SET title = NULL, overview = NULL WHERE (locks IS NULL OR locks IN ('', '{}')) "
+        f"AND media_id IN (SELECT id FROM media WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS})")
+    conn.execute(f"UPDATE episodes SET crew_ok = NULL WHERE media_id IN (SELECT id FROM media WHERE tmdb_id > 0 AND library_id IN {_RESET_LIBS})")
+    conn.execute("UPDATE people SET info_ok = 0, info_at = 0 WHERE tmdb_id IS NOT NULL AND bio IS NOT NULL")
+
+
 @_in_library(True)
 def identify_movies(library_id, media_id=None):
     """Preenche metadados dos filmes sem correspondência.
@@ -659,7 +673,7 @@ def identify_seasons(library_id, media_id=None):
                     by = {x.get("episode_number"): x for x in j.get("episodes") or []}
                     imdb_by = omdb_season(sh["imdb_id"], n)
                     by_en = {}
-                    if _lang().lower().startswith("pt"):  # 36.3: nomes em inglês, para saber se o título gravado é o original sem tradução
+                    if not _lang().lower().startswith("en"):  # 36.3 (59.37: qualquer idioma que não seja inglês): nomes em inglês, para saber se o título gravado é o original sem tradução
                         try:
                             by_en = {y.get("episode_number"): (y.get("name") or "").strip()
                                      for y in tmdb_get(f"/tv/{sh['tmdb_id']}/season/{n}", language="en-US").get("episodes") or []}
@@ -674,7 +688,7 @@ def identify_seasons(library_id, media_id=None):
                         rating = e["rating"] if lk.get("rating") else (round(vote, 1) if vote else e["rating"])
                         # 36.2: TVDB sem tradução deixa a sinopse em inglês; em biblioteca pt usa a do TMDB (pt-BR) no lugar
                         new_ov = (x.get("overview") or "").strip()
-                        if (new_ov and not lk.get("overview") and _lang().lower().startswith("pt") and not _looks_english(new_ov)
+                        if (new_ov and not lk.get("overview") and not _lang().lower().startswith("en") and not _looks_english(new_ov)
                                 and (not (e["overview"] or "").strip() or _looks_english(e["overview"]))):
                             conn.execute("UPDATE episodes SET overview = ? WHERE id = ?", (new_ov, e["id"]))
                         t_pt, t_en, t_now = (x.get("name") or "").strip(), by_en.get(e["episode"], ""), (e["title"] or "").strip()

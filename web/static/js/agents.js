@@ -1,4 +1,4 @@
-// Página /admin/agents: chaves de API (TMDB, TVDB, OMDB). Lista + modal Editar/Remover (mesmo padrão de /admin/users).
+// Página /admin/agents: chaves de API (TMDB, TVDB, OMDB, SubDL); o idioma dos agentes segue o do usuário (59.37). Lista + modal Editar/Remover (mesmo padrão de /admin/users).
 (window.SF_I18N ? SF_I18N.ready : Promise.resolve()).then(function () {
   'use strict';
   var list = document.getElementById('ag-list');
@@ -33,7 +33,6 @@
       var who = el('div', 'um-who'); who.appendChild(el('div', 'lm-name', a.name)); who.appendChild(el('div', 'um-user', a.desc));
       row.appendChild(who);
       var st = el('div', 'um-role ag-role', a.set ? T('ag.set', {masked: a.masked}) : T('ag.unset'));
-      if (a.lang) st.textContent += ' · ' + a.lang;
       if (a.test) { st.appendChild(el('span', 'ag-res ag-' + a.test.state, a.test.state === 'busy' ? T('ag.busy') : a.test.state === 'ok' ? T('ag.ok') : a.test.state === 'invalid' ? T('ag.invalid') : T('ag.unknown'))); if (a.test.message && a.test.state !== 'busy') st.title = a.test.message; }
       row.appendChild(st);
       var acts = el('div', 'lm-acts');
@@ -60,24 +59,20 @@
     '<div class="em-head"><span id="ag-t"></span><button type="button" class="em-x" aria-label="' + T('common.close') + '">✕</button></div>' +
     '<div class="em-pane"><div class="um-f"><div class="em-lab" id="ag-l">' + T('ag.key') + '</div>' +
     '<input type="password" class="em-q" id="ag-k" autocomplete="off" autocapitalize="off" spellcheck="false"></div>' +
-    '<label class="em-sel" id="ag-lw" hidden><span id="ag-ll"></span><select id="ag-lang"></select></label>' +
     '<p class="ld-text" id="ag-h"></p></div>' +
     '<div class="em-foot"><span class="em-err" id="ag-e"></span><button type="button" class="em-btn em-cancel" id="ag-c">' + T('common.cancel') + '</button>' +
     '<button type="button" class="em-btn em-cancel" id="ag-t2" disabled>' + T('sv.test') + '</button>' +
     '<button type="button" class="em-btn em-save" id="ag-s" disabled>' + T('common.save') + '</button></div></div>';
   document.body.appendChild(ov);
   var q = function (s) { return ov.querySelector(s); };
-  var title = q('#ag-t'), ik = q('#ag-k'), help = q('#ag-h'), err = q('#ag-e'), sv = q('#ag-s'), tb = q('#ag-t2'), lab = q('#ag-l'), lw = q('#ag-lw'), ll = q('#ag-ll'), ls = q('#ag-lang'), editing = null, busy = false, testing = false;
+  var title = q('#ag-t'), ik = q('#ag-k'), help = q('#ag-h'), err = q('#ag-e'), sv = q('#ag-s'), tb = q('#ag-t2'), lab = q('#ag-l'), editing = null, busy = false, testing = false;
 
   function typed() { return ik.value.trim(); }
   function valid() { return /^\S{1,200}$/.test(typed()); }  // chave nova digitada e aceitável
-  function langChanged() { return !!editing && !!editing.langs && ls.value !== editing.lang; }
-  function regionOf(v) { return v.indexOf('-') > 0 ? v.split('-')[1] : v.toUpperCase(); }
-  function langLabel() { if (editing && editing.id === 'tmdb') ll.textContent = T('ag.lang_region', {region: regionOf(ls.value)}); }
   // a chave só muda se o usuário digitar uma nova; vazio = mantém a salva
   function check() {
     var bad = typed() !== '' && !valid();
-    sv.disabled = busy || bad || !(valid() || langChanged());
+    sv.disabled = busy || bad || !valid();
     tb.disabled = busy || testing || bad || !(valid() || (editing && editing.set));
   }
   function say(state, text) { err.textContent = text; err.className = 'em-err' + (state === 'ok' ? ' ag-ok' : ''); }
@@ -87,20 +82,12 @@
     title.textContent = T('ag.key_title', {name: a.name});
     lab.textContent = T('ag.key');
     ik.placeholder = a.set ? a.masked : T('ag.ph');
-    ls.textContent = '';
-    lw.hidden = !a.langs;
-    if (a.langs) {
-      ll.textContent = a.id === 'tmdb' ? '' : T('ag.lang');
-      a.langs.forEach(function (o) { var op = el('option', null, o.label); op.value = o.value; ls.appendChild(op); });
-      ls.value = a.lang; langLabel();
-    }
     help.textContent = '';
     var link = el('a', null, T('ag.get', {name: a.name})); link.href = a.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
     help.appendChild(link);
     ov.hidden = false; check(); ik.focus();
   }
   ik.addEventListener('input', function () { say('', ''); check(); });
-  ls.addEventListener('change', function () { say('', ''); langLabel(); check(); });
   tb.addEventListener('click', function () {
     if (busy || testing || !editing || tb.disabled) return;
     testing = true; check(); say('', T('common.testing'));
@@ -116,9 +103,7 @@
   ov.addEventListener('mousedown', function (e) { if (e.target === ov) closeEdit(); });
   sv.addEventListener('click', function () {
     if (busy || !editing || sv.disabled) return;
-    var body = {}, newKey = valid();
-    if (newKey) body.key = typed();  // sem chave nova, a chave salva continua a mesma
-    if (editing.langs) body.lang = ls.value;
+    var body = { key: typed() }, newKey = true;  // o idioma não é daqui: segue o do usuário (59.37)
     busy = true; sv.disabled = true; tb.disabled = true; say('', '');
     api('/admin/agents/' + editing.id, body)
       .then(function (j) { busy = false; testing = false; ov.hidden = true; editing = null; ik.value = ''; upsert(j.agent); if (newKey) testSaved(data.agents.find(function (x) { return x.id === j.agent.id; })); })  // chave nova: já confere se o serviço aceita

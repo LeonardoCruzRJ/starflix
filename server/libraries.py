@@ -384,8 +384,7 @@ def _browse_roots():
     return {"home": {"name": os.path.basename(home.rstrip("/")) or "~", "path": home}, "roots": roots}
 
 
-# ---- 28.3: API JSON do gerenciador de bibliotecas (opções por biblioteca em libraries.lang + libraries.prefs)
-LANGS = {"pt-BR": "Português", "en-US": "English", "es-ES": "Español", "fr-FR": "Français", "de-DE": "Deutsch", "it-IT": "Italiano", "ja-JP": "日本語"}
+# ---- 28.3: API JSON do gerenciador de bibliotecas (opções por biblioteca em libraries.prefs; 59.37: sem idioma por biblioteca, vale o do usuário)
 CERT_COUNTRIES = {"BR": "cc.br", "US": "cc.us", "GB": "cc.gb", "PT": "cc.pt", "ES": "cc.es", "FR": "cc.fr",
                   "DE": "cc.de", "IT": "cc.it", "JP": "cc.jp", "CA": "cc.ca", "AU": "cc.au", "MX": "cc.mx"}
 PREF_CHOICES = {"agent": ("tmdb", "none"), "visibility": ("all", "hide_home", "hide_all"), "cert_country": tuple(CERT_COUNTRIES),
@@ -412,7 +411,7 @@ def _prefs_clean(data, base=None):
 
 
 def _lib_json(conn, row):
-    return {"id": row["id"], "name": row["name"], "type": row["type"], "lang": row["lang"], "folders": library_folders(conn, row["id"]),
+    return {"id": row["id"], "name": row["name"], "type": row["type"], "folders": library_folders(conn, row["id"]),
             "prefs": lib_prefs(row), "scanned_at": row["scanned_at"]}
 
 
@@ -439,7 +438,7 @@ def libraries_data():
         libs = [_lib_json(conn, r) for r in rows]
         merge = get_setting(conn, "merge_recent", "0") == "1"
     return jsonify(server_name="StarFlix", scanning=is_scanning(), libraries=libs, settings={"merge_recent": merge},
-                   types={k: tr(v) for k, v in TYPES.items()}, langs=LANGS, cert_countries={k: tr(v) for k, v in CERT_COUNTRIES.items()}, defaults=PREF_DEFAULTS, omdb=bool(config.OMDB_API_KEY))
+                   types={k: tr(v) for k, v in TYPES.items()}, cert_countries={k: tr(v) for k, v in CERT_COUNTRIES.items()}, defaults=PREF_DEFAULTS, omdb=bool(config.OMDB_API_KEY))
 
 
 @bp.route("/admin/libraries/add", methods=["POST"])
@@ -448,11 +447,9 @@ def libraries_add():
     d = _body()
     if d is None:
         return jerr("err.dados_invalidos", 400)
-    name, type_, lang = _name_clean(d), d.get("type"), d.get("lang") or None
+    name, type_ = _name_clean(d), d.get("type")
     if not name or type_ not in TYPES:
         return jerr("err.informe_nome_tipo", 400)
-    if lang is not None and lang not in LANGS:
-        return jerr("err.idioma_invalido", 400)
     prefs, error = _prefs_clean(d.get("prefs", {}))
     if error:
         return jerr(error, 400)
@@ -460,8 +457,8 @@ def libraries_add():
     if error:
         return jerr(error, 400)
     with get_db() as conn:
-        lid = conn.execute("INSERT INTO libraries (name, type, path, lang, prefs) VALUES (?, ?, ?, ?, ?)",
-                           (name, type_, folders[0], lang, json.dumps(prefs))).lastrowid
+        lid = conn.execute("INSERT INTO libraries (name, type, path, prefs) VALUES (?, ?, ?, ?)",
+                           (name, type_, folders[0], json.dumps(prefs))).lastrowid
         set_folders(conn, lid, folders)
         lib = _lib_json(conn, conn.execute("SELECT * FROM libraries WHERE id = ?", (lid,)).fetchone())
     invalidate_lib_prefs()
@@ -470,7 +467,7 @@ def libraries_add():
 
 
 def _refresh_metadata(conn, lid):
-    """Idioma/país mudou (28.4): o próximo exame refaz os metadados; campos travados (locks) e edições de episódio ficam."""
+    """País da classificação mudou (28.4; o idioma segue o usuário, 59.37): o próximo exame refaz os metadados; campos travados (locks) e edições de episódio ficam."""
     conn.execute("UPDATE media SET meta_ok = NULL WHERE library_id = ? AND tmdb_id > 0", (lid,))
     conn.execute(
         "UPDATE episodes SET title = NULL, overview = NULL WHERE (locks IS NULL OR locks IN ('', '{}')) "
@@ -494,11 +491,6 @@ def libraries_update(lid):
         name = _name_clean(d)
         if not name:
             return jerr("err.informe_nome", 400)
-    lang = row["lang"]
-    if "lang" in d:
-        lang = d["lang"] or None
-        if lang is not None and lang not in LANGS:
-            return jerr("err.idioma_invalido", 400)
     prefs = lib_prefs(row)
     if "prefs" in d:
         prefs, error = _prefs_clean(d["prefs"], prefs)
@@ -511,8 +503,8 @@ def libraries_update(lid):
             return jerr(error, 400)
     posters = []
     with get_db() as conn:
-        conn.execute("UPDATE libraries SET name = ?, lang = ?, prefs = ? WHERE id = ?", (name, lang, json.dumps(prefs), lid))
-        if lang != row["lang"] or prefs["cert_country"] != lib_prefs(row)["cert_country"]:
+        conn.execute("UPDATE libraries SET name = ?, prefs = ? WHERE id = ?", (name, json.dumps(prefs), lid))
+        if prefs["cert_country"] != lib_prefs(row)["cert_country"]:
             _refresh_metadata(conn, lid)
         elif prefs["lang_art"] != lib_prefs(row)["lang_art"]:  # 28.5: refaz só a arte no próximo exame
             conn.execute("UPDATE media SET meta_ok = NULL WHERE library_id = ? AND tmdb_id > 0", (lid,))
