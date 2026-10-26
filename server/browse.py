@@ -440,8 +440,9 @@ def watch(kind, item_id):
     get_item(kind, item_id)  # valida acesso/arquivo
     with get_db() as conn:
         if kind == "movie":
-            m = conn.execute("SELECT library_id, title, original_title, year FROM media WHERE id = ?", (item_id,)).fetchone()
-            title, sub, back = display_title(m["library_id"], m["title"], m["original_title"]), str(m["year"] or ""), f"/movie/{item_id}"
+            m = conn.execute("SELECT m.library_id, m.title, m.original_title, m.year, l.type AS ltype FROM media m JOIN libraries l ON l.id = m.library_id WHERE m.id = ?", (item_id,)).fetchone()
+            # Outros Vídeos não tem página de detalhe (/movie/<id> dá 404): o Stop volta para a biblioteca
+            title, sub, back = display_title(m["library_id"], m["title"], m["original_title"]), str(m["year"] or ""), (f"/library/{m['library_id']}" if m["ltype"] == "video" else f"/movie/{item_id}")
             pf = _prefs(item_id)
         else:
             e = conn.execute(

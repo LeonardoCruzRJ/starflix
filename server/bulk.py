@@ -34,7 +34,7 @@ def _items(ids):
         rows = conn.execute(
             f"SELECT id, library_id FROM media WHERE id IN ({','.join('?' * len(ids))})", ids).fetchall()
     found = {r["id"]: libs.get(r["library_id"]) for r in rows}
-    return [("movie" if found[i] == "movie" else "show", i) for i in ids if found.get(i)]
+    return [("movie" if found[i] in ("movie", "video") else "show", i) for i in ids if found.get(i)]  # Outros Vídeos = 1 arquivo por item, progresso como filme
 
 
 def _progress_rows(conn, items):
