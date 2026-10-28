@@ -16,6 +16,7 @@ app para **celular** e **Android TV**, tudo numa única porta (padrão **32000**
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-HLS%20%7C%20DASH-007808?style=for-the-badge&logo=ffmpeg&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Celular%20%2B%20TV-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Compose%20for%20TV-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
+![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-e5a00d?style=for-the-badge)
 
 [Recursos](#-recursos) •
 [Capturas](#-capturas-de-tela) •
@@ -313,6 +314,12 @@ Nada sai da sua rede. O StarFlix só acessa a internet para buscar metadados e l
 ## 🤝 Contribuindo
 
 Sugestões e correções são bem-vindas: abra uma *issue* descrevendo o problema ou a ideia, ou envie um *pull request*.
+
+---
+
+## 📄 Licença
+
+Distribuído sob a licença **MIT**. Veja o arquivo [`LICENSE`](LICENSE).
 
 ---
 
