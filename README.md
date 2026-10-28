@@ -16,6 +16,7 @@ apps for **phone** and **Android TV**, all on a single port (default **32000**, 
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-HLS%20%7C%20DASH-007808?style=for-the-badge\&logo=ffmpeg\&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Phone%20%2B%20TV-3DDC84?style=for-the-badge\&logo=android\&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Compose%20for%20TV-7F52FF?style=for-the-badge\&logo=kotlin\&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-e5a00d?style=for-the-badge)
 
 [Features](#-features) •
 [Screenshots](#-screenshots) •
@@ -315,9 +316,12 @@ Nothing leaves your network. StarFlix only accesses the internet to fetch metada
 Suggestions and fixes are welcome: open an *issue* describing the problem or the idea, or send a *pull request*.
 
 \---
+## 📄 License
 
+Distributed under the **MIT** license. See the [`LICENSE`](LICENSE) file.
 <div align="center">
-
+\---
+  
 Made with lots of ☕ and many late nights by [**Leonardo Cruz**](https://github.com/LeonardoCruzRJ)
 
 ⭐ If StarFlix is useful to you, leave a star on the repository!
