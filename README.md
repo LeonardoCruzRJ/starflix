@@ -9,13 +9,13 @@ apps for **phone** and **Android TV**, all on a single port (default **32000**, 
 
 <br>
 
-!\[Version](https://img.shields.io/badge/version-1.0.697-e5a00d?style=for-the-badge)
-!\[Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge\&logo=python\&logoColor=white)
-!\[Flask](https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge\&logo=flask\&logoColor=white)
-!\[SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?style=for-the-badge\&logo=sqlite\&logoColor=white)
-!\[FFmpeg](https://img.shields.io/badge/FFmpeg-HLS%20%7C%20DASH-007808?style=for-the-badge\&logo=ffmpeg\&logoColor=white)
-!\[Android](https://img.shields.io/badge/Android-Phone%20%2B%20TV-3DDC84?style=for-the-badge\&logo=android\&logoColor=white)
-!\[Kotlin](https://img.shields.io/badge/Kotlin-Compose%20for%20TV-7F52FF?style=for-the-badge\&logo=kotlin\&logoColor=white)
+![Version](https://img.shields.io/badge/version-1.0.697-e5a00d?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge\&logo=python\&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge\&logo=flask\&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?style=for-the-badge\&logo=sqlite\&logoColor=white)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-HLS%20%7C%20DASH-007808?style=for-the-badge\&logo=ffmpeg\&logoColor=white)
+![Android](https://img.shields.io/badge/Android-Phone%20%2B%20TV-3DDC84?style=for-the-badge\&logo=android\&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-Compose%20for%20TV-7F52FF?style=for-the-badge\&logo=kotlin\&logoColor=white)
 
 [Features](#-features) •
 [Screenshots](#-screenshots) •
