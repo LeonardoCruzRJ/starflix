@@ -1,6 +1,7 @@
 """59.3: API de idiomas. GET /api/i18n/<idioma> (catálogo completo, ETag, pública) e POST /api/i18n/set (cookie `sf_lang` +
 preferência do perfil, ou da conta se ainda não há perfil escolhido; sem login só o cookie).
 59.37: com login, também ajusta o idioma dos agentes e refaz os metadados de todas as bibliotecas (server/meta_lang.py)."""
+import hashlib
 import json
 import logging
 
@@ -21,6 +22,11 @@ def catalog(lang):
     if not b:
         return jerr("err.idioma_nao_suportado", 404)
     etag, body = b
+    pre = request.args.get("prefix", "")[:32]
+    if pre:  # 62.9: só as chaves com o prefixo (a Roku não precisa das 1500 do site)
+        sub = {k: v for k, v in json.loads(body)["strings"].items() if k.startswith(pre)}
+        body = json.dumps({"lang": lang, "strings": sub}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        etag = hashlib.sha1(body).hexdigest()[:16]
     r = Response(body, mimetype="application/json")
     r.set_etag(etag)
     r.headers["Cache-Control"] = "public, no-cache"  # sempre revalida (304 barato): a troca de idioma nunca mostra catálogo velho

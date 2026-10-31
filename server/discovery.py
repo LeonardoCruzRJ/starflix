@@ -2,6 +2,7 @@
 digitar endereço. TXT: id, name, v, path=/api/server-info. Tudo **falha em silêncio** (só log): sem a lib `zeroconf`, sem
 multicast ou com o interruptor desligado em /admin/server o servidor sobe normalmente. Reavalia a cada 5 min (IP novo por DHCP,
 interruptor ligado/desligado) e na hora ao salvar /admin/server."""
+import json
 import logging
 import socket
 import threading
@@ -101,9 +102,60 @@ def _boot():
     _loop()
 
 
+MAGIC = b"STARFLIX_DISCOVER"
+_udp_seen = {}  # ip -> instante do último pedido (limite simples contra enxurrada)
+
+
+def discover_reply(data, ip="?", now=None):
+    """62.2: resposta ao broadcast UDP (bytes JSON) ou None. Vale o mesmo interruptor do mDNS; só devolve o que /api/server-info já é público
+    (app, id, name, version, port). Quem chama responde para o IP de origem; o app monta o endereço com esse IP e `port`."""
+    if (data or b"").strip() != MAGIC:
+        return None
+    now = time.time() if now is None else now
+    if now - _udp_seen.get(ip, 0) < 0.3:
+        return None
+    if len(_udp_seen) > 500:
+        _udp_seen.clear()
+    _udp_seen[ip] = now
+    with get_db() as conn:
+        if not mdns_enabled(conn):
+            return None
+        sid, name = get_server_id(conn), get_server_name(conn)
+    return json.dumps({"app": "starflix", "id": sid, "name": name, "version": config.VERSION, "port": config.PORT}).encode("utf-8")
+
+
+def _udp_loop():
+    """62.2: escuta UDP em config.DISCOVERY_PORT. Falha em silêncio (porta ocupada etc.) e tenta de novo a cada 5 min."""
+    while True:
+        sock = None
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("", config.DISCOVERY_PORT))
+            log.info("Descoberta UDP: escutando na porta %s", config.DISCOVERY_PORT)
+            while True:
+                data, addr = sock.recvfrom(256)
+                try:
+                    out = discover_reply(data, addr[0])
+                    if out:
+                        sock.sendto(out, addr)
+                except Exception:
+                    log.exception("Descoberta UDP: erro ao responder")
+        except OSError as e:
+            _warn(f"Descoberta UDP indisponível: {e}")
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+        time.sleep(RESCAN)
+
+
 def start():
     """Chamada uma vez na subida (run.py): thread de fundo, não atrasa nem derruba o servidor."""
     threading.Thread(target=_boot, daemon=True, name="mdns").start()
+    threading.Thread(target=_udp_loop, daemon=True, name="udp-discovery").start()  # 62.2
 
 
 def refresh_async():

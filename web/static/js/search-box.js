@@ -37,3 +37,12 @@
   inp.addEventListener('focus', function () { if (box.children.length && inp.value.trim()) box.hidden = false; });
   document.addEventListener('click', function (e) { if (!form.contains(e.target)) hide(); });
 })();
+
+// V717: ao rolar a página para baixo a busca da topbar some (classe sf-scrolled no <html>); só volta com a página toda no topo.
+(function () {
+  var root = document.documentElement;
+  function upd() { root.classList.toggle('sf-scrolled', (window.pageYOffset || root.scrollTop || 0) > 0); }
+  window.addEventListener('scroll', upd, { passive: true });
+  window.addEventListener('pageshow', upd);
+  upd();
+})();

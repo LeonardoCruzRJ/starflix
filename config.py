@@ -4,8 +4,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEFAULT_PORT = 32000
 PORT = DEFAULT_PORT  # 60.1: porta de escuta; run.py a troca pela salva em Configurações → Servidor (settings.server_port)
+DISCOVERY_PORT = 32010  # 62.2: UDP; responde ao broadcast "STARFLIX_DISCOVER" (apps sem mDNS, como o da Roku)
 RESTART_ON_PORT = False  # 60.1: run.py liga quando roda como servidor; a troca de porta reinicia o processo só se for True
-VERSION = "1.0.697"  # 58.2: sobe a cada entrega (igual ao versionName do app); aparece em /api/server-info
+VERSION = "1.0.717"  # 58.2: sobe a cada entrega (igual ao versionName do app); aparece em /api/server-info
+CORS_ORIGINS = [o.strip().rstrip("/") for o in os.environ.get("STARFLIX_CORS_ORIGINS", "https://roku.casaleoweb.com.br").split(",") if o.strip()]  # 62.14: origens de páginas que podem chamar a API (emulador Roku no navegador); "*" libera qualquer uma; vazio desliga
 MAX_TRANSCODES = int(os.environ.get("STARFLIX_MAX_TRANSCODES", 3))  # ffmpeg simultâneos (0 = sem limite)
 MIN_FREE_GB = float(os.environ.get("STARFLIX_MIN_FREE_GB", 5))  # espaço livre mínimo em data/transcode (0 = sem limite)
 THREADS = int(os.environ.get("STARFLIX_THREADS", 64))

@@ -30,3 +30,5 @@ android/app/build/
 *.keystore
 # mensagem do próximo commit (regra zero 7)
 commit.txt
+
+starflix-roku.zip

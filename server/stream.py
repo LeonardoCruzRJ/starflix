@@ -9,7 +9,9 @@ import subprocess
 import threading
 import time
 
-from flask import Blueprint, abort, jsonify, request, send_file, send_from_directory, session
+from urllib.parse import quote
+
+from flask import Blueprint, Response, abort, jsonify, request, send_file, send_from_directory, session
 
 import config
 
@@ -341,8 +343,8 @@ def play(kind, item_id):
         mode = _hls_mode(mode, info, caps)
     if mode == "direct":
         if opt:
-            return jsonify(mode=mode, url=opt, offset=0, optimized=True)
-        return jsonify(mode=mode, url=f"/stream/{kind}/{item_id}/direct" + (f"?{caps.param()}" if caps else ""), offset=0)
+            return jsonify(mode=mode, url=opt, offset=0, optimized=True, container="mp4")  # 62.7: a Roku precisa do formato (a URL não tem extensão)
+        return jsonify(mode=mode, url=f"/stream/{kind}/{item_id}/direct" + (f"?{caps.param()}" if caps else ""), offset=0, container=_kind(path))
     return _hls(kind, item_id, path, mode, audio, quality, info=info, caps=caps, tv=tv, hdr=client_hdr)
 
 
@@ -578,6 +580,26 @@ def _hls(kind, item_id, path, mode, audio=None, quality=None, fmt="hls", info=No
     return jerr("err.falha_iniciar_transcode", 500, detail=detail)
 
 
+def _playlist_with_token(fpath, it):
+    """62.16: reescreve as URIs relativas do .m3u8 (linhas de segmento e URI="..." de EXT-X-MAP/KEY) acrescentando `it=<token>`."""
+    def add(u):
+        if u.startswith(("http://", "https://")) or "it=" in u:
+            return u
+        return u + ("&" if "?" in u else "?") + "it=" + quote(it, safe="")
+    out = []
+    with open(fpath, encoding="utf-8") as fh:
+        for line in fh.read().splitlines():
+            if not line.strip():
+                out.append(line)
+            elif line.startswith("#"):
+                out.append(re.sub(r'URI="([^"]+)"', lambda m: 'URI="' + add(m.group(1)) + '"', line))
+            else:
+                out.append(add(line.strip()))
+    r = Response("\n".join(out) + "\n")
+    r.headers["Cache-Control"] = "no-cache"
+    return r
+
+
 @bp.route("/stream/hls/<sid>/<name>")
 @bp.route("/stream/dash/<sid>/<name>")
 @login_required
@@ -587,6 +609,9 @@ def hls_file(sid, name):
         abort(404)
     s["last"] = time.time()
     resp = send_from_directory(s["dir"], name, max_age=0)
+    it = request.args.get("it")
+    if it and name.endswith(".m3u8"):  # 62.16: segmentos/init são relativos e perderiam o ?it=; propaga o token no playlist
+        resp = _playlist_with_token(os.path.join(s["dir"], name), it)
     if name.endswith(".m3u8"):
         resp.mimetype = "application/vnd.apple.mpegurl"
     elif name.endswith(".ts"):

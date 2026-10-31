@@ -14,6 +14,7 @@
 </div>
 <div class="mv">
   <div class="mv-side">
+    <a class="col-back" href="/library/{{ lib.id }}?tab=collections" data-tip="{{ t('common.back') }}" aria-label="{{ t('common.back') }}"><svg class="ic"><use href="#i-arrow-left"/></svg></a>
     <div class="mv-poster"><span class="pcard-ph" aria-hidden="true">{{ c.title }}</span><img src="/collection-poster/{{ c.id }}" alt="" onerror="this.remove()">
       {% if nav_is_admin %}<button type="button" class="pcard-gear" data-edit-item="collection:{{ c.id }}" aria-label="{{ t('common.edit') }}"><svg class="ic ic-sm"><use href="#i-gear"/></svg></button>{% endif %}
     </div>

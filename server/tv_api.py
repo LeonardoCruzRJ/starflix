@@ -2,7 +2,7 @@
 collections, playlists, mylist, progress). Autenticação por Bearer + `X-Profile` (40.4); só o que o usuário pode acessar (`can_access`, `visibility`)."""
 import json
 
-from flask import Blueprint, abort, jsonify, request, session
+from flask import Blueprint, abort, g, jsonify, request, session
 
 from server.auth import login_required
 from server.db import display_title, fold, get_db, hdr_label, lib_prefs
@@ -126,6 +126,26 @@ def profiles():
         photos = {r["id"]: r["photo"] for r in conn.execute("SELECT id, photo FROM profiles WHERE user_id = ?", (session["user_id"],))}
     from server.account import profile_photo_url
     return jsonify(profiles=[{"id": r["id"], "name": r["name"], "avatar": r["avatar"], "photo": profile_photo_url(r["id"], photos.get(r["id"]))} for r in rows])
+
+
+@bp.route("/lang")
+@login_required
+def lang():
+    """62.9: idioma do usuário (perfil → conta → ...) para a Roku buscar os textos em /api/i18n/<idioma>?prefix=roku."""
+    from server import i18n
+    return jsonify(lang=i18n.current_lang())
+
+
+@bp.route("/img-token")
+@login_required
+def img_token_route():
+    """62.4: token curto para carregar imagens por URL (`?it=`), para apps que não mandam cabeçalho (Roku). Vale para o perfil em uso (0 se ainda não escolheu)."""
+    did = g.get("tv_device")
+    if not did:
+        return jerr("err.so_tvs_conectadas", 400)
+    from server import img_token
+    tok, ttl = img_token.make(did, session["user_id"], session.get("profile_id") or 0)
+    return jsonify(token=tok, ttl=ttl)
 
 
 @bp.route("/libraries")

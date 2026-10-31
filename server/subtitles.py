@@ -26,6 +26,49 @@ _LANG_TOKEN = re.compile(
 _TS = re.compile(r"(\d{1,2}:\d{2}:\d{2}),(\d{3})")
 
 
+_VTT_TS = re.compile(r"^(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})$")
+
+
+def _vtt_sec(t):
+    m = _VTT_TS.match(t.strip())
+    return int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3)) + int(m.group(4)) / 1000 if m else None
+
+
+def _vtt_fmt(sec):
+    ms = int(round(sec * 1000))
+    return f"{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d}.{ms % 1000:03d}"
+
+
+def shift_vtt(text, secs):
+    """62.7: desloca os tempos do WebVTT em -`secs` (HLS retomado no meio começa em 0); cue que termina antes de 0 sai. `secs` <= 0 não muda nada."""
+    if secs <= 0:
+        return text
+    out = []
+    for block in re.split(r"\n\n+", text.replace("\r\n", "\n").strip("\n")):
+        lines = block.split("\n")
+        i = next((n for n, l in enumerate(lines) if "-->" in l), None)
+        if i is None:
+            out.append(block)  # cabeçalho WEBVTT, STYLE ou NOTE
+            continue
+        left, _, right = lines[i].partition("-->")
+        parts = right.strip().split(" ", 1)
+        start, end = _vtt_sec(left), _vtt_sec(parts[0])
+        if start is None or end is None:
+            out.append(block)
+            continue
+        if end - secs <= 0:
+            continue
+        lines[i] = f"{_vtt_fmt(max(0.0, start - secs))} --> {_vtt_fmt(end - secs)}" + (" " + parts[1] if len(parts) > 1 else "")
+        out.append("\n".join(lines))
+    return "\n\n".join(out) + "\n"
+
+
+def _shift_arg():
+    """`?shift=` (segundos, 0 a 86400); inválido = 0."""
+    t = request.args.get("shift", type=float)
+    return min(t, 86400.0) if t and math.isfinite(t) and t > 0 else 0.0
+
+
 def srt_to_vtt(text):
     text = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"\{\\[^}]*\}", "", _TS.sub(r"\1.\2", text))  # tags de posição do ASS ({\an8}) viram texto solto no player
@@ -205,7 +248,7 @@ def subs_embedded(kind, item_id, index):
     if not out:
         abort(500)
     with open(out, encoding="utf-8") as f:
-        return Response(f.read(), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
+        return Response(shift_vtt(f.read(), _shift_arg()), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
 
 
 @bp.route("/stream/<kind>/<int:item_id>/subs/<int:sid>.vtt")
@@ -216,7 +259,7 @@ def subs_file(kind, item_id, sid):
     if sid >= len(subs):
         abort(404)
     with open(vtt_path(subs[sid]["file"]), encoding="utf-8") as f:
-        return Response(f.read(), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
+        return Response(shift_vtt(f.read(), _shift_arg()), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
 
 
 # ---------------------------------------------------------------- buscar legenda no SubDL (47.3, só admin)

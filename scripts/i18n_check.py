@@ -224,7 +224,7 @@ def check_unused(cats, allow_k):
     used = set(re.findall(r"[\"'`]([a-z][\w]*(?:\.[\w]+)+)[\"'`]", blob))
     used |= set(re.findall(r"data-i18n(?:-\w+)?=\"([^\"]+)\"", blob))
     keys = {base_key(k) for c in cats.values() for k in c}
-    return [f"{k}" for k in sorted(keys) if k not in used and not k.startswith("android.")
+    return [f"{k}" for k in sorted(keys) if k not in used and not k.startswith(("android.", "roku."))
             and not any(k == a or k.startswith(a) for a in allow_k)]
 
 

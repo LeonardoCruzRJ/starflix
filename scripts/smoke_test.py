@@ -2856,6 +2856,61 @@ try:
     check("58.3 com o mDNS desligado o anúncio não sobe e não dá erro", ok58 and DS58._state["zc"] is None)
     c.post("/admin/server/save", json={"mdns": True, "url": "", "name": "StarFlix"})
 
+    # ---- 62.2: descoberta UDP (resposta ao broadcast) ----
+    from server import discovery as DS62
+    c.post("/admin/server/save", json={"mdns": True, "url": "", "name": "StarFlix"})
+    DS62._udp_seen.clear()
+    r62 = DS62.discover_reply(b"STARFLIX_DISCOVER\n", "10.0.0.5", now=1000.0)
+    j62 = json.loads(r62) if r62 else {}
+    check("62.2 broadcast válido recebe app, id, nome, versão e porta", j62.get("app") == "starflix" and j62.get("port") == __import__("config").PORT and j62.get("id") and j62.get("version"))
+    check("62.2 pedido repetido do mesmo IP em menos de 0,3 s é ignorado", DS62.discover_reply(b"STARFLIX_DISCOVER", "10.0.0.5", now=1000.1) is None
+          and DS62.discover_reply(b"STARFLIX_DISCOVER", "10.0.0.5", now=1001.0) is not None)
+    check("62.2 texto diferente do combinado não recebe resposta", DS62.discover_reply(b"oi", "10.0.0.6", now=1002.0) is None)
+    c.post("/admin/server/save", json={"mdns": False})
+    DS62._udp_seen.clear()
+    check("62.2 com o mDNS desligado o servidor não responde ao broadcast", DS62.discover_reply(b"STARFLIX_DISCOVER", "10.0.0.7", now=1003.0) is None)
+    c.post("/admin/server/save", json={"mdns": True, "url": "", "name": "StarFlix"})
+
+    # ---- 62.4: token curto de imagem (Roku) ----
+    from server import img_token as IT62
+    from server.tv_auth import create_tv_device as CTD62
+    anon62 = run.app.test_client()
+    with get_db() as conn:
+        u62 = conn.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()["id"]
+        p62 = conn.execute("SELECT id FROM profiles WHERE user_id = ? ORDER BY id LIMIT 1", (u62,)).fetchone()["id"]
+        tv62, did62 = CTD62(conn, u62, "Roku 62", int(time.time()))
+    H62 = {"Authorization": "Bearer " + tv62}
+    r62 = anon62.get("/api/tv/img-token", headers={**H62, "X-Profile": str(p62)})
+    tok62 = (r62.json or {}).get("token", "")
+    check("62.4 /api/tv/img-token entrega token do perfil em uso e a validade", r62.status_code == 200 and len(tok62.split(".")) == 5
+          and tok62.split(".")[2] == str(p62) and r62.json.get("ttl", 0) > 0)
+    check("62.4 sem perfil escolhido o token sai com perfil 0", anon62.get("/api/tv/img-token", headers=H62).json["token"].split(".")[2] == "0")
+    check("62.4 o navegador (cookie, sem Bearer de TV) não recebe token de imagem", c.get("/api/tv/img-token").status_code == 400)
+    check("62.4 imagem de perfil carrega com ?it= e sem cookie novo", anon62.get(f"/pavatar/{p62}?it={tok62}").status_code == 200
+          and "Set-Cookie" not in anon62.get(f"/pavatar/{p62}?it={tok62}").headers)
+    check("62.4 sem o token a mesma imagem não abre", anon62.get(f"/pavatar/{p62}").status_code != 200)
+    check("62.4 token adulterado: 401", anon62.get(f"/pavatar/{p62}?it={tok62[:-1]}{'0' if tok62[-1] != '0' else '1'}").status_code == 401)
+    check("62.4 o token não vale em rota que não é de imagem", anon62.get(f"/api/tv/profiles?it={tok62}").status_code == 401)
+    with run.app.app_context():
+        with get_db() as conn:
+            check("62.4 token vencido não resolve", IT62.resolve(conn, tok62, now=time.time() + 13 * 3600) is None)
+        check("62.4 a URL é estável dentro da janela de 6 h (cache da Roku)", IT62.make(did62, u62, p62, now=1000)[0] == IT62.make(did62, u62, p62, now=2000)[0])
+    with get_db() as conn:
+        conn.execute("DELETE FROM tv_devices WHERE id = ?", (did62,))
+    check("62.4 aparelho revogado: o token de imagem cai na hora", anon62.get(f"/pavatar/{p62}?it={tok62}").status_code == 401)
+
+    # ---- 62.7: legendas deslocadas (HLS retomado) e token curto nas legendas ----
+    from server import subtitles as ST62
+    vtt62 = "WEBVTT\n\n00:00:05.000 --> 00:00:08.000\nA\n\n00:01:10.500 --> 00:01:12.000\nB\n"
+    out62 = ST62.shift_vtt(vtt62, 60)
+    check("62.7 shift_vtt descarta o que termina antes de 0 e desloca o resto", "\nA\n" not in out62 and "00:00:10.500 --> 00:00:12.000" in out62)
+    check("62.7 shift_vtt com 0 não muda nada", ST62.shift_vtt(vtt62, 0) == vtt62)
+    eps62 = {r_.endpoint for r_ in run.app.url_map.iter_rules()}
+    check("62.7 as rotas de legenda .vtt aceitam o token curto (?it=)", {"subtitles.subs_file", "subtitles.subs_embedded"} <= IT62.IMG_EPS
+          and {"subtitles.subs_file", "subtitles.subs_embedded"} <= eps62)
+    check("62.16 vídeo (direct/HLS) aceita o token curto (?it=) para o emulador web", {"stream.direct", "stream.hls_file"} <= IT62.IMG_EPS
+          and {"stream.direct", "stream.hls_file"} <= eps62)
+
     # limpeza
     sql32("DELETE FROM phone_tokens")
     sql32("DELETE FROM phone_devices")

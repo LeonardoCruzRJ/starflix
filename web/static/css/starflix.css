@@ -2387,3 +2387,16 @@ body.has-hero-bg .topbar-right .icon-btn.active, body.tvd-on:not(.lean-page) .to
 body.has-hero-bg .topbar .logo, body.tvd-on:not(.lean-page) .topbar .logo {
   filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .95)) drop-shadow(0 0 4px rgba(0, 0, 0, .7)) drop-shadow(0 1px 8px rgba(0, 0, 0, .55));
 }
+
+/* V717: sem caixa de foco ao redor do nome dos itens (filmes, séries, episódios, outros vídeos, coleções, listas); o foco continua no pôster */
+.pcard-title:focus, .pcard-title:focus-visible, .pcard-title:active { outline: none; box-shadow: none; background: none; }
+
+/* V717: seta de voltar acima da capa da coleção (círculo escuro com sombra, igual aos botões redondos) */
+.col-back { display: flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin-bottom: 16px; border-radius: 50%; background: rgba(20, 22, 24, .55); color: #fff; text-decoration: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .55); -webkit-tap-highlight-color: transparent; }
+.col-back .ic { width: 24px; height: 24px; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .6)); }
+.col-back:hover, .col-back:focus-visible { background: rgba(255, 255, 255, .85); color: #000; outline: none; }
+.col-back:hover .ic, .col-back:focus-visible .ic { filter: none; }
+
+/* V717: a barra de busca da topbar some ao rolar a página e só volta com a página toda no topo (fica visível enquanto tiver foco) */
+.topbar .search { transition: opacity .15s ease, visibility .15s ease; }
+html.sf-scrolled .topbar .search:not(:focus-within) { opacity: 0; visibility: hidden; pointer-events: none; }

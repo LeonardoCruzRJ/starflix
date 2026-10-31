@@ -38,6 +38,7 @@ from server.smart import bp as smart_bp
 from server.home_rows import bp as home_rows_bp
 from server.tv_api import bp as tv_api_bp
 from server.tv_auth import bp as tv_auth_bp, bearer_token, device_for_token, profile_of
+from server import img_token  # 62.4
 from server.markers import bp as markers_bp
 from server.trickplay import bp as trickplay_bp
 from server.playback import bp as playback_bp
@@ -130,6 +131,22 @@ app.register_blueprint(i18n_api_bp)
 PUBLIC = ("health", "auth.setup", "auth.login", "static", "tv_auth.code_new", "tv_auth.code_poll", "admin_server.info", "branding.serve", "i18n_api.catalog", "i18n_api.set_lang", "phone_auth.connect_page", "phone_auth.claim", "phone_auth.session_from_token", "phone_auth.tv_ticket", "phone_auth.phone_me", "phone_auth.tv_claim")  # 40.2: a TV ainda não tem sessão
 
 
+def _cors_origin():
+    """62.14: devolve a origem da requisição se ela estiver em config.CORS_ORIGINS (ou "*"), senão None."""
+    origin = request.headers.get("Origin", "").rstrip("/")
+    if origin and origin != request.host_url.rstrip("/") and (origin in config.CORS_ORIGINS or "*" in config.CORS_ORIGINS):
+        return origin
+    return None
+
+
+@app.before_request
+def cors_preflight():
+    """62.14: responde o OPTIONS (preflight) antes do `gate`, que exigiria login."""
+    if request.method == "OPTIONS" and _cors_origin() and request.headers.get("Access-Control-Request-Method"):
+        return app.make_response(("", 204))
+    return None
+
+
 @app.before_request
 def gate():
     session.permanent = True
@@ -139,6 +156,16 @@ def gate():
     if not has_users():
         return redirect("/setup")
     token = bearer_token()
+    if token is None and ep in img_token.IMG_EPS and request.method in ("GET", "HEAD") and request.args.get("it"):  # 62.4: imagem da Roku (sem cabeçalho)
+        with get_db() as conn:
+            res = img_token.resolve(conn, request.args.get("it"))
+        if not res:
+            return jerr("err.token_invalido", 401)
+        session.clear()
+        session["user_id"], session["sv"] = res["user_id"], res["session_ver"]
+        if res["profile_id"]:
+            session["profile_id"] = res["profile_id"]
+        g.tv_device = res["device_id"]
     if token is not None:
         with get_db() as conn:
             dev = device_for_token(conn, token)
@@ -177,10 +204,25 @@ def gate():
         session.pop("profile_id", None)
     if ep is None:  # URL inexistente: deixa o Flask devolver 404
         return None
-    if "profile_id" not in session and not (ep.startswith("profiles.") or ep.startswith("tv_auth.") or ep.startswith("phone_auth.") or ep == "tv_api.profiles" or ep == "account.pavatar" or ep == "auth.logout"):
+    if "profile_id" not in session and not (ep.startswith("profiles.") or ep.startswith("tv_auth.") or ep.startswith("phone_auth.") or ep == "tv_api.profiles" or ep == "tv_api.img_token_route" or ep == "tv_api.lang" or ep == "account.pavatar" or ep == "auth.logout"):
         if g.get("tv_device"):
             return jerr("err.perfil_nao_escolhido", 400)
         return redirect("/profiles")
+
+
+@app.after_request
+def cors_headers(resp):
+    """62.14: libera a API para as origens de config.CORS_ORIGINS (o emulador Roku roda em outro domínio). Sem cookies: a TV usa Authorization."""
+    origin = _cors_origin()
+    if origin:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers.add("Vary", "Origin")
+        resp.headers["Access-Control-Expose-Headers"] = "Content-Length, Content-Range, Accept-Ranges, Content-Type"
+        if request.method == "OPTIONS":
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+            resp.headers["Access-Control-Allow-Headers"] = request.headers.get("Access-Control-Request-Headers", "Authorization, Content-Type, X-Profile, Range, Accept")
+            resp.headers["Access-Control-Max-Age"] = "86400"
+    return resp
 
 
 @app.after_request
