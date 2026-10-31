@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="GridView" extends="Group">
+  <interface>
+    <field id="server" type="string" />
+    <field id="imgToken" type="string" onChange="onToken" />
+    <field id="heading" type="string" onChange="onHeading" />
+    <field id="total" type="integer" />
+    <field id="items" type="array" onChange="onItems" alwaysNotify="true" />
+    <field id="append" type="array" onChange="onAppend" alwaysNotify="true" />
+    <field id="picked" type="assocarray" alwaysNotify="true" />
+    <field id="more" type="integer" alwaysNotify="true" />
+    <field id="wantFocus" type="boolean" alwaysNotify="true" onChange="onWant" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/GridView.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x0B0B0FFF" />
+    <Label id="head" width="1740" height="70" translation="[90,45]" vertAlign="center" color="0xFFFFFFFF" />
+    <MarkupGrid id="grid" itemComponentName="HomeCard" itemSize="[200,375]" itemSpacing="[20,20]" numColumns="8" numRows="2" translation="[90,140]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+    <Label id="empty" width="1740" height="80" translation="[90,480]" horizAlign="center" vertAlign="center" color="0x9A9AA6FF" visible="false" />
+  </children>
+</component>

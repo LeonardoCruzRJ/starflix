@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="DiscoverTask" extends="Task">
+  <interface>
+    <field id="timeout" type="integer" value="3" />
+    <field id="found" type="array" />
+    <field id="done" type="boolean" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/DiscoverTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+</component>

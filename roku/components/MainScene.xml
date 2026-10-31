@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="MainScene" extends="Scene">
+  <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x0B0B0FFF" />
+    <Label id="logo" width="1920" height="120" translation="[0,100]" horizAlign="center" vertAlign="center" color="0xE5A00DFF" />
+    <Label id="title" width="1920" height="80" translation="[0,270]" horizAlign="center" vertAlign="center" color="0xFFFFFFFF" />
+    <Label id="line1" width="1500" height="60" translation="[210,380]" horizAlign="center" vertAlign="center" wrap="true" color="0xB8B8C2FF" />
+    <Label id="url" width="1500" height="80" translation="[210,445]" horizAlign="center" vertAlign="center" color="0xFFFFFFFF" />
+    <Label id="line2" width="1500" height="60" translation="[210,560]" horizAlign="center" vertAlign="center" color="0xB8B8C2FF" />
+    <Label id="code" width="1920" height="170" translation="[0,620]" horizAlign="center" vertAlign="center" color="0xE5A00DFF" />
+    <Label id="status" width="1500" height="60" translation="[210,830]" horizAlign="center" vertAlign="center" wrap="true" color="0xB8B8C2FF" />
+    <LabelList id="menu" translation="[660,720]" itemSize="[600,64]" numRows="5" visible="false" />
+    <MarkupGrid id="profGrid" itemComponentName="ProfileItem" itemSize="[240,300]" itemSpacing="[20,20]" numColumns="4" numRows="1" translation="[0,420]" drawFocusFeedback="false" visible="false" />
+    <HomeView id="home" visible="false" />
+    <Label id="notice" width="1920" height="44" translation="[0,1020]" horizAlign="center" vertAlign="center" color="0xE5A00DFF" />
+    <Label id="hint" width="1920" height="50" translation="[0,975]" horizAlign="center" vertAlign="center" color="0x7A7A86FF" />
+    <Timer id="pollTimer" repeat="true" duration="3" />
+    <Timer id="imgTimer" repeat="true" duration="10800" />
+    <Timer id="noticeTimer" repeat="false" duration="3" />
+    <Timer id="retryTimer" repeat="false" duration="15" />
+    <Timer id="syncTimer" repeat="false" duration="1.5" />
+  </children>
+</component>

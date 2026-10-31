@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="DetailView" extends="Group">
+  <interface>
+    <field id="server" type="string" />
+    <field id="imgToken" type="string" onChange="onToken" />
+    <field id="data" type="assocarray" onChange="onData" />
+    <field id="ref" type="assocarray" />
+    <field id="patch" type="assocarray" onChange="onPatch" alwaysNotify="true" />
+    <field id="picked" type="assocarray" alwaysNotify="true" />
+    <field id="wantFocus" type="boolean" alwaysNotify="true" onChange="onWant" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/DetailView.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x0B0B0FFF" />
+    <Poster id="bd" width="1920" height="1080" loadDisplayMode="scaleToZoom" opacity="0.3" />
+    <Poster id="pic" width="320" height="480" translation="[90,110]" loadDisplayMode="scaleToZoom" />
+    <Label id="title" width="1370" height="76" translation="[460,100]" vertAlign="center" color="0xFFFFFFFF" />
+    <Label id="meta" width="1370" height="40" translation="[460,180]" vertAlign="center" color="0xD0D0D8FF" />
+    <Label id="rate" width="1370" height="40" translation="[460,222]" vertAlign="center" color="0xE5A00DFF" />
+    <Label id="over" width="1300" height="190" translation="[460,278]" wrap="true" lineSpacing="4" color="0xFFFFFFFF" />
+    <Label id="people" width="1370" height="84" translation="[460,478]" wrap="true" color="0xB8B8C2FF" />
+    <Label id="tech" width="1370" height="36" translation="[460,570]" vertAlign="center" color="0x7A7A86FF" />
+    <LabelList id="btns" translation="[460,630]" itemSize="[620,60]" numRows="6" />
+  </children>
+</component>

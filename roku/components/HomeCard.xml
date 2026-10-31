@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="HomeCard" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+    <field id="width" type="float" onChange="onLayout" />
+    <field id="height" type="float" onChange="onLayout" />
+    <field id="focusPercent" type="float" onChange="onFocus" />
+    <field id="rowListHasFocus" type="boolean" onChange="onFocus" />
+    <field id="gridHasFocus" type="boolean" onChange="onFocus" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/HomeCard.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <Rectangle id="ring" color="0xE5A00D00" />
+    <Rectangle id="ph" color="0x1B1B22FF" />
+    <Poster id="pic" loadDisplayMode="scaleToZoom" />
+    <Rectangle id="track" color="0x000000AA" visible="false" />
+    <Rectangle id="fill" color="0xE5A00DFF" visible="false" />
+    <Label id="name" color="0xFFFFFFFF" />
+    <Label id="sub" color="0x9A9AA6FF" />
+  </children>
+</component>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="PlayerView" extends="Group">
+  <interface>
+    <field id="server" type="string" />
+    <field id="token" type="string" />
+    <field id="profile" type="string" />
+    <field id="imgToken" type="string" />
+    <field id="media" type="assocarray" onChange="onMedia" />
+    <field id="closed" type="string" alwaysNotify="true" />
+    <field id="wantFocus" type="boolean" alwaysNotify="true" onChange="onWant" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/PlayerView.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x000000FF" />
+    <Video id="vid" width="1920" height="1080" translation="[0,0]" />
+    <Rectangle id="skipBg" width="620" height="64" translation="[1240,900]" color="0x000000CC" visible="false" />
+    <Label id="skip" width="620" height="64" translation="[1240,900]" horizAlign="center" vertAlign="center" color="0xE5A00DFF" visible="false" />
+    <Label id="info" width="1500" height="120" translation="[210,480]" horizAlign="center" vertAlign="center" wrap="true" color="0xFFFFFFFF" />
+    <Rectangle id="menuBg" width="560" height="420" translation="[1300,200]" color="0x101016F2" visible="false" />
+    <LabelList id="menu" translation="[1320,220]" itemSize="[520,56]" numRows="6" visible="false" />
+    <Timer id="saveTimer" repeat="true" duration="10" />
+  </children>
+</component>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="HomeView" extends="Group">
+  <interface>
+    <field id="server" type="string" />
+    <field id="imgToken" type="string" onChange="onToken" />
+    <field id="profileName" type="string" />
+    <field id="libs" type="array" />
+    <field id="rows" type="array" onChange="onRows" alwaysNotify="true" />
+    <field id="action" type="string" alwaysNotify="true" />
+    <field id="soft" type="boolean" />
+    <field id="picked" type="assocarray" alwaysNotify="true" />
+    <field id="wantFocus" type="boolean" alwaysNotify="true" onChange="onWant" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/HomeView.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <Rectangle id="sideBg" width="340" height="1080" color="0x101016FF" />
+    <Label id="logo" width="340" height="90" translation="[0,30]" horizAlign="center" vertAlign="center" color="0xE5A00DFF" />
+    <Label id="who" width="340" height="40" translation="[0,120]" horizAlign="center" vertAlign="center" color="0x9A9AA6FF" />
+    <LabelList id="side" translation="[20,190]" itemSize="[300,64]" numRows="12" />
+    <RowList id="rows" translation="[380,50]" itemComponentName="HomeCard" itemSize="[1500,380]" numRows="2" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" rowLabelColor="0xFFFFFFFF" visible="false" />
+    <Label id="empty" width="1500" height="80" translation="[380,480]" horizAlign="center" vertAlign="center" color="0x9A9AA6FF" visible="false" />
+  </children>
+</component>
