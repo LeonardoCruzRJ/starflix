@@ -35,9 +35,11 @@ class MainActivity : AppCompatActivity() {
             val hit = pick(store) ?: ServerRefind.byId(this, store.id)
             if (hit != null) store.save(hit.first, hit.second, preferExternal = true)  // celular grava o externo; aprende endereços novos (mudança de domínio)
             val base = hit?.second ?: store.current.ifBlank { store.urls.first() }  // ninguém respondeu: a página de erro oferece "Tentar de novo"
+            val pending = AppUpdate.check(this, base)  // 63.6: versão nova publicada (ou pendente de antes, mesmo sem rede): só o modal, o site não abre
             runOnUiThread {
                 getSharedPreferences("starflix", MODE_PRIVATE).edit().putString(KEY_URL, base).apply()  // WebActivity e PlayerActivity leem daqui
-                startActivity(Intent(this, WebActivity::class.java))
+                if (pending != null) startActivity(Intent(this, UpdateActivity::class.java).putExtra(UpdateActivity.EXTRA_BASE, base))
+                else startActivity(Intent(this, WebActivity::class.java))
                 finish()
             }
         }.start()

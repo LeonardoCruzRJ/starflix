@@ -26,6 +26,7 @@
 {% elif can_delete %}
     <form method="post" action="/profiles/{{ pid }}/delete" class="pem-del" data-confirm="{{ t('pe.delete_q') }}" data-title="{{ t('pe.delete_title') }}" data-ok="{{ t('pe.delete_ok') }}" data-danger><button type="submit">{{ t('pe.delete') }}</button></form>
 {% endif %}
+    <p class="pem-help" id="pem-appver" data-tpl="{{ t('pe.app_version', v='{v}') }}" hidden></p>
   </section>
 
   {#- telas de um campo: título, texto de ajuda, campo, contador e Salvar (montadas pelo profile-edit-m.js) -#}
@@ -120,4 +121,6 @@
 {% endif %}
 </div>
 {% endblock %}
-{% block scripts %}<script>if (window.StarflixApp) document.querySelectorAll(".pe-del, .pem-del").forEach(function (n) { n.remove(); });  /* 61.1: excluir perfil só na web */</script><script src="{{ url_for('static', filename='js/profile-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/profile-edit-m.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script>if (window.StarflixApp) document.querySelectorAll(".pe-del, .pem-del").forEach(function (n) { n.remove(); });  /* 61.1: excluir perfil só na web */
+/* 63.8: versão instalada do app, só dentro do app (WebActivity expõe StarflixApp.appVersion) */
+(function () { var n = document.getElementById("pem-appver"); if (!n || !window.StarflixApp || typeof window.StarflixApp.appVersion !== "function") return; var v = window.StarflixApp.appVersion(); if (!v) return; n.textContent = n.getAttribute("data-tpl").replace("{v}", v); n.hidden = false; })();</script><script src="{{ url_for('static', filename='js/profile-edit.js') }}" defer></script><script src="{{ url_for('static', filename='js/profile-edit-m.js') }}" defer></script>{% endblock %}

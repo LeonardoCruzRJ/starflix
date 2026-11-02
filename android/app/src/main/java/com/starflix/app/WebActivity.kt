@@ -115,6 +115,10 @@ class WebActivity : AppCompatActivity() {
         fun scanTv() {
             runOnUiThread { tvScan.launch(Intent(this@WebActivity, QrScanActivity::class.java)) }
         }
+
+        /** 63.8: versionName instalado, para a nota em Editar Perfil (só existe dentro do app). */
+        @JavascriptInterface
+        fun appVersion(): String = AppUpdate.installedName(this@WebActivity)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -388,6 +392,10 @@ class WebActivity : AppCompatActivity() {
             // 60.7: o player grava a posição em segundo plano; recarregar na hora mostrava o Início/Continuar assistindo velho
             web.postDelayed({ if (!isDestroyed && !failed) web.reload() }, 1500L)
         }
+        // 63.6: ao voltar ao primeiro plano (incl. ao sair do player), no máximo a cada 10 min; versão pendente = modal bloqueante
+        if (baseUrl.isNotEmpty()) Thread {
+            if (AppUpdate.checkIfDue(this, baseUrl, 10 * 60 * 1000L) != null) runOnUiThread { if (!isFinishing && !isDestroyed) UpdateActivity.launch(this, baseUrl) }
+        }.start()
     }
 
     override fun onDestroy() {

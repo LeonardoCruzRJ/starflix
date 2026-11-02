@@ -61,6 +61,15 @@ class TvActivity : ComponentActivity() {
     }
 
     private lateinit var store: TvStore
+    private var updatePending by mutableStateOf<AppRelease?>(null)   // 63.7: versão nova publicada (ou pendente de antes): modal bloqueante
+    private var resumeTick by mutableStateOf(0)   // sobe a cada onResume: o modal retoma ao voltar dos ajustes de instalar apps desconhecidos
+
+    /** 63.7: consulta `/api/app/version` fora da thread principal (ao abrir, ao voltar ao primeiro plano e a cada 30 s com o healServer). */
+    private fun checkUpdate() {
+        val srv = store.server
+        if (srv.isBlank()) return
+        Thread { val p = AppUpdate.check(this, srv); runOnUiThread { updatePending = p } }.start()
+    }
     private var playTick by mutableStateOf(0)   // sobe ao voltar do player: Início e detalhes recarregam (progresso, assistido)
 
     private var fromPlayer = false   // 52.17: voltou do player; o próximo onResume espera um pouco (o player grava a posição em segundo plano)
@@ -80,6 +89,7 @@ class TvActivity : ComponentActivity() {
     /** 52.17: ao abrir o app e ao voltar do player, atualiza a linha "Reproduzir a seguir" (assistido sai, próximo episódio entra). */
     override fun onResume() {
         super.onResume()
+        if (::store.isInitialized) { resumeTick++; checkUpdate() }
         TvWatchNext.refresh(this, store, if (fromPlayer) 1500L else 0L)
         if (!fromPlayer && pausedAt > 0 && System.currentTimeMillis() - pausedAt > 20000L) playTick++
         fromPlayer = false
@@ -119,6 +129,7 @@ class TvActivity : ComponentActivity() {
             return
         }
         pendingLink = parseLink(intent)
+        updatePending = AppUpdate.pending(this)
         Coil.setImageLoader(tvImageLoader(this, store))  // toda imagem leva Authorization + X-Profile
         setContent {
             MaterialTheme {
@@ -129,6 +140,7 @@ class TvActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     while (true) {
                         if (withContext(Dispatchers.IO) { healServer() }) { TvWatchNext.refresh(this@TvActivity, store, 0L); recreate(); break }
+                        updatePending = withContext(Dispatchers.IO) { AppUpdate.check(this@TvActivity, store.server) }
                         delay(30_000)
                     }
                 }
@@ -257,7 +269,7 @@ class TvActivity : ComponentActivity() {
                     onUnauthorized = { stack.clear(); unauthorized() },
                 ) }
             }
-            
+            updatePending?.let { TvUpdateDialog(it, store.server, resumeTick) }
             }
         }
     }

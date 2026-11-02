@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 63.5: instalar a atualização do próprio app (PackageInstaller); o usuário libera "Instalar apps desconhecidos" uma vez -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- 58.11: câmera só no leitor de QR da tela de conexão -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -67,6 +69,11 @@
             android:name=".QrScanActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="false" />
+        <!-- 63.6: modal bloqueante de atualização do app (celular) -->
+        <activity
+            android:name=".UpdateActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="false" />
         <activity
             android:name=".WebActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
@@ -78,6 +85,10 @@
             android:screenOrientation="sensorLandscape"
             android:supportsPictureInPicture="true"
             android:theme="@style/Theme.StarFlix" />
+        <!-- 63.5: resultado da instalação da atualização (abre a confirmação do sistema, avisa falha ou cancelamento) -->
+        <receiver
+            android:name=".UpdateReceiver"
+            android:exported="false" />
         <!-- 59.29: guarda o idioma escolhido no Android 12 ou menor (AppCompat) -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

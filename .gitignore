@@ -32,3 +32,8 @@ android/app/build/
 commit.txt
 
 starflix-roku.zip
+
+# 63.2: APK compilado no servidor e version.json (a pasta apk/ fica no disco, nunca no Git)
+apk/*
+!apk/.gitkeep
+release.txt

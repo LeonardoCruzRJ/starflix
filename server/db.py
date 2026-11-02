@@ -38,6 +38,7 @@ def get_db():
 
 # 23.12: colunas adicionadas a tabelas que já existem em instalações antigas (só ADD COLUMN, nunca apaga dados)
 NEW_COLUMNS = {
+    "phone_devices": [("profile_id", "INTEGER")],  # 63.13: último perfil escolhido no aparelho (a sessão do app é refeita a cada abertura)
     "profiles": [("photo", "TEXT"), ("prefs", "TEXT")],  # 44.1: foto e preferências individuais de cada perfil
     "libraries": [("lang", "TEXT"), ("prefs", "TEXT"), ("scanned_at", "INTEGER")],  # 28.1, 29.1
     "users": [  # 26.1

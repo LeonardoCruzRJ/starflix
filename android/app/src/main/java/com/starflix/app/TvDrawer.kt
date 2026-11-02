@@ -276,6 +276,11 @@ fun TvDrawer(
                                 DrawerRow(true, false, { userMenu = false; onSwitchProfile() }, ihDialog.focusRequester(firstReq), colors, { DrawerIcon("user") }, Txt.s(R.string.tv_switch_user))
                                 DrawerRow(true, false, { userMenu = false; onDisconnect() }, ihDialog, colors, { DrawerIcon("exit") }, Txt.s(R.string.tv_disconnect))
                             }
+                            // 63.9: versão instalada do app (texto simples, não focável)
+                            Text(
+                                Txt.s(R.string.tv_installed_version, AppUpdate.installedName(androidx.compose.ui.platform.LocalContext.current)),
+                                color = DRAWER_TEXT.copy(alpha = 0.6f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            )
                         }
                     }
                 }

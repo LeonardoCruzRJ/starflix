@@ -127,8 +127,10 @@ from server.branding import bp as branding_bp  # 59.1
 app.register_blueprint(branding_bp)
 from server.i18n_api import bp as i18n_api_bp  # 59.3
 app.register_blueprint(i18n_api_bp)
+from server.app_update import bp as app_update_bp  # 63.3
+app.register_blueprint(app_update_bp)
 
-PUBLIC = ("health", "auth.setup", "auth.login", "static", "tv_auth.code_new", "tv_auth.code_poll", "admin_server.info", "branding.serve", "i18n_api.catalog", "i18n_api.set_lang", "phone_auth.connect_page", "phone_auth.claim", "phone_auth.session_from_token", "phone_auth.tv_ticket", "phone_auth.phone_me", "phone_auth.tv_claim")  # 40.2: a TV ainda não tem sessão
+PUBLIC = ("health", "auth.setup", "auth.login", "static", "tv_auth.code_new", "tv_auth.code_poll", "admin_server.info", "branding.serve", "i18n_api.catalog", "i18n_api.set_lang", "app_update.version", "app_update.apk", "phone_auth.connect_page", "phone_auth.claim", "phone_auth.session_from_token", "phone_auth.tv_ticket", "phone_auth.phone_me", "phone_auth.tv_claim")  # 40.2: a TV ainda não tem sessão
 
 
 def _cors_origin():

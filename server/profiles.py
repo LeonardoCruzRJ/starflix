@@ -145,6 +145,8 @@ def new():
 def select(pid):
     with get_db() as conn:
         _own(conn, pid)
+        if session.get("phone_id"):  # 63.13: o app refaz a sessão ao abrir; o perfil escolhido fica gravado no aparelho
+            conn.execute("UPDATE phone_devices SET profile_id = ? WHERE id = ? AND user_id = ?", (pid, session["phone_id"], session["user_id"]))
     session["profile_id"] = pid
     return redirect("/")
 

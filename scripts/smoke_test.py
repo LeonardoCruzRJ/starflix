@@ -3110,6 +3110,65 @@ try:
         tl59.ensure_fresh, sc59.refresh_language_async, cfg59.TMDB_LANG, cfg59.TMDB_REGION, cfg59.TVDB_LANG, cfg59.SUBDL_LANG = real59
         sql32("DELETE FROM settings WHERE key = 'meta_lang'")
         c.post("/api/i18n/set", json={"lang": "pt-BR"})
+    # ---- Fase 63: atualização dos apps (63.3 rotas públicas; 63.6 a 63.9 telas) ----
+    import hashlib as hl63
+    import config as cfg63
+    anon63 = run.app.test_client()
+    real_apk63 = cfg63.APK_DIR
+    cfg63.APK_DIR = os.path.join(TMP, "apk63")
+    os.makedirs(cfg63.APK_DIR)
+    try:
+        r = anon63.get("/api/app/version")
+        check("63.10 sem login e sem APK: /api/app/version = 200, available=false, no-store",
+              r.status_code == 200 and r.json == {"available": False} and r.headers.get("Cache-Control") == "no-store")
+        check("63.10 sem APK: /api/app/apk = 404", anon63.get("/api/app/apk").status_code == 404)
+        apk63 = b"PK\x03\x04" + bytes(range(256)) * 8
+        sha63 = hl63.sha256(apk63).hexdigest()
+        open(os.path.join(cfg63.APK_DIR, "starflix.apk"), "wb").write(apk63)
+        open(os.path.join(cfg63.APK_DIR, "version.json"), "w", encoding="utf-8").write(json.dumps(
+            {"app": "com.starflix.app", "versionCode": 730, "versionName": "1.0.730", "file": "starflix.apk",
+             "size": len(apk63), "sha256": sha63, "built_at": "2026-11-02T00:00:00Z"}))
+        r = anon63.get("/api/app/version")
+        check("63.10 com version.json: devolve versionCode, versionName, size, sha256 e url (sem reiniciar)",
+              r.status_code == 200 and r.json["available"] is True and r.json["versionCode"] == 730 and r.json["versionName"] == "1.0.730"
+              and r.json["size"] == len(apk63) and r.json["sha256"] == sha63 and r.json["url"] == "/api/app/apk")
+        r = anon63.get("/api/app/apk")
+        check("63.10 /api/app/apk público: 200, tipo do APK, ETag = sha256 e bytes iguais",
+              r.status_code == 200 and r.mimetype == "application/vnd.android.package-archive" and r.headers.get("ETag") == '"%s"' % sha63
+              and r.data == apk63)
+        r = anon63.get("/api/app/apk", headers={"Range": "bytes=4-19"})
+        check("63.10 Range do APK: 206, Content-Range e o trecho pedido",
+              r.status_code == 206 and r.data == apk63[4:20] and r.headers.get("Content-Range") == "bytes 4-19/%d" % len(apk63))
+        open(os.path.join(cfg63.APK_DIR, "version.json"), "w", encoding="utf-8").write(json.dumps(
+            {"versionCode": 730, "versionName": "1.0.730", "size": len(apk63) + 1, "sha256": sha63}))
+        check("63.10 tamanho diferente do declarado = available=false e APK 404",
+              anon63.get("/api/app/version").json == {"available": False} and anon63.get("/api/app/apk").status_code == 404)
+        open(os.path.join(cfg63.APK_DIR, "version.json"), "w", encoding="utf-8").write("{ruim")
+        check("63.10 version.json inválido = available=false", anon63.get("/api/app/version").json == {"available": False})
+    finally:
+        cfg63.APK_DIR = real_apk63
+    kt63 = os.path.join(ROOT, "android", "app", "src", "main", "java", "com", "starflix", "app")
+    rd63 = lambda *p: open(os.path.join(*p), encoding="utf-8").read()
+    upd63, mn63, wb63 = rd63(kt63, "UpdateActivity.kt"), rd63(kt63, "MainActivity.kt"), rd63(kt63, "WebActivity.kt")
+    check("63.10 celular: MainActivity checa antes de abrir o site, WebActivity checa a cada 10 min e o modal bloqueia o Voltar",
+          "AppUpdate.check(" in mn63 and "UpdateActivity" in mn63 and "checkIfDue(" in wb63 and "UpdateActivity.launch(" in wb63
+          and "handleOnBackPressed() {" in upd63 and "finish()" not in upd63.split("handleOnBackPressed() {")[1].split("}")[0]
+          and ".UpdateActivity" in rd63(ROOT, "android", "app", "src", "main", "AndroidManifest.xml"))
+    tvu63, tva63 = rd63(kt63, "TvUpdate.kt"), rd63(kt63, "TvActivity.kt")
+    check("63.10 TV: modal em janela própria sem fechar no Voltar, foco no botão e checagem ao abrir, ao voltar e a cada 30 s",
+          "dismissOnBackPress = false" in tvu63 and "requestFocus()" in tvu63 and "TvUpdateDialog(" in tva63
+          and tva63.count("AppUpdate.check(") >= 2 and "AppUpdate.pending(" in tva63)
+    check("63.10 versão instalada: Bridge.appVersion no celular e linha não focável no menu da TV",
+          "fun appVersion()" in wb63 and "tv_installed_version" in rd63(kt63, "TvDrawer.kt"))
+    pe63 = rd63(ROOT, "web", "templates", "profile_edit.html")
+    check("63.10 Editar Perfil: nota de versão só aparece dentro do app (StarflixApp.appVersion)",
+          'id="pem-appver"' in pe63 and "StarflixApp.appVersion" in pe63 and "pe.app_version" in pe63)
+    check("63.10 as chaves de texto da Fase 63 existem nos 10 idiomas",
+          all(all(k_ in json.load(open(os.path.join(ROOT, "i18n", f_), encoding="utf-8")) for k_ in
+                  ("android.update_title", "android.update_body", "android.update_versions", "android.update_now", "android.update_btn",
+                   "android.update_downloading", "android.update_installing", "android.update_permission", "android.update_open_settings",
+                   "android.update_err_download", "android.update_err_verify", "android.update_err_install", "android.tv_installed_version", "pe.app_version"))
+              for f_ in os.listdir(os.path.join(ROOT, "i18n")) if f_.endswith(".json") and f_ != "allow.txt"))
 finally:
     shutil.rmtree(TMP, ignore_errors=True)
 

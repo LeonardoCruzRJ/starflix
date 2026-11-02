@@ -149,14 +149,18 @@ def session_from_token():
     if too_many("phone-fail", ip, FAIL_LIMIT, FAIL_WINDOW):
         return jerr("err.muitas_tentativas_aguarde_alguns_minutos", 429)
     with get_db() as conn:
-        d = conn.execute("SELECT d.id, d.user_id, u.session_ver FROM phone_devices d JOIN users u ON u.id = d.user_id WHERE d.token_hash = ?",
+        d = conn.execute("SELECT d.id, d.user_id, d.profile_id, u.session_ver FROM phone_devices d JOIN users u ON u.id = d.user_id WHERE d.token_hash = ?",
                          (token_hash(token),)).fetchone() if token else None
         if not d:
             hit("phone-fail", ip)
             return jerr("err.aparelho_nao_autorizado_ou_revogado", 401)
         conn.execute("UPDATE phone_devices SET last_seen = ? WHERE id = ?", (int(time.time()), d["id"]))
+        # 63.13: volta ao perfil escolhido neste aparelho (se ainda existir e for da conta); senão cai na seleção de perfil
+        pid = d["profile_id"] if d["profile_id"] and conn.execute("SELECT 1 FROM profiles WHERE id = ? AND user_id = ?", (d["profile_id"], d["user_id"])).fetchone() else None
     session.clear()
     session["user_id"], session["sv"], session["phone_id"] = d["user_id"], d["session_ver"] or 0, d["id"]
+    if pid:
+        session["profile_id"] = pid
     session.permanent = True
     return redirect("/")
 
