@@ -21,6 +21,7 @@
     if (id === 'audio') return (v.auto ? T('acc.sum.track', {a: S('audio', 'audio_lang'), s: S('audio', 'sub_lang'), m: S('audio', 'sub_mode')}) : T('acc.sum.auto_off')) +
       '\n' + T('acc.sum.search', {a: S('audio', 'sdh'), b: S('audio', 'forced')});
     if (id === 'abertura') return T('acc.sum.skip', {a: S('abertura', 'skip_intro'), b: S('abertura', 'auto_next')});
+    if (id === 'trailer') return S('trailer', 'hero_trailer') + ' · ' + S('trailer', 'card_preview');
     if (id === 'legenda') return T('acc.sum.sub', {a: S('legenda', 'sub_size'), b: S('legenda', 'sub_color'), c: S('legenda', 'sub_bg'), d: S('legenda', 'sub_pos')});
     if (id === 'assistidos') return S('assistidos', 'seen');
     return S('avaliacoes', 'reviews');

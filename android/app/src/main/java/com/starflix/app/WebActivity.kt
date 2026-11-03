@@ -390,7 +390,10 @@ class WebActivity : AppCompatActivity() {
         if (reloadOnResume) {
             reloadOnResume = false
             // 60.7: o player grava a posição em segundo plano; recarregar na hora mostrava o Início/Continuar assistindo velho
-            web.postDelayed({ if (!isDestroyed && !failed) web.reload() }, 1500L)
+            val go = PlayerActivity.openAfter  // 64.9: card de Semelhantes da tela pós-reprodução
+            PlayerActivity.openAfter = null
+            if (go != null && go.startsWith("/")) web.loadUrl(baseUrl + go)
+            else web.postDelayed({ if (!isDestroyed && !failed) web.reload() }, 1500L)
         }
         // 63.6: ao voltar ao primeiro plano (incl. ao sair do player), no máximo a cada 10 min; versão pendente = modal bloqueante
         if (baseUrl.isNotEmpty()) Thread {

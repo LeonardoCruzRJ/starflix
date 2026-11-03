@@ -2,7 +2,7 @@
 <div class="m-hero" id="m-hero" role="region" aria-label="{{ t('home.hero') }}">
   <div class="m-hero-track">
     {% for h in hero %}
-    <article class="m-hero-slide">
+    <article class="m-hero-slide" data-id="{{ h.id }}" data-type="{{ h.type }}">
       <img class="m-hero-bg" src="{{ h.bd }}" alt="" {% if loop.index > 1 %}loading="lazy"{% endif %}>
       <div class="m-hero-body">
         {% if h.logo %}<img class="m-hero-logo" src="/logo/{{ h.id }}" alt="{{ h.title }}" onerror="this.replaceWith(Object.assign(document.createElement('h2'),{className:'m-hero-title',textContent:this.alt}))">

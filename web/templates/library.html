@@ -118,6 +118,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/library-mbar.js') }}" defer></script>
+{% if tab == 'recommended' %}<script src="{{ url_for('static', filename='js/trailer.js') }}" defer></script>{% endif %}
 {% if tab == 'recommended' and hero %}<script src="{{ url_for('static', filename='js/home-hero.js') }}" defer></script>{% endif %}
 {% if tab == 'recommended' %}<script src="{{ url_for('static', filename='js/tv-home.js') }}" defer></script>{% endif %}
 {% if tab in ('library', 'collections') %}<script src="{{ url_for('static', filename='js/lib-alpha.js') }}" defer></script>{% endif %}

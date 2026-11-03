@@ -12,6 +12,7 @@
   ("abertura", t('acc.skip.title'), None,
     [("skip_intro", t('acc.skip.when'), "sel", t('acc.skip.note')),
      ("auto_next", t('acc.skip.next'), "sel", t('acc.skip.next_note'))]),
+  ("trailer", t('acc.trailer.title'), None, [("hero_trailer", t('acc.trailer.hero'), "sel", t('acc.trailer.hero_note')), ("card_preview", t('acc.trailer.card'), "sel", t('acc.trailer.card_note'))]),
   ("legenda", t('acc.sty.title'), t('acc.sty.help'),
     [("sub_size", t('acc.sty.size'), "sel", None), ("sub_color", t('acc.sty.color'), "sel", None), ("sub_bg", t('acc.sty.bg'), "sel", None), ("sub_pos", t('acc.sty.pos'), "sel", None)]),
   ("assistidos", t('acc.seen.title'), t('acc.seen.help'), [("seen", t('acc.seen.label'), "sel", None)]),
@@ -100,6 +101,13 @@
       <div class="pe-val">{{ skip_txt }}</div>
       <div class="pe-edit" hidden>{{ sel('skip_intro', t('acc.skip.when')) }}<p class="pe-help">{{ t('acc.skip.note') }}</p>
         {{ sel('auto_next', t('acc.skip.next')) }}<p class="pe-help">{{ t('acc.skip.next_note') }}</p>
+        <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
+    </div>
+    <div class="pe-row st-row">
+      <div class="pe-top"><label>{{ t('acc.trailer.title') }}</label><a href="#" class="st-act pe-act" data-t-edit="{{ t('common.edit') }}" data-t-cancel="{{ t('common.cancel') }}">{{ t('common.edit') }}</a></div>
+      <div class="pe-val">{{ opt('hero_trailer') }} · {{ opt('card_preview') }}</div>
+      <div class="pe-edit" hidden>{{ sel('hero_trailer', t('acc.trailer.hero')) }}<p class="pe-help">{{ t('acc.trailer.hero_note') }}</p>
+        {{ sel('card_preview', t('acc.trailer.card')) }}<p class="pe-help">{{ t('acc.trailer.card_note') }}</p>
         <div class="pe-foot"><p class="pe-err"></p><button type="button" class="pe-save" disabled>{{ t('common.save_changes') }}</button></div></div>
     </div>
     <div class="pe-row st-row">

@@ -18,7 +18,9 @@
   var subOffset = 0;     // 47.1: atraso da legenda (s); positivo = a legenda aparece mais tarde
   var subKey = '';       // chave da legenda ativa (ext:<arquivo> | emb:<índice>); vazio = nenhuma
   var subUrl = '';
-  var subTracks = {};    // url -> {key, offset} (vem de /subs)
+  var subTracks = {};    // url -> {key, offset, rate, auto, undo} (vem de /subs)
+  var subRate = 1, subAuto = false, subUndo = false;  // 64.22: razão de velocidade e estado do AutoSync da legenda ativa
+  var syncBusy = false, syncErr = '', sugg = null;
   var offTimer = null, offPending = null, osdTimer = null;
   var seeking = false;
   var loadToken = 0;
@@ -155,6 +157,7 @@
     cues = []; $('subtitle').textContent = '';
     var tr = url ? subTracks[url] : null;
     subUrl = url || ''; subKey = tr ? tr.key : ''; subOffset = tr ? tr.offset : 0;
+    subRate = tr ? tr.rate : 1; subAuto = !!(tr && tr.auto); subUndo = !!(tr && tr.undo); syncErr = ''; sugg = null;
     paintOffset();
     if (!url) return;
     fetch(url).then(function (r) { return r.text(); })
@@ -162,7 +165,7 @@
       .catch(function () {});
   }
   function renderSub() {
-    var t = abs() - subOffset, txt = '';
+    var t = (abs() - subOffset) / subRate, txt = '';
     for (var i = 0; i < cues.length; i++) { if (t >= cues[i].s && t <= cues[i].e) { txt = cues[i].t; break; } }
     var el = $('subtitle');
     if (el.textContent !== txt) el.textContent = txt;
@@ -175,7 +178,8 @@
     var off = !subKey;
     $('delay-row').classList.toggle('off', off);
     ['delay-minus', 'delay-plus'].forEach(function (i) { $(i).disabled = off; });
-    $('delay-reset').disabled = off || subOffset === 0;
+    $('delay-reset').disabled = off || (subOffset === 0 && subRate === 1);
+    paintSync();
   }
   function osd(msg) {
     var el = $('osd'); el.textContent = msg; el.classList.add('show');
@@ -191,9 +195,9 @@
     if (!subKey) { osd(T('player.delay_need_sub')); return; }
     var v = Math.round((subOffset + delta) * 10) / 10;
     v = Math.max(-300, Math.min(300, v));
-    if (v === subOffset) return;
-    subOffset = v;
-    if (subTracks[subUrl]) subTracks[subUrl].offset = v;
+    if (v === subOffset && subRate === 1) return;
+    subOffset = v; subRate = 1; subAuto = false; subUndo = false; syncErr = ''; sugg = null;  // ajuste manual zera o rate e o Desfazer (igual ao servidor)
+    if (subTracks[subUrl]) { var tk = subTracks[subUrl]; tk.offset = v; tk.rate = 1; tk.auto = false; tk.undo = false; }
     offPending = { key: subKey, offset: v };
     clearTimeout(offTimer); offTimer = setTimeout(flushOffset, 600);
     paintOffset(); renderSub();
@@ -214,6 +218,74 @@
   holdButton($('delay-minus'), -1);
   holdButton($('delay-plus'), 1);
   $('delay-reset').addEventListener('click', function () { changeOffset(-subOffset); this.blur(); });
+
+  // ---------- sincronizar legenda (64.22) ----------
+  function fmtVal(o, r) { return fmtOff(o) + (Math.abs(r - 1) > 1e-6 ? ' \u00b7 \u00d7' + r.toFixed(4) : ''); }
+  function paintSync() {
+    var m = '', err = false;
+    $('sync-btn').disabled = !subKey || syncBusy;
+    $('sync-undo').hidden = !(subKey && subUndo) || syncBusy;
+    $('sync-apply').hidden = !sugg || syncBusy;
+    if (syncBusy) m = T('player.subsync.busy');
+    else if (syncErr) { m = syncErr; err = true; }
+    else if (sugg) m = T('player.subsync.suggest', {v: fmtVal(sugg.offset, sugg.rate)});
+    else if (subKey && subAuto) m = T('player.subsync.applied', {v: fmtVal(subOffset, subRate)});
+    var el = $('sync-msg'); el.textContent = m; el.classList.toggle('err', err);
+  }
+  function syncApi(path, key, extra) {
+    var body = { key: key }; if (extra) for (var k in extra) body[k] = extra[k];
+    return fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); });
+  }
+  function setTrackSync(url, o) {  // grava no cache da legenda e, se for a ativa, aplica sem reiniciar o vídeo
+    var tk = subTracks[url]; if (!tk) return;
+    tk.offset = o.offset; tk.rate = o.rate; tk.auto = o.auto; tk.undo = o.undo;
+    if (url === subUrl) { subOffset = o.offset; subRate = o.rate; subAuto = o.auto; subUndo = o.undo; sugg = null; syncErr = ''; paintOffset(); renderSub(); }
+  }
+  function syncDone(url) { syncBusy = false; paintSync(); }
+  function syncSave(url, key, o) {
+    return syncApi('/subs/autosync/save', key, { offset: o.offset, rate: o.rate }).then(function (x) {
+      if (!x.ok) { syncErr = T('player.subsync.fail'); return; }
+      setTrackSync(url, { offset: o.offset, rate: o.rate, auto: true, undo: true });
+    });
+  }
+  $('sync-btn').addEventListener('click', function () {
+    this.blur();
+    if (!subKey) { osd(T('player.delay_need_sub')); return; }
+    if (syncBusy) return;
+    flushOffset();
+    var url = subUrl, key = subKey;
+    syncBusy = true; syncErr = ''; sugg = null; paintSync();
+    syncApi('/subs/autosync', key).then(function (x) {
+      var r = x.j;
+      if (!x.ok) { if (url === subUrl) syncErr = T(r.reason === 'busy' ? 'player.subsync.in_use' : r.reason === 'too_long' ? 'player.subsync.too_long' : 'player.subsync.fail'); return; }
+      if (r.applied) { setTrackSync(url, { offset: r.offset, rate: r.rate, auto: true, undo: !!r.undo }); return; }
+      if (r.confirm) {
+        return sfConfirm(T('player.subsync.confirm_q', {v: fmtVal(r.offset, r.rate)}), {title: T('player.subsync.btn'), ok: T('player.subsync.apply')})
+          .then(function (ok) { if (ok) return syncSave(url, key, r); });
+      }
+      if (r.offset === 0 && r.rate === 1) { if (url === subUrl) syncErr = T('player.subsync.in_sync'); return; }
+      if (url === subUrl) sugg = { offset: r.offset, rate: r.rate };
+    }).catch(function () { if (url === subUrl) syncErr = T('player.subsync.fail'); }).then(function () { syncDone(url); });
+  });
+  $('sync-apply').addEventListener('click', function () {
+    this.blur();
+    if (!sugg || !subKey || syncBusy) return;
+    var url = subUrl, key = subKey, o = sugg;
+    syncBusy = true; paintSync();
+    syncSave(url, key, o).catch(function () { syncErr = T('player.subsync.fail'); }).then(function () { syncDone(url); });
+  });
+  $('sync-undo').addEventListener('click', function () {
+    this.blur();
+    if (!subKey || syncBusy) return;
+    var url = subUrl, key = subKey;
+    syncBusy = true; paintSync();
+    syncApi('/subs/autosync/undo', key).then(function (x) {
+      if (!x.ok) { var tk = subTracks[url]; if (tk) setTrackSync(url, { offset: tk.offset, rate: tk.rate, auto: tk.auto, undo: false }); return; }
+      setTrackSync(url, { offset: x.j.offset, rate: x.j.rate, auto: false, undo: false });
+      osd(T('player.subsync.undone'));
+    }).catch(function () { syncErr = T('player.subsync.fail'); }).then(function () { syncDone(url); });
+  });
   paintOffset();
 
   // ---------- estilo da legenda (47.2) ----------
@@ -231,7 +303,7 @@
 
   function fillSubs(subs) {
     selSubs.innerHTML = ''; subTracks = {};
-    (subs.external || []).concat(subs.embedded || []).forEach(function (s) { if (s.key) subTracks[s.url] = { key: s.key, offset: s.offset || 0 }; });
+    (subs.external || []).concat(subs.embedded || []).forEach(function (s) { if (s.key) subTracks[s.url] = { key: s.key, offset: s.offset || 0, rate: s.rate || 1, auto: !!s.auto, undo: !!s.undo }; });
     opt(selSubs, '', T('player.sub_off'));
     (subs.external || []).forEach(function (s) { opt(selSubs, s.url, T('player.sub_ext', {name: s.lang || s.title})); });
     (subs.embedded || []).forEach(function (s) { opt(selSubs, s.url, (s.title || (s.lang || T('player.track', {n: s.index}))).toUpperCase()); });
@@ -314,25 +386,41 @@
   function opt(sel, value, label) { var o = document.createElement('option'); o.value = value; o.textContent = label; sel.appendChild(o); }
 
   // ---------- pular abertura (48.2) ----------
-  var introMark = null, skipPref = root.dataset.skipintro || 'ask', introDone = false, introHide = null;
-  function inIntro(t) { return introMark && t >= introMark.start - 0.3 && t < introMark.end - 1; }
-  function hideSkip() { $('skip').hidden = true; clearTimeout(introHide); introHide = null; }
-  function doSkip() { if (!introMark) return; introDone = true; hideSkip(); seekTo(introMark.end); osd(T('player.skipped')); }
+  var introMark = null, recapMark = null, skipPref = root.dataset.skipintro || 'ask', skipCur = null, skipHide = null;
+  // 64.14: abertura e resumo usam o mesmo botão; se as janelas se encostam, vale a que termina primeiro
+  function inWin(m, t) { return m && t >= m.start - 0.3 && t < m.end - 1; }
+  function pickSkip(t, any) {
+    var a = inWin(introMark, t) && (any || !introMark.done) ? introMark : null, b = inWin(recapMark, t) && (any || !recapMark.done) ? recapMark : null;
+    return a && b ? (a.end <= b.end ? a : b) : (a || b);
+  }
+  function hideSkip() { $('skip').hidden = true; clearTimeout(skipHide); skipHide = null; skipCur = null; }
+  function doSkip() {
+    var m = skipCur || pickSkip(abs(), true); if (!m) return;
+    m.done = true; hideSkip(); seekTo(m.end); osd(T(m.kind === 'recap' ? 'player.skipped_recap' : 'player.skipped'));
+  }
   function checkIntro(t) {
-    if (!introMark || !loaded || skipPref === 'never') return;
-    if (!inIntro(t)) { if (!$('skip').hidden) hideSkip(); if (skipPref === 'ask' && (t < introMark.start - 1 || t >= introMark.end)) introDone = false; return; }
-    if (introDone) return;
-    if (skipPref === 'always') { doSkip(); return; }
-    if ($('skip').hidden && !introHide) {
+    if (!loaded || skipPref === 'never' || (!introMark && !recapMark)) return;
+    if (skipPref === 'ask') [introMark, recapMark].forEach(function (m) { if (m && (t < m.start - 1 || t >= m.end)) m.done = false; });
+    var m = pickSkip(t);
+    if (!m) { if (!$('skip').hidden) hideSkip(); return; }
+    if (skipCur && skipCur !== m) hideSkip();
+    if (skipPref === 'always') { skipCur = m; doSkip(); return; }
+    if ($('skip').hidden && !skipHide) {
+      skipCur = m;
+      var l = $('skip-l'), k = m.kind === 'recap' ? 'player.skip_recap' : 'player.skip_intro';
+      l.setAttribute('data-i18n', k); l.textContent = T(k);
       $('skip').hidden = false;
-      introHide = setTimeout(function () { introDone = true; hideSkip(); }, 8000);  // some sozinho; volta só ao reentrar na janela
+      skipHide = setTimeout(function () { m.done = true; hideSkip(); }, 8000);  // some sozinho; volta só ao reentrar na janela
     }
   }
   $('skip').addEventListener('click', function () { doSkip(); this.blur(); });
   if (kind === 'episode') {
     fetch('/markers/episode/' + id).then(function (r) { return r.json(); }).then(function (j) {
       var ms = (j && j.markers) || [];
-      if (skipPref !== 'never') introMark = ms.filter(function (m) { return m.kind === 'intro'; })[0] || null;
+      if (skipPref !== 'never') {
+        introMark = ms.filter(function (m) { return m.kind === 'intro'; })[0] || null;
+        recapMark = ms.filter(function (m) { return m.kind === 'recap'; })[0] || null;
+      }
       creditsMark = ms.filter(function (m) { return m.kind === 'credits'; })[0] || (j && j.credits_fallback ? {kind: 'credits', start: j.credits_fallback, end: 0} : null);  // 57.22: sem marcador, os últimos 45 s
     }).catch(function () {});
   }
@@ -361,9 +449,76 @@
   $('nc-go').addEventListener('click', function () { goNext(); });
   $('nc-cancel').addEventListener('click', function () { ncHide(); ncDismissed = true; this.blur(); });
 
+  // ---------- tela pós-reprodução (64.8) ----------
+  // 'credits' (filme: nos créditos, pode ser dispensada) e 'end' (vídeo parado no fim). Episódio com próximo e contagem segue o card da 48.4.
+  var ppMode = '', ppReq = null, ppDismissed = false;
+  function ppFetch() {
+    if (!ppReq) ppReq = fetch('/postplay/' + kind + '/' + id).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    return ppReq;
+  }
+  function ppCard(x, ep) {
+    var a = document.createElement('a'), im = document.createElement('img'), b = document.createElement('b'), sm = document.createElement('small');
+    a.className = 'p-pp-c' + (ep ? ' ep' : '') + (x.watched ? ' seen' : '');
+    a.href = ep ? carried('/watch/episode/' + x.id) : x.href;
+    im.loading = 'lazy'; im.alt = ''; im.src = x.image;
+    b.textContent = x.title; a.appendChild(im); a.appendChild(b);
+    sm.textContent = ep ? T('player.pp.ep', {s: x.season, e: x.episode}) : (x.year || '');
+    if (sm.textContent) a.appendChild(sm);
+    return a;
+  }
+  function ppHide() { $('postplay').hidden = true; ppMode = ''; }
+  function ppDismiss() { ppDismissed = true; ppHide(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+  function ppShow(mode) {
+    if (ppMode === 'credits' && mode === 'end') { ppMode = 'end'; $('pp-x').hidden = true; return; }
+    if (ppMode) return;
+    ppMode = mode;
+    ppFetch().then(function (d) {
+      if (!d) { ppMode = ''; ppDismissed = true; if (mode === 'end') location.href = root.dataset.back; return; }
+      if (!ppMode) return;  // dispensada ou voltou antes da resposta
+      var nx = d.next || null, row = $('pp-row');
+      $('pp-bg').style.backgroundImage = d.backdrop ? 'url("' + d.backdrop + '")' : '';
+      $('pp-t').textContent = kind === 'movie' ? d.title : d.show;
+      $('pp-s').textContent = kind === 'movie' ? (d.year || '') : (nx ? T('player.pp.ep', {s: nx.season, e: nx.episode}) + ' · ' + nx.title : '');
+      $('pp-next').hidden = !nx;
+      $('pp-replay').hidden = !!nx;
+      $('pp-x').hidden = ppMode !== 'credits';
+      row.innerHTML = '';
+      var list = kind === 'movie' ? (d.related || []) : (d.rest || []);
+      list.forEach(function (x) { row.appendChild(ppCard(x, kind !== 'movie')); });
+      $('pp-h').textContent = list.length ? T(kind === 'movie' ? 'player.pp.similar' : 'player.pp.rest') : '';
+      if (nx) nextUrl = nextUrl || carried('/watch/episode/' + nx.id);
+      $('postplay').hidden = false;
+      ui.classList.add('hidden');
+      ($('pp-next').hidden ? $('pp-replay') : $('pp-next')).focus();
+    });
+  }
+  function checkPostMovie(t) {
+    if (kind !== 'movie' || !loaded || !duration || duration < 1200 || !(probed || mode === 'direct') || (window.sfQueue && sfQueue.size())) return;
+    var start = duration - 90;  // filme não tem marcador de créditos: últimos 90 s
+    if (t < start - 1) { ppDismissed = false; if (ppMode === 'credits') ppHide(); return; }
+    if (t >= start && !ppDismissed && !ppMode) ppShow('credits');
+  }
+  $('pp-x').addEventListener('click', ppDismiss);
+  $('pp-back').addEventListener('click', function () { location.href = root.dataset.back; });
+  $('pp-next').addEventListener('click', function () { goNext(); });
+  $('pp-replay').addEventListener('click', function () {
+    ppHide(); ppDismissed = false; ncDismissed = false;
+    seekTo(0); video.play().catch(function () {});
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!ppMode) return;
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); if (ppMode === 'credits') ppDismiss(); else location.href = root.dataset.back; return; }
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    var its = Array.prototype.slice.call($('postplay').querySelectorAll('.p-pp-b button:not([hidden]), .p-pp-c'));
+    var i = its.indexOf(document.activeElement), n = Math.max(0, Math.min(its.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)));
+    if (its[n]) { its[n].focus(); its[n].scrollIntoView({block: 'nearest', inline: 'nearest'}); }
+  }, true);
+
   // ---------- marcação manual (48.3, só admin) ----------
   if (kind === 'episode' && $('mark-row')) (function () {
-    var marks = {}, draft = {intro: {}, credits: {}}, selK = $('mark-kind');
+    var marks = {}, draft = {intro: {}, credits: {}, recap: {}}, selK = $('mark-kind');
     function paint() {
       var m = marks[selK.value], d = draft[selK.value];
       $('mark-val').textContent = m ? fmt(m.start) + ' – ' + fmt(m.end) : (d.start != null || d.end != null ? (d.start != null ? fmt(d.start) : '?') + ' – ' + (d.end != null ? fmt(d.end) : '?') : '—');
@@ -378,7 +533,8 @@
     }
     function done(k, m) {
       marks[k] = m; if (!m) draft[k] = {};
-      if (k === 'intro' && skipPref !== 'never') { introMark = m; introDone = false; }
+      if (k === 'intro' && skipPref !== 'never') introMark = m;
+      if (k === 'recap' && skipPref !== 'never') recapMark = m;
       if (k === 'credits') { creditsMark = m; ncDismissed = false; }
       paint();
     }
@@ -404,7 +560,7 @@
 
   function update() {
     var t = abs();
-    checkIntro(t); checkCredits(t);
+    checkIntro(t); checkCredits(t); checkPostMovie(t);
     if (!seeking && duration) seek.value = Math.min(1000, t / duration * 1000);
     $('time').textContent = fmt(t) + ' / ' + fmt(duration);
     $('play').querySelector('use').setAttribute('href', video.paused ? '#i-play' : '#i-pause');
@@ -472,7 +628,7 @@
       var q = window.sfQueue && sfQueue.shift();  // 31.5: a fila tem prioridade sobre o próximo episódio
       if (q) location.href = sfQueue.url(q);
       else if (r && r.next && !(creditsMark && !autoNext)) location.href = carried('/watch/episode/' + r.next.id);
-      else location.href = root.dataset.back;
+      else ppShow('end');  // 64.8: tela pós-reprodução (filme, último episódio ou sem reprodução automática)
     }).catch(function () { location.href = root.dataset.back; });  // sessão expirada/servidor fora: não fica parado no fim
   });
   // controles estilo Plex (23.11)
@@ -556,7 +712,7 @@
     else if (e.key === 'ArrowRight') { e.preventDefault(); seekTo(abs() + 10); }  // preventDefault: o slider focado não move junto
     else if (e.key === 'ArrowLeft') { e.preventDefault(); seekTo(abs() - 10); }
     else if (e.key === 'f' || e.key === 'F') fullscreen();
-    else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey && inIntro(abs())) doSkip();
+    else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey && pickSkip(abs(), true)) doSkip();
     else if ((e.key === 'g' || e.key === 'G' || e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();  // G adianta, H atrasa (0,1 s; segurando, 0,5 s a cada 250 ms)
       var now = Date.now();

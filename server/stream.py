@@ -736,6 +736,16 @@ def start_cleanup(interval=None):
                 optimize.tick()  # 52.8: versão otimizada na janela de horário
             except Exception as e:  # noqa: BLE001
                 print(f"[optimize] {e}", flush=True)
+            try:
+                from server import trailers
+                trailers.tick()  # 64.2: clipe mudo dos trailers na mesma janela de horário
+            except Exception as e:  # noqa: BLE001
+                print(f"[trailers] {e}", flush=True)
+            try:
+                from server import subsync
+                subsync.tick()  # 64.23: AutoSync noturno das legendas baixadas, na mesma janela
+            except Exception as e:  # noqa: BLE001
+                print(f"[subsync] {e}", flush=True)
             if time.time() - last_subs >= 3600:  # cache de legendas: uma vez por hora
                 last_subs = time.time()
                 _clean_subs()

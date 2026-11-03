@@ -39,9 +39,10 @@ def _vtt_fmt(sec):
     return f"{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d}.{ms % 1000:03d}"
 
 
-def shift_vtt(text, secs):
-    """62.7: desloca os tempos do WebVTT em -`secs` (HLS retomado no meio começa em 0); cue que termina antes de 0 sai. `secs` <= 0 não muda nada."""
-    if secs <= 0:
+def shift_vtt(text, secs, rate=1.0):
+    """62.7: desloca os tempos do WebVTT em -`secs` (HLS retomado no meio começa em 0); cue que termina antes de 0 sai.
+    64.21: antes disso multiplica os tempos por `rate` (t' = t·rate - secs). `secs` <= 0 e `rate` 1 não mudam nada."""
+    if secs <= 0 and rate == 1.0:
         return text
     out = []
     for block in re.split(r"\n\n+", text.replace("\r\n", "\n").strip("\n")):
@@ -56,9 +57,10 @@ def shift_vtt(text, secs):
         if start is None or end is None:
             out.append(block)
             continue
-        if end - secs <= 0:
+        start, end = start * rate - secs, end * rate - secs
+        if end <= 0:
             continue
-        lines[i] = f"{_vtt_fmt(max(0.0, start - secs))} --> {_vtt_fmt(end - secs)}" + (" " + parts[1] if len(parts) > 1 else "")
+        lines[i] = f"{_vtt_fmt(max(0.0, start))} --> {_vtt_fmt(end)}" + (" " + parts[1] if len(parts) > 1 else "")
         out.append("\n".join(lines))
     return "\n\n".join(out) + "\n"
 
@@ -67,6 +69,12 @@ def _shift_arg():
     """`?shift=` (segundos, 0 a 86400); inválido = 0."""
     t = request.args.get("shift", type=float)
     return min(t, 86400.0) if t and math.isfinite(t) and t > 0 else 0.0
+
+
+def _rate_arg():
+    """64.21: `?rate=` (razão de velocidade, 0,9 a 1,1); ausente ou inválido = 1."""
+    r = request.args.get("rate", type=float)
+    return r if r and math.isfinite(r) and 0.9 <= r <= 1.1 else 1.0
 
 
 def srt_to_vtt(text):
@@ -182,21 +190,28 @@ def subs_list(kind, item_id):
     path, info = get_item(kind, item_id)
     subs = external_subs(path)
     with get_db() as conn:  # 47.1: atraso salvo por legenda (s)
-        saved = {r["sub_key"]: r["offset"] for r in conn.execute(
-            "SELECT sub_key, offset FROM sub_offset WHERE item_type = ? AND item_id = ?", (kind, item_id))}
+        saved = {r["sub_key"]: r for r in conn.execute(
+            "SELECT sub_key, offset, rate, source, prev_source FROM sub_offset WHERE item_type = ? AND item_id = ?", (kind, item_id))}
     return jsonify(
         external=[
             {"id": s["id"], "lang": s["lang"], "title": s["title"], "url": f"/stream/{kind}/{item_id}/subs/{s['id']}.vtt",
-             "key": ext_key(s), "offset": saved.get(ext_key(s), 0)}
+             "key": ext_key(s), **_saved(saved.get(ext_key(s)))}
             for s in subs
         ],
         embedded=[
             {"index": t["index"], "lang": t.get("lang"), "title": t.get("title"),
              "url": f"/stream/{kind}/{item_id}/subs/emb/{t['index']}.vtt",
-             "key": emb_key(t), "offset": saved.get(emb_key(t), 0)}
+             "key": emb_key(t), **_saved(saved.get(emb_key(t)))}
             for t in embedded_subs(info)
         ],
     )
+
+
+def _saved(r):
+    """64.21: {offset, rate, auto, undo} do registro de `sub_offset` (sem registro = 0, 1, falso, falso)."""
+    if not r:
+        return {"offset": 0, "rate": 1.0, "auto": False, "undo": False}
+    return {"offset": r["offset"], "rate": r["rate"], "auto": r["source"] == "auto", "undo": r["prev_source"] is not None}
 
 
 OFFSET_MAX = 300.0  # atraso máximo da legenda, em segundos (para mais e para menos)
@@ -232,10 +247,11 @@ def subs_offset(kind, item_id):
         else:
             conn.execute(
                 "INSERT INTO sub_offset (item_type, item_id, sub_key, offset) VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(item_type, item_id, sub_key) DO UPDATE SET offset = excluded.offset",
+                "ON CONFLICT(item_type, item_id, sub_key) DO UPDATE SET offset = excluded.offset, rate = 1, "
+                "source = 'manual', prev_offset = NULL, prev_rate = NULL, prev_source = NULL",
                 (kind, item_id, key, value),
             )
-    return jsonify(key=key, offset=value)
+    return jsonify(key=key, offset=value, rate=1.0)
 
 
 @bp.route("/stream/<kind>/<int:item_id>/subs/emb/<int:index>.vtt")
@@ -248,7 +264,7 @@ def subs_embedded(kind, item_id, index):
     if not out:
         abort(500)
     with open(out, encoding="utf-8") as f:
-        return Response(shift_vtt(f.read(), _shift_arg()), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
+        return Response(shift_vtt(f.read(), _shift_arg(), _rate_arg()), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
 
 
 @bp.route("/stream/<kind>/<int:item_id>/subs/<int:sid>.vtt")
@@ -259,7 +275,7 @@ def subs_file(kind, item_id, sid):
     if sid >= len(subs):
         abort(404)
     with open(vtt_path(subs[sid]["file"]), encoding="utf-8") as f:
-        return Response(shift_vtt(f.read(), _shift_arg()), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
+        return Response(shift_vtt(f.read(), _shift_arg(), _rate_arg()), mimetype="text/vtt", headers={"Cache-Control": "no-cache"})
 
 
 # ---------------------------------------------------------------- buscar legenda no SubDL (47.3, só admin)

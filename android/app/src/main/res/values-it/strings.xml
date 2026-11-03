@@ -34,6 +34,7 @@
     <string name="camera_denied">Nessun permesso per la fotocamera. Usa il link o digita l’indirizzo.</string>
     <string name="fail">Impossibile connettersi al server</string>
     <string name="skip_intro">Salta sigla</string>
+    <string name="skip_recap">Salta il riassunto</string>
     <string name="next_episode">Episodio successivo</string>
     <string name="next_cancel">Annulla</string>
     <string name="connect_error_title">Connessione non riuscita</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">Riempi</string>
     <string name="fit_stretch">Allunga</string>
     <string name="queue_title">Coda di riproduzione</string>
+    <string name="pp_replay">Guarda di nuovo</string>
+    <string name="pp_similar">Simili</string>
+    <string name="pp_rest">Altro da questa stagione</string>
+    <string name="pp_ep">S%1$s · E%2$s</string>
     <string name="settings">Impostazioni</string>
     <string name="stop">Interrompi</string>
     <string name="queue_hint_tv">▼  Prossimi episodi</string>

@@ -34,6 +34,7 @@
     <string name="camera_denied">カメラの権限がありません。リンクを使うか、アドレスを入力してください。</string>
     <string name="fail">サーバーに接続できませんでした</string>
     <string name="skip_intro">オープニングをスキップ</string>
+    <string name="skip_recap">あらすじをスキップ</string>
     <string name="next_episode">次のエピソード</string>
     <string name="next_cancel">キャンセル</string>
     <string name="connect_error_title">接続できませんでした</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">画面に合わせる</string>
     <string name="fit_stretch">引き伸ばし</string>
     <string name="queue_title">再生キュー</string>
+    <string name="pp_replay">もう一度見る</string>
+    <string name="pp_similar">関連作品</string>
+    <string name="pp_rest">このシーズンの続き</string>
+    <string name="pp_ep">S%1$s · E%2$s</string>
     <string name="settings">設定</string>
     <string name="stop">停止</string>
     <string name="queue_hint_tv">▼  次のエピソード</string>

@@ -1,11 +1,18 @@
 ' 62.7: player. Cadeia: GET /progress (retomada) -> GET /stream/../subs -> GET /api/tv/markers (episódio) -> POST /stream/../play (tv=1 + caps) -> Video.
 ' O Video manda `Authorization` e `X-Profile` em HttpHeaders; legendas .vtt vão por token curto (?it=) e deslocadas por ?shift= quando o HLS começa no meio.
 sub init()
-    for each id in ["vid", "skipBg", "skip", "info", "menuBg", "menu", "saveTimer"]
+    for each id in ["vid", "skipBg", "skip", "info", "menuBg", "menu", "saveTimer", "ppBg", "ppTitle", "ppSub", "ppBtns", "ppHead", "ppGrid"]
         m[id] = m.top.findNode(id)
     end for
     Style(m.skip, 30, true)
     Style(m.info, 36, false)
+    Style(m.ppTitle, 52, true)
+    Style(m.ppSub, 30, false)
+    Style(m.ppHead, 34, true)
+    m.pp = false ' 64.10: tela pós-reprodução aberta
+    m.ppNext = 0
+    m.ppNextTitle = ""
+    m.ppItems = []
     m.tasks = {}
     m.tracks = []
     m.markers = []
@@ -20,6 +27,8 @@ sub init()
     m.vid.observeField("state", "onState")
     m.vid.observeField("position", "onPos")
     m.menu.observeField("itemSelected", "onMenu")
+    m.ppBtns.observeField("itemSelected", "onPpBtn")
+    m.ppGrid.observeField("itemSelected", "onPpCard")
     m.saveTimer.observeField("fire", "onSave")
 end sub
 
@@ -62,6 +71,7 @@ sub StartItem()
     m.finishing = false
     m.pos0 = 0
     HideSkip()
+    HidePostPlay()
     m.menu.visible = false
     m.menuBg.visible = false
     m.info.text = m.title + Chr(10) + tr("nav_loading")
@@ -223,7 +233,7 @@ sub onDone(event as object)
         m.title = sn
         StartItem()
     else
-        Close()
+        Req("/postplay/" + m.kind + "/" + Str(m.id).Trim(), "GET", "", "onPostPlay") ' 64.10: tela pós-reprodução; sem ela (erro, outro tipo) fecha como antes
     end if
 end sub
 
@@ -254,18 +264,28 @@ end sub
 sub onPos()
     if m.markers.Count() = 0 then return
     p = RealPos()
+    best = invalid
     for each mk in m.markers
         s = JNumF(mk, "start")
         e = JNumF(mk, "end")
         if p >= s and p < e - 1
-            m.target = mk
-            kind = JStr(mk, "kind")
-            if kind = "credits" then m.skip.text = tr("skip_credits") else m.skip.text = tr("skip_intro")
-            m.skip.visible = true
-            m.skipBg.visible = true
-            return
+            if best = invalid or e < JNumF(best, "end") then best = mk ' 64.15: abertura e resumo juntos: vale o que termina primeiro
         end if
     end for
+    if best <> invalid
+        m.target = best
+        kind = JStr(best, "kind")
+        if kind = "credits"
+            m.skip.text = tr("skip_credits")
+        else if kind = "recap"
+            m.skip.text = tr("skip_recap")
+        else
+            m.skip.text = tr("skip_intro")
+        end if
+        m.skip.visible = true
+        m.skipBg.visible = true
+        return
+    end if
     HideSkip()
 end sub
 
@@ -324,11 +344,29 @@ sub onMenu()
 end sub
 
 sub onWant()
-    if m.vid.content <> invalid then m.vid.setFocus(true) else m.top.setFocus(true)
+    if m.pp
+        m.ppBtns.setFocus(true)
+    else if m.vid.content <> invalid
+        m.vid.setFocus(true)
+    else
+        m.top.setFocus(true)
+    end if
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if m.pp
+        if key = "back"
+            Close()
+        else if key = "down" and m.ppBtns.hasFocus() and m.ppItems.Count() > 0
+            m.ppGrid.setFocus(true)
+        else if key = "up" and m.ppGrid.hasFocus()
+            m.ppBtns.setFocus(true)
+        else
+            return false
+        end if
+        return true
+    end if
     if key = "back"
         if m.menu.visible
             CloseMenu()
@@ -345,3 +383,117 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     return false
 end function
+
+' ---- tela pós-reprodução (64.10): foco inicial em Próximo episódio (ou Assistir de novo), Voltar e a fileira de Semelhantes / resto da temporada ----
+function EpLabel(x as object) as string
+    return "T" + Str(JInt(x, "season", 0)).Trim() + " E" + Str(JInt(x, "episode", 0)).Trim()
+end function
+
+sub onPostPlay(event as object)
+    if m.closed then return
+    t = event.getRoSGNode()
+    if not t.ok or type(t.json) <> "roAssociativeArray"
+        Close()
+        return
+    end if
+    d = t.json
+    movie = (m.kind = "movie")
+    m.ppNext = 0
+    m.ppNextTitle = ""
+    nx = d["next"]
+    if type(nx) = "roAssociativeArray"
+        m.ppNext = JInt(nx, "id", 0)
+        m.ppNextTitle = EpLabel(nx)
+        if JStr(nx, "title") <> "" then m.ppNextTitle = m.ppNextTitle + " · " + JStr(nx, "title")
+    end if
+    if movie
+        m.ppTitle.text = JStr(d, "title")
+        y = JInt(d, "year", 0)
+        if y > 0 then m.ppSub.text = Str(y).Trim() else m.ppSub.text = ""
+    else
+        m.ppTitle.text = JStr(d, "show")
+        m.ppSub.text = m.ppNextTitle
+    end if
+    b = JStr(d, "backdrop")
+    if b <> "" then m.ppBg.uri = ImgUrl(m.top.server, m.top.imgToken, b) else m.ppBg.uri = ""
+    btns = CreateObject("roSGNode", "ContentNode")
+    c0 = btns.CreateChild("ContentNode")
+    if m.ppNext > 0 then c0.title = tr("det_next") else c0.title = tr("pp_replay")
+    c1 = btns.CreateChild("ContentNode")
+    c1.title = tr("pp_back")
+    m.ppBtns.content = btns
+    arr = d["rest"]
+    if movie then arr = d["related"]
+    items = CreateObject("roSGNode", "ContentNode")
+    m.ppItems = []
+    if type(arr) = "roArray"
+        for each x in arr
+            id = JInt(x, "id", 0)
+            if id > 0
+                c = items.CreateChild("ContentNode")
+                c.title = JStr(x, "title")
+                lab = ""
+                if movie
+                    y = JInt(x, "year", 0)
+                    if y > 0 then lab = Str(y).Trim()
+                    m.ppItems.Push({ id: id, title: JStr(x, "title") })
+                else
+                    lab = EpLabel(x)
+                    full = lab
+                    if JStr(x, "title") <> "" then full = full + " · " + JStr(x, "title")
+                    m.ppItems.Push({ id: id, title: full })
+                end if
+                c.shortDescriptionLine = lab
+                c.addFields({ pct: 0 })
+                c.hdPosterUrl = ImgUrl(m.top.server, m.top.imgToken, JStr(x, "image"))
+            end if
+        end for
+    end if
+    m.ppGrid.content = items
+    if m.ppItems.Count() > 0
+        if movie then m.ppHead.text = tr("pp_similar") else m.ppHead.text = tr("pp_rest")
+    else
+        m.ppHead.text = ""
+    end if
+    m.info.text = ""
+    HideSkip()
+    m.pp = true
+    for each id in ["ppBg", "ppTitle", "ppSub", "ppBtns", "ppHead"]
+        m[id].visible = true
+    end for
+    m.ppGrid.visible = (m.ppItems.Count() > 0)
+    m.ppBtns.jumpToItem = 0
+    m.ppBtns.setFocus(true)
+end sub
+
+sub HidePostPlay()
+    m.pp = false
+    for each id in ["ppBg", "ppTitle", "ppSub", "ppBtns", "ppHead", "ppGrid"]
+        m[id].visible = false
+    end for
+end sub
+
+sub onPpBtn()
+    if not m.pp then return
+    if m.ppBtns.itemSelected = 0
+        if m.ppNext > 0
+            m.kind = "episode"
+            m.id = m.ppNext
+            m.title = m.ppNextTitle
+        end if
+        StartItem() ' sem próximo: assistir de novo (já assistido recomeça do início, ver onProg)
+    else
+        Close()
+    end if
+end sub
+
+sub onPpCard()
+    if not m.pp then return
+    i = m.ppGrid.itemSelected
+    if i < 0 or i >= m.ppItems.Count() then return
+    it = m.ppItems[i]
+    if m.kind <> "movie" then m.kind = "episode"
+    m.id = it.id
+    m.title = it.title
+    StartItem()
+end sub

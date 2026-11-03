@@ -49,6 +49,7 @@
     if (t.kind === "movie") {
       p = get("/api/tv/movie/" + t.id).then(function (j) {
         var h = fromMedia(j, { parts: [] });
+        h.tr = { kind: "movie", id: t.id };  // 64.3
         if (j.year) h.parts.push(j.year);
         var d = minutes(j.duration); if (d) h.parts.push(d);
         h.sub = j.tagline || "";
@@ -68,6 +69,7 @@
         if (!sid) throw 0;
         return get("/api/tv/show/" + sid).then(function (j) {
           var h = fromMedia(j, { parts: [] });
+          h.tr = { kind: "show", id: sid };  // 64.3: episódio também toca o trailer da série
           if (e) {
             h.parts.push(T("home.season_episode", { s: e.season, e: e.episode }));
             var dt = dateBr(e.air_date); if (dt) h.parts.push(dt);
@@ -85,8 +87,11 @@
     return p.then(function (h) { cache[t.key] = h; return h; });
   }
 
+  var trT = null;
   function apply(h) {
     sfHeroBg.set(h.bd || "");
+    clearTimeout(trT);  // 64.3: ~3 s com o mesmo item em foco, o fundo vira o trailer mudo
+    if (h.tr) trT = setTimeout(function () { if (window.sfHeroBg) sfHeroBg.video(h.tr.kind, h.tr.id); }, 3000);
     title.textContent = h.title || "";
     logo.hidden = true;
     title.hidden = false;

@@ -28,6 +28,7 @@
       {% if runtime_hm %}<span>{{ runtime_hm }}</span>{% endif %}
       {% if genres %}<span>{{ genres[:2]|join(', ') }}{% if genres|length > 2 %}{{ t('det.and_more') }}{% endif %}</span>{% endif %}
     </div>
+    {% if trailer_st %}<div class="mv-trnote">{{ t('det.trailer.direct') if trailer_st[0] == 'direct' else t('det.trailer.clip') if trailer_st[0] == 'clip' else t('det.trailer.fail') if trailer_st[0] == 'fail' else t('det.trailer.pending') }}{% if not trailer_st[1] %} {{ t('det.trailer.off') }}{% endif %}</div>{% endif %}
     <div class="mv-rate">{% if rate %}<span{% if rate.cls %} class="{{ rate.cls }}"{% endif %} title="{{ rate.title }}">{{ rate.text }}</span>{% endif %}{{ star_rating("movie", m.id, stars) }}</div>
     <div class="mv-actions">
       <a class="mv-play" href="/watch/movie/{{ m.id }}"><svg class="ic"><use href="#i-play"/></svg>{% if position and not watched %}{{ t('det.continue_at', resume=resume) }}{% else %}{{ t('card.play') }}{% endif %}</a>

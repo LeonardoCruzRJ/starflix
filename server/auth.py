@@ -11,7 +11,7 @@ from server.i18n import E, jerr
 bp = Blueprint("auth", __name__)
 
 
-API_PREFIXES = ("/stream/", "/progress/", "/next/", "/continue", "/list/", "/stars/", "/bulk/", "/account/", "/playlists", "/home/", "/api/", "/tv/", "/phone/")
+API_PREFIXES = ("/stream/", "/progress/", "/next/", "/continue", "/list/", "/stars/", "/bulk/", "/account/", "/playlists", "/home/", "/api/", "/tv/", "/phone/", "/trailers/")
 
 
 def unauthorized():

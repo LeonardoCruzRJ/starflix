@@ -19,6 +19,12 @@
     <Label id="info" width="1500" height="120" translation="[210,480]" horizAlign="center" vertAlign="center" wrap="true" color="0xFFFFFFFF" />
     <Rectangle id="menuBg" width="560" height="420" translation="[1300,200]" color="0x101016F2" visible="false" />
     <LabelList id="menu" translation="[1320,220]" itemSize="[520,56]" numRows="6" visible="false" />
+    <Poster id="ppBg" width="1920" height="1080" translation="[0,0]" loadDisplayMode="scaleToZoom" opacity="0.35" visible="false" />
+    <Label id="ppTitle" width="1500" height="80" translation="[210,150]" vertAlign="center" color="0xFFFFFFFF" visible="false" />
+    <Label id="ppSub" width="1500" height="50" translation="[210,230]" vertAlign="center" color="0xB3B3B3FF" visible="false" />
+    <LabelList id="ppBtns" translation="[210,310]" itemSize="[520,64]" numRows="2" visible="false" />
+    <Label id="ppHead" width="1500" height="50" translation="[210,500]" vertAlign="center" color="0xFFFFFFFF" visible="false" />
+    <MarkupGrid id="ppGrid" itemComponentName="HomeCard" itemSize="[320,245]" itemSpacing="[20,20]" numColumns="5" numRows="1" translation="[210,560]" drawFocusFeedback="false" visible="false" />
     <Timer id="saveTimer" repeat="true" duration="10" />
   </children>
 </component>

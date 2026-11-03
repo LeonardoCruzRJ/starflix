@@ -3,7 +3,7 @@
 (function () {
   var box = document.getElementById('m-hero');
   if (!box) return;
-  var tr = box.querySelector('.m-hero-track'), dots = box.querySelectorAll('.m-hero-dots i'), n = dots.length, cur = 0, timer = null, touching = false;
+  var tr = box.querySelector('.m-hero-track'), dots = box.querySelectorAll('.m-hero-dots i'), n = dots.length, cur = 0, timer = null, touching = false, tt = null;
   var slides = tr ? tr.querySelectorAll('.m-hero-slide') : [];
   if (!tr || !slides.length) return;
   n = slides.length;
@@ -31,17 +31,27 @@
   }
   function go(p) { tr.scrollTo({left: p * w(), behavior: 'smooth'}); }
   var raf = 0, settle = 0;
+  // 64.3: parado ~3 s num slide, o fundo vira o trailer mudo (um por vez); rolar, tocar ou trocar de slide volta à imagem
+  function startTrailer() {
+    if (touching || document.hidden || !window.sfTrailer || !sfTrailer.allowed()) return;
+    var sl = slides[cur];
+    if (!sl || !sl.dataset.id) return;
+    sfTrailer.play(sl, sl.dataset.type === 'show' ? 'show' : 'movie', sl.dataset.id, {cls: 'm-hero-vid', before: sl.querySelector('.m-hero-body'), max: 45});
+  }
+  function arm() { clearTimeout(tt); if (window.sfTrailer) sfTrailer.stop(); tt = setTimeout(startTrailer, 3000); }
   tr.addEventListener('scroll', function () {
-    clearTimeout(settle); settle = setTimeout(fix, 90);
+    if (window.sfTrailer && sfTrailer.active()) sfTrailer.stop();
+    clearTimeout(tt);
+    clearTimeout(settle); settle = setTimeout(function () { fix(); arm(); }, 90);
     if (raf) return;
     raf = requestAnimationFrame(function () { raf = 0; mark(real(pos())); });
   }, {passive: true});
   if ('onscrollend' in window) tr.addEventListener('scrollend', fix);
-  function start() { stop(); if (n > 1) timer = setInterval(function () { if (!touching && !document.hidden) go(pos() + 1); }, 6000); }
+  function start() { stop(); if (n > 1) timer = setInterval(function () { if (!touching && !document.hidden && !(window.sfTrailer && sfTrailer.active())) go(pos() + 1); }, 6000); }
   function stop() { if (timer) { clearInterval(timer); timer = null; } }
-  tr.addEventListener('touchstart', function () { touching = true; fix(); }, {passive: true});
-  tr.addEventListener('touchend', function () { touching = false; start(); }, {passive: true});
+  tr.addEventListener('touchstart', function () { touching = true; clearTimeout(tt); if (window.sfTrailer) sfTrailer.stop(); fix(); }, {passive: true});
+  tr.addEventListener('touchend', function () { touching = false; start(); arm(); }, {passive: true});
   window.addEventListener('resize', function () { jump(loop ? real(pos()) + 1 : pos()); });
   if (loop) jump(1);
-  mark(0); start();
+  mark(0); start(); arm();
 })();

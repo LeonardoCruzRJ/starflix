@@ -44,6 +44,8 @@ from server.trickplay import bp as trickplay_bp
 from server.playback import bp as playback_bp
 from server.devices import bp as devices_bp
 from server.optimize import bp as optimize_bp
+from server.trailers import bp as trailers_bp
+from server.subsync import bp as subsync_bp
 from server.backup import bp as backup_bp
 from server.activity import bp as activity_bp
 from server.people import bp as people_bp
@@ -121,6 +123,8 @@ app.register_blueprint(trickplay_bp)
 app.register_blueprint(playback_bp)
 app.register_blueprint(devices_bp)
 app.register_blueprint(optimize_bp)
+app.register_blueprint(trailers_bp)
+app.register_blueprint(subsync_bp)
 app.register_blueprint(backup_bp)
 app.register_blueprint(activity_bp)
 from server.branding import bp as branding_bp  # 59.1
@@ -295,9 +299,12 @@ def nav_context():
     with get_db() as conn:
         u = conn.execute("SELECT is_admin, avatar, username, full_name FROM users WHERE id = ?", (session["user_id"],)).fetchone()
         p = conn.execute("SELECT id, name, avatar, photo FROM profiles WHERE id = ?", (session.get("profile_id"),)).fetchone()
+        tr_on = str(get_setting(conn, "trailer_global", "1")) != "0"  # 64.4: interruptor global do admin
     up = user_prefs(session["user_id"])
     return {
         "nav_seen": up["seen"],
+        "nav_hero_trailer": up["hero_trailer"] if tr_on else "off",  # 64.3 / 64.4
+        "nav_card_preview": up["card_preview"] if tr_on else "off",  # 65.4 (mesmo interruptor global)
         "nav_libraries": pinned_libraries(session["user_id"]),
         "nav_is_admin": bool(u and u["is_admin"]),
         "nav_user_avatar": profile_photo_url(p["id"], p["photo"]) if p and p["photo"] else None,

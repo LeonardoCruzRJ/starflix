@@ -3169,6 +3169,315 @@ try:
                    "android.update_downloading", "android.update_installing", "android.update_permission", "android.update_open_settings",
                    "android.update_err_download", "android.update_err_verify", "android.update_err_install", "android.tv_installed_version", "pe.app_version"))
               for f_ in os.listdir(os.path.join(ROOT, "i18n")) if f_.endswith(".json") and f_ != "allow.txt"))
+    # ---- Fase 64, Parte A (64.1 a 64.4): trailer (64.6: escrito, não rodar sem o Leo pedir)
+    tr64 = os.path.join(TMP, "f64")
+    os.makedirs(tr64)
+    make_video(os.path.join(tr64, "Filme T64 (2021).mp4"))
+    make_video(os.path.join(tr64, "Filme T64 (2021)-trailer.mp4"))
+    make_video(os.path.join(tr64, "Filme Sem Trailer (2022).mp4"))
+    r = J28("/admin/libraries/add", {"name": "Trailers64", "type": "movie", "lang": "pt-BR", "folders": [tr64], "prefs": {}})
+    lib64 = r.json["library"]["id"]
+    J28(f"/admin/libraries/{lib64}/examine", {})
+    wait28()
+    m64 = {x["title"]: x["id"] for x in sql32("SELECT id, title FROM media WHERE library_id = ?", lib64)}
+    check("64.1 o arquivo -trailer não vira item da biblioteca (2 filmes, não 3)", len(m64) == 2 and not any("railer" in t_ for t_ in m64))
+    id64 = next((i_ for t_, i_ in m64.items() if "T64" in t_), 0)
+    no64 = next((i_ for t_, i_ in m64.items() if "Sem" in t_), 0)
+    check("64.1 trailer gravado só para o filme que tem o arquivo",
+          len(sql32("SELECT media_id FROM trailers WHERE media_id = ?", id64)) == 1 and not sql32("SELECT media_id FROM trailers WHERE media_id = ?", no64))
+    r = c.get(f"/trailer/movie/{id64}")
+    check("64.2 /trailer/movie/<id>: 200 de vídeo (mp4 H.264 toca como está)", r.status_code == 200 and r.mimetype == "video/mp4")
+    r = c.get(f"/trailer/movie/{id64}", headers={"Range": "bytes=0-99"})
+    check("64.2 Range: 206 com Content-Range", r.status_code == 206 and r.headers.get("Content-Range", "").startswith("bytes 0-99/"))
+    check("64.2 sem trailer, tipo errado e sem login: 404/404/redirect-401",
+          c.get(f"/trailer/movie/{no64}").status_code == 404 and c.get(f"/trailer/show/{id64}").status_code == 404
+          and anon28.get(f"/trailer/movie/{id64}").status_code in (301, 302, 401))
+    p64 = c.get(f"/movie/{id64}").get_data(as_text=True)
+    check("64.4 admin vê o aviso de trailer detectado só no filme que tem", "mv-trnote" in p64
+          and "mv-trnote" not in c.get(f"/movie/{no64}").get_data(as_text=True))
+    check("64.4 body leva data-hero-trailer (padrão auto)", 'data-hero-trailer="auto"' in p64)
+    off64 = c.post("/admin/playback/save", json={"hdr_mode": "auto", "hdr_max_height": 1080, "trailer_on": False})
+    check("64.4 interruptor global desligado: salva, rota 404 e body em off",
+          off64.status_code == 200 and off64.json["trailer_on"] is False and c.get(f"/trailer/movie/{id64}").status_code == 404
+          and 'data-hero-trailer="off"' in c.get(f"/movie/{id64}").get_data(as_text=True))
+    check("64.4 salvar sem trailer_on mantém o atual e valor inválido dá 400",
+          c.post("/admin/playback/save", json={"hdr_mode": "auto", "hdr_max_height": 1080}).json["trailer_on"] is False
+          and c.post("/admin/playback/save", json={"hdr_mode": "auto", "hdr_max_height": 1080, "trailer_on": "x"}).status_code == 400)
+    on64 = c.post("/admin/playback/save", json={"hdr_mode": "auto", "hdr_max_height": 1080, "trailer_on": True})
+    check("64.4 interruptor religado: rota volta a 200", on64.json["trailer_on"] is True and c.get(f"/trailer/movie/{id64}").status_code == 200)
+    os.remove(os.path.join(tr64, "Filme T64 (2021)-trailer.mp4"))
+    J28(f"/admin/libraries/{lib64}/examine", {})
+    wait28()
+    check("64.1 trailer apagado do disco some da tabela no próximo exame",
+          not sql32("SELECT media_id FROM trailers WHERE media_id = ?", id64) and c.get(f"/trailer/movie/{id64}").status_code == 404)
+    # ---- Fase 64, Parte B (64.7 a 64.10): tela pós-reprodução (64.11: escrito, não rodar sem o Leo pedir)
+    for g_ in (id64, no64):
+        with _gdb32() as cn64:
+            cn64.execute("INSERT OR IGNORE INTO tags (media_id, kind, name) VALUES (?, 'genre', 'Ação64')", (g_,))
+            cn64.commit()
+    rp64 = c.get(f"/postplay/movie/{id64}")
+    j64 = rp64.json if rp64.status_code == 200 else {}
+    check("64.7 /postplay/movie/<id>: título, ano, tipo e Semelhantes pelo mesmo gênero (sem o próprio filme)",
+          rp64.status_code == 200 and j64.get("kind") == "movie" and j64.get("id") == id64 and j64.get("year") == 2021
+          and [x_["id"] for x_ in j64.get("related", [])] == [no64] and j64["related"][0]["href"] == f"/movie/{no64}"
+          and j64["related"][0]["image"] == f"/poster/{no64}" and j64["related"][0]["watched"] is False)
+    sr64 = os.path.join(TMP, "f64s", "Serie T64 (2020)")
+    os.makedirs(sr64)
+    for n_ in ("Serie.T64.S01E01", "Serie.T64.S01E02", "Serie.T64.S01E03", "Serie.T64.S02E01"):
+        make_video(os.path.join(sr64, n_ + ".mp4"))
+    r = J28("/admin/libraries/add", {"name": "Series64", "type": "show", "lang": "pt-BR", "folders": [os.path.dirname(sr64)], "prefs": {}})
+    lib64s = r.json["library"]["id"]
+    J28(f"/admin/libraries/{lib64s}/examine", {})
+    wait28()
+    show64 = sql32("SELECT id FROM media WHERE library_id = ?", lib64s)[0]["id"]
+    ep64 = {(x_["season"], x_["episode"]): x_["id"] for x_ in sql32("SELECT id, season, episode FROM episodes WHERE media_id = ?", show64)}
+    e1, e2, e3, s2 = ep64.get((1, 1), 0), ep64.get((1, 2), 0), ep64.get((1, 3), 0), ep64.get((2, 1), 0)
+    ra = c.get(f"/postplay/episode/{e1}")
+    ja = ra.json if ra.status_code == 200 else {}
+    check("64.7 episódio com próximo: next = S01E02 e rest = demais da temporada (S01E03), com play, href e image",
+          ra.status_code == 200 and ja.get("kind") == "episode" and ja.get("show_id") == show64
+          and ja["next"]["id"] == e2 and ja["next"]["play"] == f"/stream/episode/{e2}/play" and [x_["id"] for x_ in ja["rest"]] == [e3]
+          and ja["rest"][0]["href"] == f"/episode/{e3}" and ja["rest"][0]["image"] == f"/still/{e3}" and ja["rest"][0]["watched"] is False)
+    jb = c.get(f"/postplay/episode/{e3}").json
+    check("64.7 último da temporada: next vira a temporada seguinte (S02E01) e rest vem vazio", jb["next"]["id"] == s2 and jb["next"]["season"] == 2 and jb["rest"] == [])
+    jc = c.get(f"/postplay/episode/{s2}").json
+    check("64.7 último episódio da série: next = null e rest vazio", jc["next"] is None and jc["rest"] == [])
+    check("64.7 tipo errado e item inexistente: 404 (filme como episódio, episódio como filme, show, id 999999)",
+          all(c.get(u_).status_code == 404 for u_ in (f"/postplay/show/{show64}", f"/postplay/movie/{e1}", f"/postplay/episode/{id64}",
+                                                      "/postplay/movie/999999", "/postplay/episode/999999")))
+    check("64.7 sem login: redireciona ou 401", anon28.get(f"/postplay/movie/{id64}").status_code in (301, 302, 401)
+          and anon28.get(f"/postplay/episode/{e1}").status_code in (301, 302, 401))
+    c.post("/admin/users", data={"username": "Eva64", "password": "abcd1"})
+    c64 = run.app.test_client()
+    c64.post("/login", data={"username": "eva64", "password": "abcd1"})
+    uid64 = sql32("SELECT id FROM users WHERE username = 'Eva64'")[0]["id"]
+    c64.post("/profiles/new", data={"name": "Eva"})
+    pid64 = sql32("SELECT id FROM profiles WHERE user_id = ?", uid64)[0]["id"]
+    c64.post(f"/profiles/{pid64}/select")
+    check("64.7 usuário sem acesso à biblioteca: 404 no filme e no episódio",
+          c64.get(f"/postplay/movie/{id64}").status_code == 404 and c64.get(f"/postplay/episode/{e1}").status_code == 404)
+    c.post(f"/admin/access/user/{uid64}", json={"libraries": [lib64s]})
+    check("64.7 acesso só à série: episódio 200 e filme continua 404; Semelhantes esconde a biblioteca sem acesso",
+          c64.get(f"/postplay/episode/{e1}").status_code == 200 and c64.get(f"/postplay/movie/{id64}").status_code == 404)
+    c.post(f"/admin/access/user/{uid64}", json={"libraries": [lib64]})
+    jd = c64.get(f"/postplay/movie/{id64}").json
+    check("64.7 acesso só ao filme: Semelhantes só traz filmes de biblioteca liberada e o episódio dá 404",
+          [x_["id"] for x_ in jd["related"]] == [no64] and c64.get(f"/postplay/episode/{e1}").status_code == 404)
+    c.post(f"/admin/users/{uid64}/delete")
+    check("64.8 player web: #postplay no watch.html e ppShow/ppHide + /postplay no player.js",
+          'id="postplay"' in open(os.path.join(ROOT, "web/templates/watch.html"), encoding="utf-8").read()
+          and all(s_ in open(os.path.join(ROOT, "web/static/js/player.js"), encoding="utf-8").read() for s_ in ("ppShow", "ppHide", "/postplay/")))
+    pp_keys = {"web": ("player.pp.replay", "player.pp.similar", "player.pp.rest", "player.pp.ep"),
+               "android": ("android.pp_replay", "android.pp_similar", "android.pp_rest", "android.pp_ep"),
+               "roku": ("roku.pp_replay", "roku.pp_back", "roku.pp_similar", "roku.pp_rest")}
+    langs64 = [f_ for f_ in os.listdir(os.path.join(ROOT, "i18n")) if f_.endswith(".json")]
+    cat64 = {f_: json.load(open(os.path.join(ROOT, "i18n", f_), encoding="utf-8")) for f_ in langs64}
+    check("64.8/64.9/64.10 as chaves de texto da tela pós-reprodução (web, Android e Roku) existem nos 10 idiomas, nenhuma vazia",
+          len(langs64) == 10 and all(cat64[f_].get(k_) for f_ in langs64 for ks_ in pp_keys.values() for k_ in ks_))
+    # ---- Fase 64, Parte C (64.12 a 64.16): pular resumo (64.17: escrito, não rodar sem o Leo pedir)
+    import sqlite3 as sq64
+    from server import markers as mk64
+    from server.db import _migrate_markers_recap as mig64
+    old64 = sq64.connect(":memory:")
+    old64.row_factory = sq64.Row
+    old64.executescript("""CREATE TABLE episodes (id INTEGER PRIMARY KEY);
+        CREATE TABLE episode_markers (
+            episode_id INTEGER NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL CHECK (kind IN ('intro', 'credits')),
+            start REAL NOT NULL, end REAL NOT NULL, source TEXT NOT NULL DEFAULT 'manual', confidence REAL NOT NULL DEFAULT 1,
+            PRIMARY KEY (episode_id, kind));
+        INSERT INTO episodes (id) VALUES (1), (2);
+        INSERT INTO episode_markers VALUES (1, 'intro', 10, 50, 'manual', 1), (1, 'credits', 900, 960, 'chapter', 1), (2, 'intro', 5, 40, 'auto', 0.7);""")
+    old64.commit()
+    antes64 = [tuple(x_) for x_ in old64.execute("SELECT * FROM episode_markers ORDER BY episode_id, kind")]
+    mig64(old64)
+    depois64 = [tuple(x_) for x_ in old64.execute("SELECT * FROM episode_markers ORDER BY episode_id, kind")]
+    check("64.12 migração do CHECK: recria a tabela e preserva todos os marcadores (manual, capítulo e auto)",
+          antes64 == depois64 and len(depois64) == 3 and "'recap'" in old64.execute("SELECT sql FROM sqlite_master WHERE name = 'episode_markers'").fetchone()["sql"])
+    old64.execute("INSERT INTO episode_markers (episode_id, kind, start, end) VALUES (2, 'recap', 0, 30)")
+    mig64(old64)
+    check("64.12 depois da migração 'recap' entra, a 2ª chamada não faz nada e a tabela antiga não sobra",
+          old64.execute("SELECT COUNT(*) FROM episode_markers").fetchone()[0] == 4
+          and not old64.execute("SELECT 1 FROM sqlite_master WHERE name = 'episode_markers_old'").fetchone())
+    old64.close()
+    dur64 = 1500
+    ch64 = lambda t_, s_=0, e_=60: {"duration": dur64, "chapters": [{"start": s_, "end": e_, "title": t_}]}
+    check("64.13 capítulo 'Previously on…' vira recap (0 a 60 s)", mk64.from_chapters(ch64("Previously on…")).get("recap") == (0.0, 60.0))
+    check("64.13 recap reconhecido nos 10 idiomas (anteriormente, resumen, récapitulatif, zuvor, riassunto, ранее, önceki bölüm, 前回)",
+          all("recap" in mk64.from_chapters(ch64(t_)) for t_ in
+              ("Anteriormente", "Resumen", "Récapitulatif", "Zuvor", "Riassunto", "Ранее", "Önceki Bölüm", "前回")))
+    check("64.13 recap recusado: curto demais (5 s), longo demais (200 s), depois de 30 % do episódio e sem duração conhecida",
+          "recap" not in mk64.from_chapters(ch64("Recap", 0, 5)) and "recap" not in mk64.from_chapters(ch64("Recap", 0, 200))
+          and "recap" not in mk64.from_chapters(ch64("Recap", 600, 660))
+          and "recap" not in mk64.from_chapters({"chapters": [{"start": 0, "end": 60, "title": "Recap"}]}))
+    check("64.13 abertura e créditos continuam sendo reconhecidos junto com o resumo",
+          set(mk64.from_chapters({"duration": dur64, "chapters": [{"start": 0, "end": 40, "title": "Recap"}, {"start": 40, "end": 100, "title": "Opening"},
+                                                              {"start": 1400, "end": 1500, "title": "Credits"}]})) == {"recap", "intro", "credits"})
+    ra64 = c.post(f"/admin/markers/episode/{e1}/season", json={"kind": "recap", "shift": 0})
+    check("64.13 apply_season recusa recap com 400", ra64.status_code == 400)
+    rs64 = c.post(f"/admin/markers/episode/{e1}", json={"kind": "recap", "start": 0, "end": 1.5})
+    check("64.13 rota manual grava recap (source manual) e /markers/episode devolve",
+          rs64.status_code == 200 and rs64.json["marker"]["kind"] == "recap"
+          and any(m_["kind"] == "recap" and m_["source"] == "manual" and m_["end"] == 1.5 for m_ in c.get(f"/markers/episode/{e1}").json["markers"]))
+    check("64.13 recap manual não é copiado para os outros episódios da temporada",
+          not sql32("SELECT 1 FROM episode_markers WHERE episode_id = ? AND kind = 'recap'", e2))
+    check("64.13 recap com fim menor que o início = 400 e kind inválido = 400",
+          c.post(f"/admin/markers/episode/{e1}", json={"kind": "recap", "start": 1.5, "end": 0.5}).status_code == 400
+          and c.post(f"/admin/markers/episode/{e1}", json={"kind": "xyz", "start": 0, "end": 1}).status_code == 400)
+    check("64.13 sem login: marcação manual de recap é recusada",
+          anon28.post(f"/admin/markers/episode/{e1}", json={"kind": "recap", "start": 0, "end": 1}).status_code in (301, 302, 401, 403))
+    rd64 = c.post(f"/admin/markers/episode/{e1}", json={"kind": "recap", "delete": True})
+    check("64.13 remover recap manual", rd64.status_code == 200 and not sql32("SELECT 1 FROM episode_markers WHERE episode_id = ? AND kind = 'recap'", e1))
+    rk64 = {"web": ("player.skip_recap", "player.skipped_recap", "player.mark.recap", "player.mark.saved.recap"),
+            "android": ("android.skip_recap",), "roku": ("roku.skip_recap",)}
+    check("64.14/64.15/64.16 as chaves de texto do resumo existem nos 10 idiomas, nenhuma vazia",
+          len(langs64) == 10 and all(cat64[f_].get(k_) for f_ in langs64 for ks_ in rk64.values() for k_ in ks_))
+    # ---- Fase 64, Parte D (64.18 a 64.23): sincronia automática de legenda (64.24: escrito, não rodar sem o Leo pedir)
+    import random as rn64
+    from server import subsync as ss64
+    from server import subtitles as st64
+
+    def _gen64(n_, seed_):
+        r_, fr_, i_ = rn64.Random(seed_), [False] * n_, 0
+        while i_ < n_:
+            i_ += r_.randint(10, 60)
+            for j_ in range(i_, min(n_, i_ + r_.randint(20, 80))):
+                fr_[j_] = True
+            i_ += r_.randint(20, 80)
+        return fr_
+
+    def _map64(fr_):
+        return {"frames": len(fr_), "chunks": ss64.pack(fr_)}
+
+    N64 = 36000  # 1 h em quadros de 100 ms
+    vid64 = _gen64(N64, 64)
+    r_ok64 = ss64.correlate(_map64(vid64), _map64([vid64[j_ + 32] if j_ + 32 < N64 else False for j_ in range(N64)]))
+    check("64.20 legenda 3,2 s adiantada em relação à fala: atraso achado em ±0,2 s, razão 1,0 e confiança alta",
+          abs(r_ok64["offset"] - 3.2) <= 0.2 and r_ok64["rate"] == 1.0 and r_ok64["confidence"] >= ss64.CONF_AUTO)
+    ra64 = 25 / 23.976
+    r_rate64 = ss64.correlate(_map64(vid64), _map64([vid64[int(round(j_ * ra64))] for j_ in range(int(N64 / ra64))]))
+    check("64.20 legenda de 25 fps sobre vídeo de 23,976 fps: rate ≈ 1,0427 (±0,002), atraso perto de 0 e confiança alta",
+          abs(r_rate64["rate"] - ra64) <= 0.002 and abs(r_rate64["offset"]) <= 0.3 and r_rate64["confidence"] >= ss64.CONF_AUTO)
+    r_zero64 = ss64.correlate(_map64(vid64), _map64(vid64))
+    check("64.20 legenda já certa: atraso 0 e razão 1,0 (nada a gravar)", r_zero64["offset"] == 0.0 and r_zero64["rate"] == 1.0)
+    r_noise64 = ss64.correlate(_map64(vid64), _map64(_gen64(N64, 641)))
+    check("64.20 legenda sem relação com o vídeo (ruído): confiança abaixo do limite de gravação automática",
+          r_noise64["confidence"] < ss64.CONF_AUTO)
+
+    ep64p = sql32("SELECT path FROM episodes WHERE id = ?", e1)[0]["path"]
+    srt64 = os.path.splitext(ep64p)[0] + ".pt-BR.srt"
+    open(srt64, "w", encoding="utf-8").write("".join(f"{k_}\n00:00:{k_ * 3:02d},000 --> 00:00:{k_ * 3 + 1:02d},000\nFala número {k_}\n\n" for k_ in range(1, 8)))
+    sub64 = [s_ for s_ in st64.external_subs(ep64p) if s_["file"] == srt64]
+    key64 = st64.ext_key(sub64[0]) if sub64 else ""
+    check("64.21 legenda externa do episódio de teste é reconhecida", bool(key64))
+    sql32("DELETE FROM sub_offset WHERE item_type = 'episode' AND item_id = ?", e1)
+    rv64 = c.post(f"/stream/episode/{e1}/subs/autosync/save", json={"key": key64, "offset": 3.2, "rate": 1.0427})
+    row64 = sql32("SELECT * FROM sub_offset WHERE item_type = 'episode' AND item_id = ? AND sub_key = ?", e1, key64)
+    check("64.21 /save grava source 'auto' com offset e rate e guarda 'nenhum' como anterior (para Desfazer)",
+          rv64.status_code == 200 and len(row64) == 1 and row64[0]["source"] == "auto" and row64[0]["offset"] == 3.2
+          and abs(row64[0]["rate"] - 1.0427) < 1e-6 and row64[0]["prev_source"] == "none")
+    ru64 = c.post(f"/stream/episode/{e1}/subs/autosync/undo", json={"key": key64})
+    check("64.21 Desfazer sem registro anterior apaga a linha e devolve 0 / 1,0",
+          ru64.status_code == 200 and ru64.json["offset"] == 0 and ru64.json["rate"] == 1.0
+          and not sql32("SELECT 1 FROM sub_offset WHERE item_type = 'episode' AND item_id = ? AND sub_key = ?", e1, key64))
+    check("64.21 Desfazer de novo, sem o que desfazer, dá 409",
+          c.post(f"/stream/episode/{e1}/subs/autosync/undo", json={"key": key64}).status_code == 409)
+    sql32("INSERT INTO sub_offset (item_type, item_id, sub_key, offset, rate, source) VALUES ('episode', ?, ?, 1.5, 1, 'manual')", e1, key64)
+    c.post(f"/stream/episode/{e1}/subs/autosync/save", json={"key": key64, "offset": 4.0, "rate": 1.0})
+    c.post(f"/stream/episode/{e1}/subs/autosync/undo", json={"key": key64})
+    row64 = sql32("SELECT * FROM sub_offset WHERE item_type = 'episode' AND item_id = ? AND sub_key = ?", e1, key64)
+    check("64.21 Desfazer devolve o ajuste manual anterior (1,5 s, 'manual')",
+          len(row64) == 1 and row64[0]["offset"] == 1.5 and row64[0]["source"] == "manual" and row64[0]["prev_source"] is None)
+    check("64.21 /save recusa valores inválidos (rate fora de 0,9 a 1,1, offset texto) com 400 e chave inexistente com 404",
+          c.post(f"/stream/episode/{e1}/subs/autosync/save", json={"key": key64, "offset": 1, "rate": 2}).status_code == 400
+          and c.post(f"/stream/episode/{e1}/subs/autosync/save", json={"key": key64, "offset": "x", "rate": 1}).status_code == 400
+          and c.post(f"/stream/episode/{e1}/subs/autosync/save", json={"key": "nao-existe", "offset": 1, "rate": 1}).status_code == 404)
+    check("64.21 shift_vtt com rate: t' = t·rate - atraso (10 s, rate 1,04, atraso 2 s = 8,4 s)",
+          "00:00:08.400" in st64.shift_vtt("WEBVTT\n\n00:00:10.000 --> 00:00:11.000\nx\n", 2.0, 1.04))
+    ss64._LOCK.acquire()
+    try:
+        rb64 = c.post(f"/stream/episode/{e1}/subs/autosync", json={"key": key64})
+    finally:
+        ss64._LOCK.release()
+    check("64.22 trava de uma sincronização por vez: com outra em curso a rota responde 409 'busy'",
+          rb64.status_code == 409 and rb64.json.get("reason") == "busy")
+    check("64.20 sem login: autosync, /save e /undo são recusados",
+          all(anon28.post(f"/stream/episode/{e1}/subs/autosync{s_}", json={"key": key64}).status_code in (301, 302, 401, 403) for s_ in ("", "/save", "/undo")))
+    with _gdb32() as cn64:
+        bg64_on = ss64.bg_enabled(cn64)
+    check("64.23 interruptor da fila noturna: padrão ligado e /admin/playback/save grava e mantém quando o campo falta",
+          bg64_on and c.post("/admin/playback/save", json={"subsync_on": False}).status_code == 200
+          and c.get("/admin/playback/data").json["subsync_on"] is False
+          and c.post("/admin/playback/save", json={}).status_code == 200 and c.get("/admin/playback/data").json["subsync_on"] is False
+          and c.post("/admin/playback/save", json={"subsync_on": True}).status_code == 200 and c.get("/admin/playback/data").json["subsync_on"] is True)
+    sql32("DELETE FROM sub_offset WHERE item_type = 'episode' AND item_id = ?", e1)
+    sql32("DELETE FROM subsync_bg")
+    with _gdb32() as cn64:
+        job64 = ss64.next_job(cn64)
+    check("64.23 fila noturna ignora legenda que não foi baixada pelo SubDL (a do teste não tem a marca) e a pasta ganha marca de 1 dia",
+          job64 is None)
+    keys64 = [k_ for k_ in cat64["pt-BR.json"] if k_.startswith("player.subsync.")]
+    check("64.24 textos player.subsync.* (≥ 12) e pb.subsync* existem nos 10 idiomas, nenhum vazio",
+          len(keys64) >= 12 and len(langs64) == 10
+          and all(cat64[f_].get(k_) for f_ in langs64 for k_ in keys64 + ["pb.subsync", "pb.subsync.on", "pb.subsync.off"]))
+    # ---- Fase 65 (65.1 a 65.5): prévia em balão nos cards (65.6: escrito, não rodar sem o Leo pedir)
+    tr65 = os.path.join(TMP, "f65")
+    os.makedirs(tr65)
+    make_video(os.path.join(tr65, "Filme T65 (2021).mp4"))
+    make_video(os.path.join(tr65, "Filme T65 (2021)-trailer.mp4"))
+    make_video(os.path.join(tr65, "Filme Sem T65 (2022).mp4"))
+    r = J28("/admin/libraries/add", {"name": "Previa65", "type": "movie", "lang": "pt-BR", "folders": [tr65], "prefs": {}})
+    lib65 = r.json["library"]["id"]
+    J28(f"/admin/libraries/{lib65}/examine", {})
+    wait28()
+    m65 = {x["title"]: x["id"] for x in sql32("SELECT id, title FROM media WHERE library_id = ?", lib65)}
+    id65 = next((i_ for t_, i_ in m65.items() if "Sem" not in t_), 0)
+    no65 = next((i_ for t_, i_ in m65.items() if "Sem" in t_), 0)
+
+    def has65(cl_, items_):
+        return cl_.post("/trailers/has", json={"items": items_})
+
+    r65 = has65(c, [{"kind": "movie", "id": id65}, {"kind": "movie", "id": no65}])
+    check("65.1 /trailers/has devolve só o filme que tem trailer pronto (o sem trailer não aparece)",
+          r65.status_code == 200 and r65.json["has"] == [{"kind": "movie", "id": id65}])
+    check("65.1 itens repetidos contam uma vez; tipo trocado (show), id inexistente e lista vazia não aparecem",
+          has65(c, [{"kind": "movie", "id": id65}] * 3).json["has"] == [{"kind": "movie", "id": id65}]
+          and has65(c, [{"kind": "show", "id": id65}, {"kind": "movie", "id": 999999}]).json["has"] == []
+          and has65(c, []).json["has"] == [])
+    check("65.1 limite de 100 itens: 100 passam (200) e 101 dão 400",
+          has65(c, [{"kind": "movie", "id": id65 + k_} for k_ in range(100)]).status_code == 200
+          and has65(c, [{"kind": "movie", "id": id65 + k_} for k_ in range(101)]).status_code == 400)
+    check("65.1 corpo inválido dá 400 (sem items, kind inválido, id texto, id booleano)",
+          c.post("/trailers/has", json={}).status_code == 400
+          and has65(c, [{"kind": "episode", "id": id65}]).status_code == 400
+          and has65(c, [{"kind": "movie", "id": "1"}]).status_code == 400
+          and has65(c, [{"kind": "movie", "id": True}]).status_code == 400)
+    check("65.1 sem login: 401", has65(anon28, [{"kind": "movie", "id": id65}]).status_code == 401)
+    c.post("/admin/users", data={"username": "Eva65", "password": "abcd1"})
+    c65 = run.app.test_client()
+    c65.post("/login", data={"username": "eva65", "password": "abcd1"})
+    uid65 = sql32("SELECT id FROM users WHERE username = 'Eva65'")[0]["id"]
+    c65.post("/profiles/new", data={"name": "Eva"})
+    pid65 = sql32("SELECT id FROM profiles WHERE user_id = ?", uid65)[0]["id"]
+    c65.post(f"/profiles/{pid65}/select")
+    check("65.1 usuário sem acesso à biblioteca: o filme com trailer não aparece",
+          has65(c65, [{"kind": "movie", "id": id65}]).json["has"] == [])
+    c.post(f"/admin/access/user/{uid65}", json={"libraries": [lib65]})
+    check("65.1 com a biblioteca liberada o filme aparece",
+          has65(c65, [{"kind": "movie", "id": id65}]).json["has"] == [{"kind": "movie", "id": id65}])
+    c.post(f"/admin/users/{uid65}/delete")
+    c.post("/admin/playback/save", json={"hdr_mode": "auto", "hdr_max_height": 1080, "trailer_on": False})
+    check("65.1 interruptor global desligado: lista vazia (vale também para a prévia)",
+          has65(c, [{"kind": "movie", "id": id65}]).json["has"] == [])
+    c.post("/admin/playback/save", json={"hdr_mode": "auto", "hdr_max_height": 1080, "trailer_on": True})
+    check("65.1 interruptor religado: o filme volta à lista", has65(c, [{"kind": "movie", "id": id65}]).json["has"] == [{"kind": "movie", "id": id65}])
+    js65 = open(os.path.join(ROOT, "web/static/js/cards.js"), encoding="utf-8").read()
+    css65 = open(os.path.join(ROOT, "web/static/css/starflix.css"), encoding="utf-8").read()
+    check("65.2 a 65.5: cards.js usa /trailers/has, data-trailer, .pcard-pv, (hover: hover) e data-card-preview; CSS tem .pcard-pv",
+          all(s_ in js65 for s_ in ("/trailers/has", "data-trailer", "pcard-pv", "(hover: hover)", "data-card-preview")) and ".pcard-pv" in css65)
+    pv_keys = ["acc.trailer.card", "acc.trailer.card_note", "set.card_preview.auto", "set.card_preview.on", "set.card_preview.off"]
+    check("65.6 textos da prévia (acc.trailer.card*, set.card_preview.*) existem nos 10 idiomas, nenhum vazio",
+          len(langs64) == 10 and all(cat64[f_].get(k_) for f_ in langs64 for k_ in pv_keys))
 finally:
     shutil.rmtree(TMP, ignore_errors=True)
 

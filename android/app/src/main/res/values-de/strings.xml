@@ -34,6 +34,7 @@
     <string name="camera_denied">Keine Kameraberechtigung. Verwenden Sie den Link oder geben Sie die Adresse ein.</string>
     <string name="fail">Verbindung zum Server fehlgeschlagen</string>
     <string name="skip_intro">Intro überspringen</string>
+    <string name="skip_recap">Rückblick überspringen</string>
     <string name="next_episode">Nächste Folge</string>
     <string name="next_cancel">Abbrechen</string>
     <string name="connect_error_title">Verbindung fehlgeschlagen</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">Füllen</string>
     <string name="fit_stretch">Strecken</string>
     <string name="queue_title">Wiedergabeliste</string>
+    <string name="pp_replay">Nochmal ansehen</string>
+    <string name="pp_similar">Ähnlich</string>
+    <string name="pp_rest">Mehr aus dieser Staffel</string>
+    <string name="pp_ep">S%1$s · F%2$s</string>
     <string name="settings">Einstellungen</string>
     <string name="stop">Stopp</string>
     <string name="queue_hint_tv">▼  Nächste Folgen</string>

@@ -9,7 +9,7 @@ import config
 from server.i18n import t as t_, tr
 from server.db import get_db, library_folders, lib_prefs, prune_stars
 from server.metadata import apply_local_art, download_images, download_posters, identify_episodes, identify_seasons, prune_people, remove_local, show_image_names, identify_movies, identify_shows
-from server import markers, scanstate, trickplay
+from server import markers, scanstate, trailers, trickplay
 from server.dedupe import merge_movies, merge_shows
 from server.probe import probe_library
 from server.subdl import begin_run as subdl_begin_run, fetch_subtitles
@@ -329,7 +329,14 @@ def prune_missing(library_id, only=None):
         conn.execute("DELETE FROM progress WHERE item_type = 'movie' AND item_id NOT IN (SELECT id FROM media)")
         conn.execute("DELETE FROM progress WHERE item_type = 'episode' AND item_id NOT IN (SELECT id FROM episodes)")
         prune_stars(conn)
+        trailers.prune(conn, library_id, only, gone)  # 64.1
+        trailers.prune_clips()  # 64.2: clipes de trailers que saíram do banco
         trickplay.prune()  # 49.1
+        try:
+            from server import subsync  # 64.18: mapas de fala de vídeos removidos
+            subsync.prune()
+        except Exception:
+            pass
         try:
             from server import optimize  # import tardio (52.9): apaga as versões otimizadas de itens removidos
             optimize.prune()
@@ -400,6 +407,7 @@ def process_items(library_id):
                 identify_episodes(library_id, mid)
                 identify_seasons(library_id, mid)
             apply_local_art(library_id, mid)
+            trailers.sync(library_id, mid)  # 64.1
             download_posters(library_id, mid)
             download_images(library_id, mid)
             fetch_subtitles(library_id, mid)  # 46.1: legenda do SubDL assim que o item termina de ser identificado
@@ -409,6 +417,13 @@ def process_items(library_id):
         except Exception:
             log.exception("falha ao processar o item %s da biblioteca %s", mid, library_id)
     return done
+
+
+def _local_files(library_id):
+    """64.1: etapa "aplicando imagens locais": a arte local (como sempre) e, junto, os trailers locais; sem texto novo na interface."""
+    n = apply_local_art(library_id)
+    trailers.sync(library_id)
+    return n
 
 
 def scan_library(library_id):
@@ -433,7 +448,7 @@ def scan_library(library_id):
         _stage(library_id, "scan.st.unindo_series_duplicadas", merge_shows)
         _stage(library_id, "scan.st.identificando_episodios", identify_episodes)
         _stage(library_id, "scan.st.identificando_temporadas", identify_seasons)
-    _stage(library_id, "scan.st.aplicando_imagens_locais", apply_local_art)
+    _stage(library_id, "scan.st.aplicando_imagens_locais", _local_files)  # 64.1: arte local + trailers locais (mesma etapa)
     _stage(library_id, "scan.st.baixando_posteres", download_posters)
     _stage(library_id, "scan.st.baixando_imagens", download_images)
     _stage(library_id, "scan.st.baixando_legendas", fetch_subtitles)  # 46.1: o que sobrou (itens já identificados, "Examinar arquivos")
@@ -467,6 +482,7 @@ def examine_item(library_id, mid):
         identify_episodes(library_id, mid)
         identify_seasons(library_id, mid)
     apply_local_art(library_id, mid)
+    trailers.sync(library_id, mid)  # 64.1
     download_posters(library_id, mid)
     download_images(library_id, mid)
     fetch_subtitles(library_id, mid)

@@ -91,6 +91,11 @@ class PlayerActivity : AppCompatActivity() {
     private var ncAt = 0L
     private var introS = -1.0
     private var introE = -1.0
+    private var recapS = -1.0   // 64.15: marcador de resumo ("anteriormente em…")
+    private var recapE = -1.0
+    private var recapDone = false
+    private var recapHidden = false
+    private var skipRecap = false  // o botão de pular mostra o resumo (e não a abertura)
     private var creditsS = -1.0
     private var skipPref = "ask"
     private var introDone = false
@@ -248,6 +253,14 @@ class PlayerActivity : AppCompatActivity() {
                 if (open) { handler.removeCallbacks(hideOverlay); tvOverlay.visibility = View.GONE; setTvFocus(0) } else showInfo()
             }
         }
+
+        // 64.9/64.10: botões da tela pós-reprodução (celular e TV); na TV o foco ganha destaque
+        findViewById<View>(R.id.ppBack).setOnClickListener { finish() }
+        findViewById<View>(R.id.ppNext).setOnClickListener { val nx = ppNextId; if (nx > 0) { ppHide(); switchTo(nx) } }
+        findViewById<View>(R.id.ppReplay).setOnClickListener {
+            ppHide(); ending = false; seekTo(0.0); player?.play(); if (!tv) updateMPlay()
+        }
+        if (tv) for (id in intArrayOf(R.id.ppBack, R.id.ppNext, R.id.ppReplay)) findViewById<View>(id).setOnFocusChangeListener { v, f -> v.animate().scaleX(if (f) 1.1f else 1f).scaleY(if (f) 1.1f else 1f).setDuration(120).start() }
 
         begin()
         handler.post(tick)
@@ -553,7 +566,106 @@ class PlayerActivity : AppCompatActivity() {
                 next = j.optJSONObject("next")?.optInt("id", 0) ?: 0
             } catch (_: Exception) {
             }
-            runOnUiThread { if (next > 0 && !isDestroyed && timerMin != -1) switchTo(next) else finish() }
+            runOnUiThread {
+                if (next > 0 && !isDestroyed && timerMin != -1) switchTo(next)
+                else if (!isDestroyed && timerMin != -1) ppShow(k, id)  // 64.9/64.10: celular e TV; o temporizador "ao fim do episódio" continua saindo
+                else finish()
+            }
+        }
+    }
+
+    // ---------- Tela pós-reprodução (64.9, celular) ----------
+    private var ppNextId = 0
+
+    private fun ppHide() { findViewById<View>(R.id.ppRoot).visibility = View.GONE }
+    private fun ppVisible() = findViewById<View>(R.id.ppRoot).visibility == View.VISIBLE
+
+    private fun ppCard(img: String, title: String, line: String, onClick: () -> Unit): View {
+        val card = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            layoutParams = android.widget.LinearLayout.LayoutParams(dp(150), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(12) }
+            isFocusable = true
+            setOnClickListener { onClick() }
+            if (tv) setOnFocusChangeListener { v, f -> v.animate().scaleX(if (f) 1.08f else 1f).scaleY(if (f) 1.08f else 1f).setDuration(120).start() }
+        }
+        val iv = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(android.graphics.Color.parseColor("#202020"))
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(v: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, dp(10).toFloat()) }
+            }
+            clipToOutline = true
+        }
+        card.addView(iv, android.widget.LinearLayout.LayoutParams(dp(150), dp(84)))
+        card.addView(TextView(this).apply {
+            text = title
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(0, dp(5), 0, 0)
+        })
+        if (line.isNotEmpty()) card.addView(TextView(this).apply {
+            text = line
+            setTextColor(android.graphics.Color.parseColor("#B3B3B3"))
+            textSize = 12f
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        loadImage(img, iv)
+        return card
+    }
+
+    /** Dados de /postplay: filme = Semelhantes, episódio = próximo e resto da temporada. Falha ou sessão expirada: sai do player. */
+    private fun ppShow(k: String, id: Int) {
+        thread {
+            val d = try {
+                val r = request("GET", "/postplay/$k/$id")
+                if (r.first == 200) JSONObject(r.second) else null
+            } catch (_: Exception) { null }
+            runOnUiThread {
+                if (isDestroyed || itemId != id) return@runOnUiThread
+                if (d == null) { finish(); return@runOnUiThread }
+                val movie = k == "movie"
+                val nx = d.optJSONObject("next")
+                ppNextId = nx?.optInt("id", 0) ?: 0
+                findViewById<TextView>(R.id.ppTitle).text = if (movie) d.optString("title") else d.optString("show")
+                findViewById<TextView>(R.id.ppSub).text = if (movie) { val y = d.optInt("year", 0); if (y > 0) y.toString() else "" }
+                    else if (nx != null) getString(R.string.pp_ep, nx.optInt("season").toString(), nx.optInt("episode").toString()) + " · " + nx.optString("title") else ""
+                val next = findViewById<View>(R.id.ppNext)
+                val replay = findViewById<View>(R.id.ppReplay)
+                next.visibility = if (ppNextId > 0) View.VISIBLE else View.GONE
+                replay.visibility = if (ppNextId > 0) View.GONE else View.VISIBLE
+                val bg = findViewById<ImageView>(R.id.ppBg)
+                bg.setImageDrawable(null)
+                val b = d.optString("backdrop", "")
+                if (b.isNotEmpty() && b != "null") loadImage(b, bg)
+                val row = findViewById<android.widget.LinearLayout>(R.id.ppRow)
+                row.removeAllViews()
+                val list = d.optJSONArray(if (movie) "related" else "rest")
+                val n = list?.length() ?: 0
+                for (i in 0 until n) {
+                    val x = list!!.getJSONObject(i)
+                    val xid = x.optInt("id", 0)
+                    if (movie) {
+                        val y = x.optInt("year", 0)
+                        row.addView(ppCard(x.optString("image"), x.optString("title"), if (y > 0) y.toString() else "") {
+                            openAfter = x.optString("href"); ppHide(); finish()
+                        })
+                    } else {
+                        row.addView(ppCard(x.optString("image"), x.optString("title"), getString(R.string.pp_ep, x.optInt("season").toString(), x.optInt("episode").toString())) {
+                            ppHide(); save(); switchTo(xid)
+                        })
+                    }
+                }
+                val head = findViewById<TextView>(R.id.ppHead)
+                head.text = if (n > 0) getString(if (movie) R.string.pp_similar else R.string.pp_rest) else ""
+                head.visibility = if (n > 0) View.VISIBLE else View.GONE
+                if (tv) { showMark(false, false); hideTvOverlay() } else hideM()
+                findViewById<View>(R.id.ppRoot).visibility = View.VISIBLE
+                (if (ppNextId > 0) next else replay).requestFocus()
+            }
         }
     }
 
@@ -579,6 +691,7 @@ class PlayerActivity : AppCompatActivity() {
         safe = false
         hlsRetried = false
         sheet?.close()
+        ppHide()
         mOverlay.visibility = View.GONE
         tvOverlay.visibility = View.GONE
         prevId = 0
@@ -1223,18 +1336,19 @@ class PlayerActivity : AppCompatActivity() {
     /** 57.22: marcadores do episódio e preferência do perfil (Pular abertura: perguntar/sempre/nunca); sem marcador de créditos o servidor manda os últimos 45 s. */
     private fun loadMarkers() {
         val id = itemId
-        introS = -1.0; introE = -1.0; creditsS = -1.0; skipPref = "ask"; autoNext = true
-        introDone = false; introHidden = false; nextHidden = false
+        introS = -1.0; introE = -1.0; recapS = -1.0; recapE = -1.0; creditsS = -1.0; skipPref = "ask"; autoNext = true
+        introDone = false; introHidden = false; recapDone = false; recapHidden = false; skipRecap = false; nextHidden = false
         showMark(false, false)
         if (kind != "episode") return
         thread {
             try {
                 val j = JSONObject(request("GET", "/api/tv/markers/$id").second)
-                var a = -1.0; var b = -1.0; var c = -1.0
+                var a = -1.0; var b = -1.0; var c = -1.0; var ra = -1.0; var rb = -1.0
                 j.optJSONArray("markers")?.let { arr ->
                     for (i in 0 until arr.length()) arr.getJSONObject(i).let { m ->
                         when (m.optString("kind")) {
                             "intro" -> { a = m.optDouble("start", -1.0); b = m.optDouble("end", -1.0) }
+                            "recap" -> { ra = m.optDouble("start", -1.0); rb = m.optDouble("end", -1.0) }
                             "credits" -> c = m.optDouble("start", -1.0)
                         }
                     }
@@ -1246,7 +1360,7 @@ class PlayerActivity : AppCompatActivity() {
                     if (id == itemId && !isDestroyed) {
                         skipPref = pref
                         autoNext = auto
-                        if (pref != "never") { introS = a; introE = b }
+                        if (pref != "never") { introS = a; introE = b; recapS = ra; recapE = rb }
                         creditsS = c
                     }
                 }
@@ -1257,13 +1371,22 @@ class PlayerActivity : AppCompatActivity() {
 
     /** A cada 250 ms: abertura (janela do marcador) → Pular abertura (ou salta sozinho em "Pular sempre"); créditos → Próximo Episódio. */
     private fun updateMarkers() {
-        if (player == null || loading || kind != "episode" || sheet?.isOpen == true || queueIsOpen()) { showMark(false, false); return }
+        if (player == null || loading || kind != "episode" || sheet?.isOpen == true || queueIsOpen() || ppVisible()) { showMark(false, false); return }
         val t = absPos()
-        val inIntro = introS >= 0 && introE > introS && t >= introS - 0.3 && t < introE - 1
+        val inIntro0 = introS >= 0 && introE > introS && t >= introS - 0.3 && t < introE - 1
+        val inRecap0 = recapS >= 0 && recapE > recapS && t >= recapS - 0.3 && t < recapE - 1
         if (introHidden && (t < introS - 1 || t >= introE)) introHidden = false  // saiu da janela: volta a aparecer ao reentrar
+        if (recapHidden && (t < recapS - 1 || t >= recapE)) recapHidden = false
+        val showIntro = inIntro0 && !introHidden
+        val showRecap = inRecap0 && !recapHidden
+        skipRecap = showRecap && (!showIntro || recapE <= introE)  // se se encostam, vale o que termina primeiro
+        val inIntro = showIntro || showRecap
         val inCredits = creditsS > 0 && nextId > 0 && t >= creditsS - 0.3
         if (nextHidden && t < creditsS - 1) nextHidden = false
-        if (inIntro && skipPref == "always" && !introDone) { introDone = true; seekTo(introE); return }
+        if (skipPref == "always") {
+            if (inRecap0 && !recapDone) { recapDone = true; seekTo(recapE); return }
+            if (inIntro0 && !introDone) { introDone = true; seekTo(introE); return }
+        }
         val showNext = inCredits && !nextHidden
         if (showNext && autoNext) {  // 57.23: contagem de 10 s (espera com o vídeo pausado); Voltar (TV) ou Cancelar (celular) interrompe
             val now = System.currentTimeMillis()
@@ -1273,7 +1396,9 @@ class PlayerActivity : AppCompatActivity() {
             if (ncLeft <= 0) { doNextEp(); return }
             btnNextEp.text = getString(R.string.next_episode) + " (" + ((ncLeft + 999) / 1000) + ")"
         } else if (showNext) btnNextEp.text = getString(R.string.next_episode)
-        showMark(inIntro && !introHidden && !inCredits, showNext)
+        val skipTxt = getString(if (skipRecap) R.string.skip_recap else R.string.skip_intro)
+        if (btnSkipIntro.text.toString() != skipTxt) btnSkipIntro.text = skipTxt
+        showMark(inIntro && !inCredits, showNext)
     }
 
     private fun showMark(intro: Boolean, next: Boolean) {
@@ -1291,6 +1416,12 @@ class PlayerActivity : AppCompatActivity() {
     private fun markVisible() = btnSkipIntro.visibility == View.VISIBLE || btnNextEp.visibility == View.VISIBLE
 
     private fun doSkipIntro() {
+        if (skipRecap && recapE > 0) {
+            recapHidden = true
+            showMark(false, btnNextEp.visibility == View.VISIBLE)
+            seekTo(recapE)
+            return
+        }
         if (introE <= 0) return
         introHidden = true
         showMark(false, btnNextEp.visibility == View.VISIBLE)
@@ -1491,6 +1622,13 @@ class PlayerActivity : AppCompatActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val e = event  // 54.6: o nome do parâmetro tem de ser `event` (igual ao da superclasse)
         if (!tv) return super.dispatchKeyEvent(e)
+        if (ppVisible()) {  // 64.10: tela pós-reprodução: setas movem o foco, OK aciona, Voltar sai
+            if (e.keyCode == KeyEvent.KEYCODE_BACK || e.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+                if (e.action == KeyEvent.ACTION_UP) finish()
+                return true
+            }
+            return super.dispatchKeyEvent(e)
+        }
         if (sheet?.isOpen == true || queueIsOpen()) {  // 57.13: folha ou fila aberta: as setas/OK navegam pelos itens, Voltar desempilha/fecha
             if (e.keyCode == KeyEvent.KEYCODE_BACK || e.keyCode == KeyEvent.KEYCODE_ESCAPE) {
                 if (e.action == KeyEvent.ACTION_UP) { if (queueIsOpen()) closeQueue() else sheet?.back() }
@@ -1508,7 +1646,7 @@ class PlayerActivity : AppCompatActivity() {
             if (tvOverlay.visibility == View.VISIBLE || markVisible()) {
                 if (e.action == KeyEvent.ACTION_UP) {
                     if (btnNextEp.visibility == View.VISIBLE) nextHidden = true
-                    if (btnSkipIntro.visibility == View.VISIBLE) introHidden = true
+                    if (btnSkipIntro.visibility == View.VISIBLE) { if (skipRecap) recapHidden = true else introHidden = true }
                     showMark(false, false)
                     hideTvOverlay()
                 }
@@ -1610,6 +1748,7 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_SERVER = "tv_server"
         const val EXTRA_TOKEN = "tv_token"
         const val EXTRA_PROFILE = "tv_profile"
+        @Volatile var openAfter: String? = null  // 64.9: página a abrir no WebActivity ao sair do player (card de Semelhantes)
         const val RESULT_UNAUTHORIZED = 401  // token da TV revogado: a TvActivity volta ao pareamento
     }
 }

@@ -82,6 +82,7 @@
 
   function set(url) {
     ensure();
+    if (window.sfTrailer) sfTrailer.stop();  // 64.3: trocou o fundo: o trailer do item anterior sai
     var my = ++token;
     document.body.classList.add("has-hero-bg");
     if (!url) { setColor(DEF); layers[0].classList.remove("on"); layers[1].classList.remove("on"); return; }
@@ -103,9 +104,13 @@
 
   function clear() {
     token++;
+    if (window.sfTrailer) sfTrailer.stop();
     if (root) { root.remove(); root = null; layers = []; cur = 0; }
     document.body.classList.remove("has-hero-bg");
   }
 
-  window.sfHeroBg = { set: set, clear: clear, dominant: dominant, DEFAULT: DEF };
+  // 64.3: trailer mudo por cima da imagem do fundo (mesma área e mesma máscara); só se houver fundo no ar
+  function video(kind, id) { return !!(root && window.sfTrailer && sfTrailer.play(root, kind, id, {cls: "hero-bg-video", max: 45})); }
+
+  window.sfHeroBg = { set: set, clear: clear, video: video, dominant: dominant, DEFAULT: DEF };
 })();

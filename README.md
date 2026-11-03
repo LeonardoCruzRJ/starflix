@@ -60,7 +60,7 @@ app para **celular** e **Android TV**, tudo numa única porta (padrão **32000**
 * **Direct play** com suporte a Range, **remux** ou **transcode**, escolhidos automaticamente.
 * **HLS** e **DASH** via FFmpeg, com seleção de qualidade, faixa de áudio e legenda.
 * **Legendas** externas (`.srt` → `.vtt`) e embutidas, com **busca automática pelo SubDL** e estilo por perfil.
-* **Pular abertura e créditos** com detecção automática de marcadores e marcação manual.
+* **Pular abertura, resumo e créditos**: abertura e créditos com detecção automática de marcadores; resumo ("anteriormente em…") por capítulos do MKV e marcação manual.
 * **Miniaturas na barra de progresso** (trickplay).
 * **HDR → SDR** com tone-mapping em CPU.
 * **Versões otimizadas** para reduzir uso de CPU.

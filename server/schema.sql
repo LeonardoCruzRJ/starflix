@@ -380,10 +380,10 @@ CREATE TABLE IF NOT EXISTS marker_scan (
     PRIMARY KEY (media_id, season)
 );
 
--- 48.1: marcadores de abertura/créditos por episódio (source: manual | chapter | auto)
+-- 48.1: marcadores de abertura/créditos (64.12: e resumo) por episódio (source: manual | chapter | auto)
 CREATE TABLE IF NOT EXISTS episode_markers (
     episode_id INTEGER NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
-    kind TEXT NOT NULL CHECK (kind IN ('intro', 'credits')),
+    kind TEXT NOT NULL CHECK (kind IN ('intro', 'credits', 'recap')),
     start REAL NOT NULL,
     end REAL NOT NULL,
     source TEXT NOT NULL DEFAULT 'manual',
@@ -397,7 +397,49 @@ CREATE TABLE IF NOT EXISTS sub_offset (
     item_id INTEGER NOT NULL,
     sub_key TEXT NOT NULL,
     offset REAL NOT NULL,
+    rate REAL NOT NULL DEFAULT 1,            -- 64.21: razão de velocidade (t' = t·rate + offset)
+    source TEXT NOT NULL DEFAULT 'manual',   -- 'manual' (ajuste do usuário) | 'auto' (AutoSync)
+    prev_offset REAL,                        -- valor anterior ao AutoSync, para Desfazer
+    prev_rate REAL,
+    prev_source TEXT,                        -- NULL = nada a desfazer; 'none' = antes não havia registro
     PRIMARY KEY (item_type, item_id, sub_key)
+);
+
+-- 64.23: legendas já tentadas pela fila noturna do AutoSync (status: ok | low | none | skip; `mtime` = data do .srt; `sub_key` vazio = item sem legenda baixada)
+CREATE TABLE IF NOT EXISTS subsync_bg (
+    item_type TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    sub_key TEXT NOT NULL DEFAULT '',
+    mtime REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (item_type, item_id, sub_key)
+);
+
+-- 64.1: trailer local de um filme ou série (`<nome>-trailer.<ext>` ou pasta `trailers/` ao lado do item); não é item da biblioteca.
+-- `info` = JSON {container, video, width, height, bits, audio} para a 64.2 decidir entre tocar direto e gerar o clipe mudo
+CREATE TABLE IF NOT EXISTS trailers (
+    media_id INTEGER PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    duration REAL NOT NULL,
+    size INTEGER NOT NULL,
+    mtime REAL NOT NULL,
+    info TEXT,
+    found_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 64.2: clipe mudo (até 45 s, 720p, H.264) gerado de madrugada para trailers que o navegador não toca (mkv, HEVC, 10 bits...);
+-- `data/trailers/<media_id>.mp4`. Some junto com a linha de `trailers`; `fail` com 3 tentativas só tenta de novo se o arquivo mudar.
+CREATE TABLE IF NOT EXISTS trailer_clips (
+    media_id INTEGER PRIMARY KEY REFERENCES trailers(media_id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    out_path TEXT,
+    out_size INTEGER NOT NULL DEFAULT 0,
+    src_size INTEGER NOT NULL DEFAULT 0,
+    src_mtime REAL NOT NULL DEFAULT 0,
+    reason TEXT,
+    tries INTEGER NOT NULL DEFAULT 0,
+    made_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 52.6: aparelhos que já tocaram (navegador por usuário e agente, TV por tv_devices.id) com o último `caps`; `required` = precisa tocar sem transcode

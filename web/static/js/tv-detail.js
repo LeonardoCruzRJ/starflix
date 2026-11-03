@@ -17,6 +17,23 @@
   }
   var bg = document.querySelector(".mv-bg"), m = bg && /url\(['"]?([^'")]+)/.exec(bg.getAttribute("style") || "");
   if (m && window.sfHeroBg) sfHeroBg.set(m[1]);
+  // 64.4: trailer mudo no fundo da página do filme/série (o mesmo componente do destaque do Início). Só com a página no topo, parado ~3 s;
+  // para ao rolar, ao abrir menu ou modal e quando o perfil/admin desligam (sfTrailer.allowed). Terminou ou deu erro: não repete sozinho.
+  var pg = /^\/(movie|show)\/(\d+)\/?$/.exec(location.pathname);
+  if (pg && m && window.sfHeroBg && window.sfTrailer) (function () {
+    var kind = pg[1], id = pg[2], tt = null, started = false, queued = false;
+    var atTop = function () { return (window.pageYOffset || document.documentElement.scrollTop || 0) < 80; };
+    var busy = function () { return !!document.querySelector(".ctx-menu, .em-overlay:not([hidden])"); };
+    var ready = function () { return atTop() && !busy() && !document.hidden; };
+    function arm() { clearTimeout(tt); tt = setTimeout(function () { if (!started && ready() && sfHeroBg.video(kind, id)) started = true; }, 3000); }
+    function halt() { clearTimeout(tt); if (started) { sfTrailer.stop(); started = false; } }
+    function check() { queued = false; if (!sfTrailer.allowed()) return; if (ready()) { if (!started) arm(); } else halt(); }
+    function later() { if (!queued) { queued = true; requestAnimationFrame(check); } }
+    window.addEventListener("scroll", later, { passive: true });
+    document.addEventListener("visibilitychange", later);
+    new MutationObserver(later).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+    if (sfTrailer.allowed()) arm();
+  })();
   var tb = document.getElementById("ep-bg");  // episódio: o botão de fundo liga/desliga o hero-bg (episode.js grava sf.epbg depois deste clique)
   if (tb && m && window.sfHeroBg) {
     try { if (localStorage.getItem("sf.epbg") === "0") sfHeroBg.clear(); } catch (x) {}

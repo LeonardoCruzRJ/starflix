@@ -33,6 +33,18 @@
       <label class="hl-opt"><span data-i18n="pb.opt_gb">{{ t('pb.opt_gb') }}</span>
         <input type="number" id="pb-gb" class="la-q hl-num" min="0" max="100000" inputmode="numeric" disabled>
       </label>
+      <label class="hl-opt"><span data-i18n="pb.trailer">{{ t('pb.trailer') }}</span>
+        <select id="pb-tr" class="la-q" disabled>
+          <option value="1" data-i18n="pb.trailer.on">{{ t('pb.trailer.on') }}</option>
+          <option value="0" data-i18n="pb.trailer.off">{{ t('pb.trailer.off') }}</option>
+        </select>
+      </label>
+      <label class="hl-opt"><span data-i18n="pb.subsync">{{ t('pb.subsync') }}</span>
+        <select id="pb-ss" class="la-q" disabled>
+          <option value="1" data-i18n="pb.subsync.on">{{ t('pb.subsync.on') }}</option>
+          <option value="0" data-i18n="pb.subsync.off">{{ t('pb.subsync.off') }}</option>
+        </select>
+      </label>
       <span class="hl-msg" id="pb-msg" role="status"></span>
     </div>
   </div>

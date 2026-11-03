@@ -39,4 +39,4 @@
 <div class="empty" data-i18n="home.empty">{{ t('home.empty') }}</div>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/home.js') }}" defer></script>{% if hero %}<script src="{{ url_for('static', filename='js/home-hero.js') }}" defer></script>{% endif %}<script src="{{ url_for('static', filename='js/tv-home.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/trailer.js') }}" defer></script><script src="{{ url_for('static', filename='js/home.js') }}" defer></script>{% if hero %}<script src="{{ url_for('static', filename='js/home-hero.js') }}" defer></script>{% endif %}<script src="{{ url_for('static', filename='js/tv-home.js') }}" defer></script>{% endblock %}

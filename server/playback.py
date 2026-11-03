@@ -29,11 +29,13 @@ def _payload(conn):
     m = get_setting(conn, "hdr_mode", "auto")
     dp = get_setting(conn, "direct_policy", "auto")
     win = get_setting(conn, "optimize_window", "02:00-07:00")
+    tr = str(get_setting(conn, "trailer_global", "1")) != "0"
+    ss = str(get_setting(conn, "subsync_bg", "1")) != "0"  # 64.23: fila noturna do AutoSync
     try:
         gb = max(0, int(float(get_setting(conn, "optimize_max_gb", 0))))
     except (TypeError, ValueError):
         gb = 0
-    return {"optimize_window": win if _win_ok(win) else "02:00-07:00", "optimize_max_gb": gb, **{"hdr_mode": m if m in HDR_MODES else "auto", "hdr_max_height": h if h in HEIGHTS else 1080, "heights": list(HEIGHTS),
+    return {"optimize_window": win if _win_ok(win) else "02:00-07:00", "optimize_max_gb": gb, "trailer_on": tr, "subsync_on": ss, **{"hdr_mode": m if m in HDR_MODES else "auto", "hdr_max_height": h if h in HEIGHTS else 1080, "heights": list(HEIGHTS),
             "direct_policy": dp if dp in DIRECT_POLICIES else "auto"}}
 
 
@@ -61,10 +63,14 @@ def save():
         cur = _payload(conn)
     dp = d.get("direct_policy", cur["direct_policy"])  # ausente = mantém o atual
     win, gb = d.get("optimize_window", cur["optimize_window"]), d.get("optimize_max_gb", cur["optimize_max_gb"])
+    tr = d.get("trailer_on", cur["trailer_on"])  # ausente = mantém o atual
+    ss = d.get("subsync_on", cur["subsync_on"])  # ausente = mantém o atual
+    if not isinstance(tr, bool) or not isinstance(ss, bool):
+        return jerr("err.opcao_invalida", 400)
     if mode not in HDR_MODES or h not in HEIGHTS or dp not in DIRECT_POLICIES or not _win_ok(win) or isinstance(gb, bool) or not isinstance(gb, int) or not 0 <= gb <= 100000:
         return jerr("err.opcao_invalida", 400)
     with get_db() as conn:
-        for k, v in (("hdr_mode", mode), ("hdr_max_height", str(h)), ("direct_policy", dp), ("optimize_window", win), ("optimize_max_gb", str(gb))):
+        for k, v in (("hdr_mode", mode), ("hdr_max_height", str(h)), ("direct_policy", dp), ("optimize_window", win), ("optimize_max_gb", str(gb)), ("trailer_global", "1" if tr else "0"), ("subsync_bg", "1" if ss else "0")):
             conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (k, v))
         conn.commit()
         return jsonify(_payload(conn))

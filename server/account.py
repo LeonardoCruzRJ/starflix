@@ -32,6 +32,8 @@ SETTINGS = {  # chave -> (padrão, opções [(valor, rótulo)])  # i18n-ok: font
     "seen": ("all", [("all", "Filmes & Séries"), ("movies", "Filmes"), ("shows", "Séries"), ("none", "Nenhum")]),  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()
     "reviews": ("all", [("all", "Todas as análises"), ("none", "Ninguém")]),  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()
     "auto_next": ("on", [("on", "Sim, com contagem regressiva"), ("off", "Não, só mostrar o botão")]),  # 48.4: próximo episódio nos créditos  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()
+    "hero_trailer": ("auto", [("auto", "Automático"), ("on", "Sempre"), ("off", "Nunca")]),  # 64.3: trailer mudo no destaque (auto = computador sim, tela de toque não)  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()
+    "card_preview": ("auto", [("auto", "Automático"), ("on", "Sempre"), ("off", "Nunca")]),  # 65.4: prévia em balão nos cards (auto = computador sim, tela de toque não)  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()
     "skip_intro": ("ask", [("ask", "Perguntar"), ("always", "Pular sempre"), ("never", "Nunca")]),  # 48.2: abertura no player
     # 47.2: estilo da legenda do player (padrões = aparência anterior)  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()
     "sub_size": ("m", [("p", "Pequeno"), ("m", "Médio"), ("g", "Grande"), ("gg", "Muito grande")]),  # i18n-ok: fonte pt-BR; o texto exibido vem de opt_label()

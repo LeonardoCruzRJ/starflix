@@ -15,11 +15,22 @@
   <div id="subtitle" class="sub-style" data-ssize="{{ sub_style.sub_size }}" data-scolor="{{ sub_style.sub_color }}" data-sbg="{{ sub_style.sub_bg }}" data-spos="{{ sub_style.sub_pos }}"></div>
   <div id="osd"></div>
   <div id="spinner" hidden></div>
-  <button type="button" id="skip" class="p-skip" hidden><span data-i18n="player.skip_intro">{{ t('player.skip_intro') }}</span> <kbd>S</kbd></button>
+  <button type="button" id="skip" class="p-skip" hidden><span id="skip-l" data-i18n="player.skip_intro">{{ t('player.skip_intro') }}</span> <kbd>S</kbd></button>
   <div id="nextcard" class="p-nextcard" hidden>
     <div class="p-nc-t" data-i18n="player.next_ep">{{ t('player.next_ep') }}</div>
     <div id="nc-sub" class="p-nc-s"></div>
     <div class="p-nc-b"><button type="button" id="nc-go" class="p-nc-go" data-i18n="player.play_now">{{ t('player.play_now') }}</button><button type="button" id="nc-cancel" class="p-nc-x" data-i18n="common.cancel">{{ t('common.cancel') }}</button></div>
+  </div>
+  <div id="postplay" class="p-pp" hidden>
+    <div id="pp-bg" class="p-pp-bg"></div>
+    <button type="button" id="pp-x" class="p-pp-x" aria-label="{{ t('common.close') }}" data-i18n-aria="common.close" hidden>&times;</button>
+    <div class="p-pp-in">
+      <div id="pp-t" class="p-pp-t"></div>
+      <div id="pp-s" class="p-pp-s"></div>
+      <div class="p-pp-b"><button type="button" id="pp-next" class="p-pp-go" hidden data-i18n="player.next_ep">{{ t('player.next_ep') }}</button><button type="button" id="pp-replay" class="p-pp-go" hidden data-i18n="player.pp.replay">{{ t('player.pp.replay') }}</button><button type="button" id="pp-back" class="p-pp-bk" data-i18n="common.back">{{ t('common.back') }}</button></div>
+      <div id="pp-h" class="p-pp-h"></div>
+      <div id="pp-row" class="p-pp-row"></div>
+    </div>
   </div>
   <div id="error" hidden></div>
   {% if nav_is_admin %}
@@ -69,6 +80,12 @@
                   <button type="button" id="delay-plus" class="p-dbtn" data-tip="{{ t('player.delay_plus_tip') }}" data-i18n-tip="player.delay_plus_tip" aria-label="{{ t('player.delay_plus') }}" data-i18n-aria="player.delay_plus">+</button>
                   <button type="button" id="delay-reset" class="p-dreset" data-i18n="player.delay_reset">{{ t('player.delay_reset') }}</button>
                 </div>
+                <div class="p-delay-ctl p-sync">
+                  <button type="button" id="sync-btn" class="p-dreset" data-i18n="player.subsync.btn">{{ t('player.subsync.btn') }}</button>
+                  <button type="button" id="sync-apply" class="p-dreset" data-i18n="player.subsync.apply" hidden>{{ t('player.subsync.apply') }}</button>
+                  <button type="button" id="sync-undo" class="p-dreset" data-i18n="player.subsync.undo" hidden>{{ t('player.subsync.undo') }}</button>
+                </div>
+                <output id="sync-msg" class="p-sync-msg" aria-live="polite"></output>
               </div>
               <button type="button" id="sty-btn" class="p-dreset p-sty-btn" aria-expanded="false" data-i18n="player.sty_btn">{{ t('player.sty_btn') }}</button>
               <div id="sty-panel" class="p-sty" hidden>
@@ -80,7 +97,7 @@
               <div class="p-delay p-mark" id="mark-row">
                 <span data-i18n="player.mark.title">{{ t('player.mark.title') }}</span>
                 <div class="p-delay-ctl">
-                  <select id="mark-kind"><option value="intro" data-i18n="player.mark.intro">{{ t('player.mark.intro') }}</option><option value="credits" data-i18n="player.mark.credits">{{ t('player.mark.credits') }}</option></select>
+                  <select id="mark-kind"><option value="intro" data-i18n="player.mark.intro">{{ t('player.mark.intro') }}</option><option value="credits" data-i18n="player.mark.credits">{{ t('player.mark.credits') }}</option><option value="recap" data-i18n="player.mark.recap">{{ t('player.mark.recap') }}</option></select>
                   <output id="mark-val">&mdash;</output>
                 </div>
                 <div class="p-delay-ctl">

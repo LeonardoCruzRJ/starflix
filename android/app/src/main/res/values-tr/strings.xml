@@ -34,6 +34,7 @@
     <string name="camera_denied">Kamera izni yok. Bağlantıyı kullanın veya adresi yazın.</string>
     <string name="fail">Sunucuya bağlanılamadı</string>
     <string name="skip_intro">Girişi atla</string>
+    <string name="skip_recap">Özeti atla</string>
     <string name="next_episode">Sonraki Bölüm</string>
     <string name="next_cancel">İptal</string>
     <string name="connect_error_title">Bağlanılamadı</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">Doldur</string>
     <string name="fit_stretch">Uzat</string>
     <string name="queue_title">Oynatma Sırası</string>
+    <string name="pp_replay">Tekrar izle</string>
+    <string name="pp_similar">Benzerleri</string>
+    <string name="pp_rest">Bu sezonun devamı</string>
+    <string name="pp_ep">S%1$s · B%2$s</string>
     <string name="settings">Ayarlar</string>
     <string name="stop">Durdur</string>
     <string name="queue_hint_tv">▼  Sonraki bölümler</string>

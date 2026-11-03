@@ -38,6 +38,8 @@ def get_db():
 
 # 23.12: colunas adicionadas a tabelas que já existem em instalações antigas (só ADD COLUMN, nunca apaga dados)
 NEW_COLUMNS = {
+    "sub_offset": [("rate", "REAL NOT NULL DEFAULT 1"), ("source", "TEXT NOT NULL DEFAULT 'manual'"),  # 64.21
+                   ("prev_offset", "REAL"), ("prev_rate", "REAL"), ("prev_source", "TEXT")],
     "phone_devices": [("profile_id", "INTEGER")],  # 63.13: último perfil escolhido no aparelho (a sessão do app é refeita a cada abertura)
     "profiles": [("photo", "TEXT"), ("prefs", "TEXT")],  # 44.1: foto e preferências individuais de cada perfil
     "libraries": [("lang", "TEXT"), ("prefs", "TEXT"), ("scanned_at", "INTEGER")],  # 28.1, 29.1
@@ -242,6 +244,38 @@ def _migrate_libraries_video(conn):
         conn.execute("PRAGMA foreign_keys = ON")
 
 
+_MARKERS_SQL = """CREATE TABLE episode_markers (
+    episode_id INTEGER NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('intro', 'credits', 'recap')),
+    start REAL NOT NULL,
+    end REAL NOT NULL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    confidence REAL NOT NULL DEFAULT 1,
+    PRIMARY KEY (episode_id, kind)
+)"""
+
+
+def _migrate_markers_recap(conn):
+    """64.12: instalações antigas têm CHECK sem 'recap' em episode_markers; recria a tabela (copiando todos os marcadores) uma única vez."""
+    r = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'episode_markers'").fetchone()
+    if not r or "'recap'" in (r["sql"] or ""):
+        return
+    if conn.in_transaction:
+        conn.commit()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute("DROP TABLE IF EXISTS episode_markers_old")
+        conn.execute("ALTER TABLE episode_markers RENAME TO episode_markers_old")
+        conn.execute(_MARKERS_SQL)
+        conn.execute("INSERT INTO episode_markers (episode_id, kind, start, end, source, confidence) "
+                     "SELECT episode_id, kind, start, end, source, confidence FROM episode_markers_old")
+        conn.execute("DROP TABLE episode_markers_old")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def init_db():
     for d in (config.DATA_DIR, config.POSTERS_DIR, config.TRANSCODE_DIR, config.SUBS_DIR, config.AVATARS_DIR, config.BACKUPS_DIR):
         os.makedirs(d, exist_ok=True)
@@ -251,6 +285,7 @@ def init_db():
         migrate(conn)
         _migrate_stars(conn)
         _migrate_libraries_video(conn)
+        _migrate_markers_recap(conn)
 
 
 def prune_stars(conn):

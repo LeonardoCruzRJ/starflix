@@ -22,14 +22,19 @@ from server.i18n import jerr
 
 bp = Blueprint("markers", __name__)
 
-KINDS = ("intro", "credits")
+KINDS = ("intro", "credits", "recap")
+SEASON_KINDS = ("intro", "credits")  # 64.13 (decisão 4): o resumo é de cada episódio, nunca copiado para a temporada
 _INTRO = re.compile(r"\b(intro|introduction|introdu[cç][aã]o|opening|abertura|op)\b", re.I)
 _CREDITS = re.compile(r"\b(credits?|cr[eé]ditos?|ending|encerramento|end credits|ed)\b", re.I)
 INTRO_MIN, INTRO_MAX = 5.0, 240.0  # duração plausível de uma abertura (s)
+_RECAP = re.compile(
+    r"(\b(recap|previously|anteriormente|previamente|resumo|resumen|r[eé]capitulatif|pr[eé]c[eé]demment|zuvor|bisher|r[uü]ckblick|"
+    r"in precedenza|riassunto|ранее|[öo]nceki b[öo]l[üu]m)\b|前回|前情|あらすじ)", re.I)
+RECAP_MIN, RECAP_MAX, RECAP_FRAC = 10.0, 180.0, 0.3  # 64.13: resumo entre 10 e 180 s, só nos primeiros 30 % do episódio
 
 
 def from_chapters(info):
-    """{kind: (início, fim)} a partir dos capítulos do ffprobe com nome de abertura/créditos."""
+    """{kind: (início, fim)} a partir dos capítulos do ffprobe com nome de abertura/créditos/resumo (64.13)."""
     out = {}
     if not isinstance(info, dict):
         return out
@@ -45,6 +50,8 @@ def from_chapters(info):
             out["intro"] = (round(s, 2), round(e, 2))
         elif "credits" not in out and _CREDITS.search(t) and (not dur or s > dur * 0.5):
             out["credits"] = (round(s, 2), round(e, 2))
+        elif "recap" not in out and dur and _RECAP.search(t) and s < dur * RECAP_FRAC and RECAP_MIN <= e - s <= RECAP_MAX:
+            out["recap"] = (round(s, 2), round(e, 2))
     return out
 
 
@@ -147,7 +154,7 @@ def set_marker(episode_id):
 def apply_season(episode_id):
     """Copia o marcador deste episódio para os outros da temporada, com deslocamento opcional em segundos (48.3)."""
     body = request.get_json(silent=True)
-    if not isinstance(body, dict) or body.get("kind") not in KINDS:
+    if not isinstance(body, dict) or body.get("kind") not in SEASON_KINDS:  # recap recusado (64.13)
         return jerr("err.dados_invalidos", 400)
     kind = body["kind"]
     try:

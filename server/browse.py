@@ -1,7 +1,7 @@
 import json
 import re
 
-from flask import Blueprint, abort, redirect, render_template, request, session
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, session
 
 from server import i18n
 from server.account import SETTINGS, user_prefs
@@ -9,7 +9,7 @@ from server.auth import login_required
 from server.db import display_title, get_db, hdr_label, lib_prefs
 from server.libraries import can_access, visible_libraries
 from server.mylist import get_stars, in_list
-from server.progress import RESUME_MIN
+from server.progress import RESUME_MIN, next_episode
 from server.pcts import pct_map
 from server.stream import get_item
 from server.subtitles import embedded_subs, external_subs
@@ -93,6 +93,35 @@ def _role(r):
     return i18n.tr(ROLE_LABEL[r]) if r in ROLE_LABEL else ""
 
 
+def related_items(conn, mid, pid, libs, kind):
+    """Semelhantes (23.17; usado também pela tela pós-reprodução, 64.7): recomendações do TMDB na biblioteca e, sem elas, os mesmos gêneros."""
+    related = []
+    if libs:
+        ph = ",".join("?" * len(libs))
+        sel = (
+            "SELECT m.id, dtitle(m.library_id, m.title, m.original_title) AS title, m.year, COALESCE(pm.watched, 0) AS seen FROM media m "
+            "LEFT JOIN progress pm ON pm.profile_id = ? AND pm.item_type = 'movie' AND pm.item_id = m.id "
+        )
+        path = "m.path IS NOT NULL" if kind == "movie" else "m.path IS NULL"
+        related = conn.execute(
+            sel + "JOIN related r ON r.tmdb_id = m.tmdb_id AND r.media_id = ? "
+            f"WHERE m.library_id IN ({ph}) AND {path} AND m.id != ? ORDER BY r.ord LIMIT 20",
+            (pid, mid, *libs, mid),
+        ).fetchall()
+        if not related:  # sem recomendações do TMDB na biblioteca: mesmos gêneros
+            related = conn.execute(
+                sel + "JOIN tags t ON t.media_id = m.id AND t.kind = 'genre' "
+                "WHERE t.name IN (SELECT name FROM tags WHERE media_id = ? AND kind = 'genre') "
+                f"AND m.library_id IN ({ph}) AND {path} AND m.id != ? "
+                "GROUP BY m.id ORDER BY COUNT(*) DESC, m.id LIMIT 20",
+                (pid, mid, *libs, mid),
+            ).fetchall()
+    if related:
+        pm = pct_map(conn, pid, [x["id"] for x in related])
+        related = [{**dict(x), "pct": pm.get(x["id"])} for x in related]
+    return related
+
+
 def detail_extras(m, kind):
     """Elenco & Equipe, Avaliações & Análises e relacionados (23.17) de um filme/série."""
     mid, pid = m["id"], session["profile_id"]
@@ -109,31 +138,7 @@ def detail_extras(m, kind):
         ).fetchall()
         if user_prefs()["reviews"] == "none":
             reviews = []
-        related = []
-        if libs:
-            ph = ",".join("?" * len(libs))
-            sel = (
-                "SELECT m.id, dtitle(m.library_id, m.title, m.original_title) AS title, m.year, COALESCE(pm.watched, 0) AS seen FROM media m "
-                "LEFT JOIN progress pm ON pm.profile_id = ? AND pm.item_type = 'movie' AND pm.item_id = m.id "
-            )
-            path = "m.path IS NOT NULL" if kind == "movie" else "m.path IS NULL"
-            related = conn.execute(
-                sel + "JOIN related r ON r.tmdb_id = m.tmdb_id AND r.media_id = ? "
-                f"WHERE m.library_id IN ({ph}) AND {path} AND m.id != ? ORDER BY r.ord LIMIT 20",
-                (pid, mid, *libs, mid),
-            ).fetchall()
-            if not related:  # sem recomendações do TMDB na biblioteca: mesmos gêneros
-                related = conn.execute(
-                    sel + "JOIN tags t ON t.media_id = m.id AND t.kind = 'genre' "
-                    "WHERE t.name IN (SELECT name FROM tags WHERE media_id = ? AND kind = 'genre') "
-                    f"AND m.library_id IN ({ph}) AND {path} AND m.id != ? "
-                    "GROUP BY m.id ORDER BY COUNT(*) DESC, m.id LIMIT 20",
-                    (pid, mid, *libs, mid),
-                ).fetchall()
-    if related:
-        with get_db() as conn:
-            pm = pct_map(conn, pid, [x["id"] for x in related])
-        related = [{**dict(x), "pct": pm.get(x["id"])} for x in related]
+        related = related_items(conn, mid, pid, libs, kind)
     cast, extra = [], {"writer": 0, "producer": 0}
     for c in credits:
         if c["role"] in extra:
@@ -151,6 +156,16 @@ def detail_extras(m, kind):
     }
 
 
+def _trailer_note(conn, mid):
+    """64.4: aviso do administrador na página do item: `(estado, ligado)` quando há trailer detectado, senão None."""
+    from server import trailers
+    u = conn.execute("SELECT is_admin FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+    if not u or not u["is_admin"]:
+        return None
+    st = trailers.status(conn, mid)
+    return (st, trailers.enabled(conn)) if st else None
+
+
 @bp.route("/movie/<int:mid>")
 @login_required
 def movie(mid):
@@ -165,6 +180,7 @@ def movie(mid):
             (session["profile_id"], mid),
         ).fetchone()
         lib = conn.execute("SELECT id, name, prefs FROM libraries WHERE id = ?", (m["library_id"],)).fetchone()
+        trailer_st = _trailer_note(conn, mid)
     info = json.loads(m["info"]) if m["info"] else None
     pos = prog["position"] if prog and prog["position"] > RESUME_MIN else 0
     dur = (info or {}).get("duration") or 0
@@ -177,7 +193,7 @@ def movie(mid):
         runtime=fmt_duration((info or {}).get("duration")), tech=tech_info(info),
         position=pos, watched=bool(prog and prog["watched"]),
         resume=fmt_resume(pos) if pos else "",
-        in_list=in_list(mid), stars=get_stars("movie", mid), **detail_extras(m, "movie"),
+        in_list=in_list(mid), stars=get_stars("movie", mid), trailer_st=trailer_st, **detail_extras(m, "movie"),
     )
 
 
@@ -199,6 +215,7 @@ def show(mid):
             (session["profile_id"], mid),
         ).fetchall()
         lib = conn.execute("SELECT id, name, prefs FROM libraries WHERE id = ?", (m["library_id"],)).fetchone()
+        trailer_st = _trailer_note(conn, mid)
     eps = []
     for r in rows:
         pos = r["position"] if r["position"] > RESUME_MIN else 0
@@ -233,7 +250,7 @@ def show(mid):
         show_pct=(lambda d, t: d / t * 100 if t and 0 < d < t else 0)(sum(1 for e in eps if e["watched"]), len(eps)),
         total=len(eps), watched_count=sum(e["watched"] for e in eps), play=first_open or (regular[0] if regular else None),
         next_up=bool(first_open and any(e["watched"] for e in regular)),
-        in_list=in_list(mid), stars=get_stars("show", mid), **detail_extras(m, "show"),
+        in_list=in_list(mid), stars=get_stars("show", mid), trailer_st=trailer_st, **detail_extras(m, "show"),
     )
 
 
@@ -291,6 +308,54 @@ def _track_options(path, info, pf):
     want_s = pf.get("sub_lang") or (up["sub_lang"] if auto else "")
     sel_s = want_s if mode != "off" and any(v == want_s for v, _ in subs) else "off"
     return audio, sel_a, [("off", i18n.tr("det.off"))] + subs, sel_s
+
+
+@bp.route("/postplay/<kind>/<int:item_id>")
+@login_required
+def postplay(kind, item_id):
+    """64.7: dados da tela pós-reprodução. Filme: Semelhantes (mesmo critério da página do filme). Episódio: próximo episódio e o resto da temporada dele."""
+    if kind not in ("movie", "episode"):
+        abort(404)
+    get_item(kind, item_id)  # acesso à biblioteca (senão 404)
+    pid = session["profile_id"]
+    if kind == "movie":
+        libs = [l["id"] for l in visible_libraries(session["user_id"]) if l["type"] == "movie"]
+        with get_db() as conn:
+            m = conn.execute("SELECT id, library_id, title, original_title, year, backdrop FROM media WHERE id = ?", (item_id,)).fetchone()
+            rel = related_items(conn, item_id, pid, libs, "movie")
+        return jsonify(
+            kind="movie", id=item_id, title=display_title(m["library_id"], m["title"], m["original_title"]), year=m["year"],
+            backdrop=f"/backdrop/{item_id}" if m["backdrop"] else None,
+            related=[{"id": x["id"], "title": x["title"], "year": x["year"], "pct": x["pct"], "watched": bool(x["seen"]),
+                      "image": f"/poster/{x['id']}", "href": f"/movie/{x['id']}"} for x in rel],
+        )
+    nxt = next_episode(item_id)
+    with get_db() as conn:
+        m = conn.execute(
+            "SELECT m.id, m.library_id, m.title, m.original_title, m.backdrop FROM episodes e JOIN media m ON m.id = e.media_id WHERE e.id = ?", (item_id,)
+        ).fetchone()
+        rest = []
+        if nxt:
+            rest = conn.execute(
+                "SELECT e.id, e.season, e.episode, e.title, COALESCE(p.watched, 0) AS watched FROM episodes e "
+                "LEFT JOIN progress p ON p.profile_id = ? AND p.item_type = 'episode' AND p.item_id = e.id "
+                "WHERE e.media_id = ? AND e.season = ? AND e.episode > ? "
+                "AND e.path != (SELECT path FROM episodes WHERE id = ?) ORDER BY e.episode LIMIT 30",
+                (pid, m["id"], nxt["season"], nxt["episode"], nxt["id"]),
+            ).fetchall()
+        nw = conn.execute(
+            "SELECT COALESCE(watched, 0) FROM progress WHERE profile_id = ? AND item_type = 'episode' AND item_id = ?", (pid, nxt["id"])
+        ).fetchone() if nxt else None
+    show = display_title(m["library_id"], m["title"], m["original_title"])
+
+    def ep(i, watched):
+        return {"id": i["id"], "season": i["season"], "episode": i["episode"], "title": i["title"] or show, "watched": bool(watched),
+                "image": f"/still/{i['id']}", "href": f"/episode/{i['id']}", "play": f"/stream/episode/{i['id']}/play"}
+
+    return jsonify(
+        kind="episode", id=item_id, show=show, show_id=m["id"], backdrop=f"/backdrop/{m['id']}" if m["backdrop"] else None,
+        next=ep(nxt, nw[0] if nw else 0) if nxt else None, rest=[ep(r, r["watched"]) for r in rest],
+    )
 
 
 @bp.route("/episode/<int:eid>")

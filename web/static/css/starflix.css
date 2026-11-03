@@ -428,6 +428,10 @@ body.sel-on .pcard[data-pick] .pcard-play, body.sel-on .pcard[data-pick] .pcard-
 body.sel-on .pcard[data-pick] { user-select: none; -webkit-user-select: none; }
 @media (hover: hover) { .pcard:hover .pcard-pick, .pcard:focus-within .pcard-pick { opacity: 1; } }
 @media (hover: none) { .pcard-pick { display: none; } body.sel-on .pcard-pick { display: flex; } }
+.pcard-pv { position: fixed; z-index: 3; overflow: hidden; border-radius: var(--radius-card); background: var(--bg-card); border: 1px solid var(--border); box-shadow: 0 12px 32px var(--shade); opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+@media (max-width: 899px), (prefers-reduced-motion: reduce) { .pcard-pv { display: none; } }
+.pcard-pv.on { opacity: 1; }
+.pcard-pv video { display: block; width: 100%; height: 100%; object-fit: cover; }
 
 /* ===== Carrossel e zoom (23.4) ===== */
 .carousel { margin-bottom: 34px; }
@@ -1710,6 +1714,8 @@ body.sel-on .pgrid-detail .pv-act, body.sel-on .pgrid-table .pv-act { display: n
   .m-hero-dots { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 6px; }
   .m-hero-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .38); transition: width .2s, background .2s; }
   .m-hero-dots i.on { width: 22px; background: #fff; }
+  .m-hero-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 15%; opacity: 0; transition: opacity .6s ease; pointer-events: none; }  /* 64.3 */
+  .m-hero-vid.on { opacity: 1; }
   body.m-home .carousel[data-hero] { display: none; }  /* a fileira que virou destaque não repete embaixo */
   /* 54.8: ordem fixa no celular — destaque, Continuar assistindo (se tiver itens) e depois as fileiras na ordem de /admin/home */
   body.m-rows .content { display: flex; flex-direction: column; }
@@ -2073,6 +2079,13 @@ body.sw-body { display: block; padding: 0; background: radial-gradient(ellipse a
     mask-image: linear-gradient(to right, transparent 0, #000 45%), linear-gradient(to bottom, #000 50%, transparent 100%);
     mask-composite: intersect; }
   .hero-bg-img.on { opacity: 1; }
+  /* 64.3: trailer mudo por cima da imagem, na mesma área e com a mesma máscara */
+  .hero-bg-video { position: absolute; top: 0; right: 0; width: 72%; height: 72%; object-fit: cover; object-position: top center; opacity: 0; transition: opacity .8s ease; pointer-events: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%), linear-gradient(to bottom, #000 50%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0, #000 45%), linear-gradient(to bottom, #000 50%, transparent 100%);
+    mask-composite: intersect; }
+  .hero-bg-video.on { opacity: 1; }
 }
 
 /* ----- 56.2: painel lateral (pílula recolhida + painel aberto, como a TV) ----- */
@@ -2221,6 +2234,10 @@ body.sw-body { display: block; padding: 0; background: radial-gradient(ellipse a
     opacity: 0; transition: opacity var(--tv-fade) ease;
     -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); }
   body.tvh-md .hero-bg-img.on { opacity: 1; }
+  /* 64.4: trailer mudo no fundo da página do item (celular), na mesma área e máscara da imagem */
+  body.tvh-md .hero-bg-video { position: absolute; top: 0; left: 0; width: 100%; height: 78vw; object-fit: cover; object-position: top center; opacity: 0; transition: opacity .8s ease; pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); }
+  body.tvh-md .hero-bg-video.on { opacity: 1; }
   body.tvh-md .mv-bg, body.tvh-md .mv-side { display: none; }
   body.tvh-md .topbar, body.tvh-md .page-head, body.tvh-md .mv-top .lib-title, body.tvh-md .season-nav, body.tvh-md .ep-zoom, body.tvh-md .ep-sep, body.tvh-md #ep-bg { display: none; }  /* sem hambúrguer, logo, busca, painel, configurações e perfil no topo */
   body.tvh-md .main { position: relative; z-index: 1; padding-top: 0; }
@@ -2400,3 +2417,6 @@ body.has-hero-bg .topbar .logo, body.tvd-on:not(.lean-page) .topbar .logo {
 /* V717: a barra de busca da topbar some ao rolar a página e só volta com a página toda no topo (fica visível enquanto tiver foco) */
 .topbar .search { transition: opacity .15s ease, visibility .15s ease; }
 html.sf-scrolled .topbar .search:not(:focus-within) { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* 64.4: aviso do administrador sobre o trailer detectado na página do filme/série */
+.mv-trnote { margin: 6px 0 0; font-size: 12px; color: var(--muted, #9a9ea3); }

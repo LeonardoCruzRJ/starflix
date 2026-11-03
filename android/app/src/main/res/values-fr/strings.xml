@@ -34,6 +34,7 @@
     <string name="camera_denied">Autorisation de la caméra refusée. Utilisez le lien ou saisissez l’adresse.</string>
     <string name="fail">Impossible de se connecter au serveur</string>
     <string name="skip_intro">Passer l’intro</string>
+    <string name="skip_recap">Passer le résumé</string>
     <string name="next_episode">Épisode suivant</string>
     <string name="next_cancel">Annuler</string>
     <string name="connect_error_title">Connexion impossible</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">Remplir</string>
     <string name="fit_stretch">Étirer</string>
     <string name="queue_title">File de lecture</string>
+    <string name="pp_replay">Revoir</string>
+    <string name="pp_similar">Similaires</string>
+    <string name="pp_rest">Plus de cette saison</string>
+    <string name="pp_ep">S%1$s · É%2$s</string>
     <string name="settings">Réglages</string>
     <string name="stop">Arrêter</string>
     <string name="queue_hint_tv">▼  Épisodes suivants</string>

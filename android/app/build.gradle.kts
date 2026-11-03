@@ -13,8 +13,8 @@ android {
         applicationId = "com.starflix.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = ((project.findProperty("sfVersionCode") as String?)?.toIntOrNull() ?: 734)  // 57.31: sobe a cada versão (o launcher da TV só troca o ícone em cache quando versionCode/recursos mudam)
-        versionName = (project.findProperty("sfVersionName") as String?) ?: "1.0.734"
+        versionCode = ((project.findProperty("sfVersionCode") as String?)?.toIntOrNull() ?: 775)  // 57.31: sobe a cada versão (o launcher da TV só troca o ícone em cache quando versionCode/recursos mudam)
+        versionName = (project.findProperty("sfVersionName") as String?) ?: "1.0.775"
     }
 
     val ks = Properties().apply {

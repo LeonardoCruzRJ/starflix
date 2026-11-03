@@ -34,6 +34,7 @@
     <string name="camera_denied">没有相机权限。请使用链接或输入地址。</string>
     <string name="fail">无法连接到服务器</string>
     <string name="skip_intro">跳过片头</string>
+    <string name="skip_recap">跳过前情回顾</string>
     <string name="next_episode">下一集</string>
     <string name="next_cancel">取消</string>
     <string name="connect_error_title">无法连接</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">填充</string>
     <string name="fit_stretch">拉伸</string>
     <string name="queue_title">播放队列</string>
+    <string name="pp_replay">再看一遍</string>
+    <string name="pp_similar">相似推荐</string>
+    <string name="pp_rest">本季更多</string>
+    <string name="pp_ep">第%1$s季 · 第%2$s集</string>
     <string name="settings">设置</string>
     <string name="stop">停止</string>
     <string name="queue_hint_tv">▼  接下来的剧集</string>

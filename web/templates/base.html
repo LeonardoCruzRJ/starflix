@@ -15,7 +15,7 @@ try { var z = parseInt(localStorage.getItem("sf.zoom"), 10); if (z >= 120 && z <
   {% block head %}{% endblock %}
 </head>
 {% set in_prof_page = request.path == '/profile' or request.path.startswith('/profile/') or request.path.startswith('/account') or request.path == '/tv' or request.path == '/phone' or (request.path.startswith('/profiles/') and request.path.endswith('/edit')) %}{% set in_admin_mode = nav_is_admin and (request.path.startswith('/admin') or in_prof_page) %}{% set lean_menu = request.path.startswith('/admin') or in_prof_page %}
-<body class="{% block bodycls %}{% endblock %} tv-look{{ ' tvd-on' if not in_admin_mode }}{{ ' lean-page' if lean_menu }}">
+<body class="{% block bodycls %}{% endblock %} tv-look{{ ' tvd-on' if not in_admin_mode }}{{ ' lean-page' if lean_menu }}" data-hero-trailer="{{ nav_hero_trailer|default('auto') }}" data-card-preview="{{ nav_card_preview|default('auto') }}">
 {% set preload_home = true %}{% include "_preload.html" %}
 {% include "_icons.html" %}
 {% set in_prof_page = request.path == '/profile' or request.path.startswith('/profile/') or request.path.startswith('/account') or request.path == '/tv' or request.path == '/phone' or (request.path.startswith('/profiles/') and request.path.endswith('/edit')) %}{% set in_admin_mode = nav_is_admin and (request.path.startswith('/admin') or in_prof_page) %}{% set lean_menu = request.path.startswith('/admin') or in_prof_page %}

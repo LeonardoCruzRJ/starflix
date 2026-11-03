@@ -34,6 +34,7 @@
     <string name="camera_denied">Нет разрешения на использование камеры. Используйте ссылку или введите адрес.</string>
     <string name="fail">Не удалось подключиться к серверу</string>
     <string name="skip_intro">Пропустить заставку</string>
+    <string name="skip_recap">Пропустить пересказ</string>
     <string name="next_episode">Следующая серия</string>
     <string name="next_cancel">Отмена</string>
     <string name="connect_error_title">Не удалось подключиться</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">Заполнить</string>
     <string name="fit_stretch">Растянуть</string>
     <string name="queue_title">Очередь воспроизведения</string>
+    <string name="pp_replay">Смотреть снова</string>
+    <string name="pp_similar">Похожее</string>
+    <string name="pp_rest">Ещё из этого сезона</string>
+    <string name="pp_ep">С%1$s · Э%2$s</string>
     <string name="settings">Настройки</string>
     <string name="stop">Стоп</string>
     <string name="queue_hint_tv">▼  Следующие серии</string>

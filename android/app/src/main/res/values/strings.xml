@@ -34,6 +34,7 @@
     <string name="camera_denied">Sem permissão da câmera. Use o link ou digite o endereço.</string>
     <string name="fail">Não foi possível conectar ao servidor</string>
     <string name="skip_intro">Pular abertura</string>
+    <string name="skip_recap">Pular resumo</string>
     <string name="next_episode">Próximo Episódio</string>
     <string name="next_cancel">Cancelar</string>
     <string name="connect_error_title">Não foi possível conectar</string>
@@ -67,6 +68,10 @@
     <string name="fit_fill">Preencher</string>
     <string name="fit_stretch">Esticar</string>
     <string name="queue_title">Fila de Reprodução</string>
+    <string name="pp_replay">Assistir de novo</string>
+    <string name="pp_similar">Semelhantes</string>
+    <string name="pp_rest">Mais desta temporada</string>
+    <string name="pp_ep">T%1$s · E%2$s</string>
     <string name="settings">Ajustes</string>
     <string name="stop">Parar</string>
     <string name="queue_hint_tv">▼  Próximos episódios</string>
