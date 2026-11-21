@@ -74,10 +74,6 @@
     <string name="pp_ep">第%1$s季 · 第%2$s集</string>
     <string name="settings">设置</string>
     <string name="stop">停止</string>
-    <string name="cast_button">投射到电视</string>
-    <string name="cast_unreachable">电视无法访问此地址的服务器。</string>
-    <string name="cast_fail">无法开始投射。</string>
-    <string name="cast_connected">正在投射到%1$s</string>
     <string name="queue_hint_tv">▼  接下来的剧集</string>
     <string name="player_bad_response">服务器响应无效（HTTP %1$s）。请重新登录应用。</string>
     <string name="player_start_fail">无法开始播放</string>
@@ -218,4 +214,8 @@
     <string name="dur_m">%1$s 分钟</string>
     <string name="ep_short">S%1$s · E%2$s</string>
     <string name="ep_bullet">S%1$s • E%2$s</string>
+    <string name="cast_button">投射到电视</string>
+    <string name="cast_unreachable">电视无法访问此地址的服务器。</string>
+    <string name="cast_fail">无法开始投射。</string>
+    <string name="cast_connected">正在投射到%1$s</string>
 </resources>

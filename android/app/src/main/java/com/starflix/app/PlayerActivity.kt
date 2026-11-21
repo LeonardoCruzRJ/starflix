@@ -31,6 +31,8 @@ import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
+import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -510,12 +512,24 @@ class PlayerActivity : AppCompatActivity() {
     private var castOffset = 0.0                  // segundo absoluto onde a sessão da TV começa
     private var castPos = -1.0                    // posição absoluta guardada ao encerrar a sessão
     private var castListener: SessionManagerListener<CastSession>? = null
+    private var castLoadAt = 0L                   // 67.7: instante do último load na TV (ignora estados velhos logo depois)
+
+    /** 67.7: fim do vídeo na TV = mesmo fim do player local (marca assistido, próximo episódio ou tela pós-reprodução). */
+    private val castCb = object : RemoteMediaClient.Callback() {
+        override fun onStatusUpdated() {
+            val rmc = castSession()?.remoteMediaClient ?: return
+            if (casting && !castBusy && System.currentTimeMillis() - castLoadAt > 3000 &&
+                rmc.playerState == MediaStatus.PLAYER_STATE_IDLE && rmc.idleReason == MediaStatus.IDLE_REASON_FINISHED) onEnded()
+            else if (!tv && mOverlay.visibility == View.VISIBLE) updateMPlay()
+        }
+    }
+    private fun castCbOff() { try { castSession()?.remoteMediaClient?.unregisterCallback(castCb) } catch (_: Throwable) { } }
 
     private fun castListener() = object : SessionManagerListener<CastSession> {
         override fun onSessionStarting(s: CastSession) {}
         override fun onSessionStarted(s: CastSession, id: String) = castSync()
         override fun onSessionStartFailed(s: CastSession, e: Int) {}
-        override fun onSessionEnding(s: CastSession) { if (casting) castPos = castOffset + (s.remoteMediaClient?.approximateStreamPosition ?: 0L) / 1000.0 }
+        override fun onSessionEnding(s: CastSession) { if (casting) { castPos = castOffset + (s.remoteMediaClient?.approximateStreamPosition ?: 0L) / 1000.0; save() } }  // 67.7: grava onde a TV parou
         override fun onSessionEnded(s: CastSession, e: Int) = castSync()
         override fun onSessionResuming(s: CastSession, id: String) {}
         override fun onSessionResumed(s: CastSession, was: Boolean) = castSync()
@@ -633,7 +647,10 @@ class PlayerActivity : AppCompatActivity() {
                     castOffset = off
                     castSubUrls = subs.map { it.second }
                     castBusy = false
-                    s.remoteMediaClient?.load(req)
+                    loading = false  // 67.7: troca de item (anterior/próximo) deixava `loading` ligado e travava o progresso
+                    castLoadAt = System.currentTimeMillis()
+                    lastSave = castLoadAt
+                    s.remoteMediaClient?.let { it.unregisterCallback(castCb); it.registerCallback(castCb); it.load(req) }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
@@ -657,12 +674,13 @@ class PlayerActivity : AppCompatActivity() {
         val rmc = castSession()?.remoteMediaClient
         val local = target - castOffset
         val gen = (rmc?.streamDuration ?: 0L) / 1000.0
-        if (rmc != null && local >= 0 && gen > 0 && local < gen - 6) rmc.seek(MediaSeekOptions.Builder().setPosition((local * 1000).toLong()).build())
+        if (rmc != null && rmc.playerState != MediaStatus.PLAYER_STATE_IDLE && local >= 0 && gen > 0 && local < gen - 6) rmc.seek(MediaSeekOptions.Builder().setPosition((local * 1000).toLong()).build())
         else castLoad(audioIndex, target.toInt())
     }
 
     /** Falhou ao iniciar: encerra a conexão com a TV, avisa e volta a tocar no celular da mesma posição. */
     private fun castFail(msg: String, pos: Int) {
+        castCbOff()
         casting = false
         castBusy = false
         try { CastSupport.context(this)?.sessionManager?.endCurrentSession(true) } catch (_: Throwable) { }
@@ -677,6 +695,7 @@ class PlayerActivity : AppCompatActivity() {
     /** A conexão com a TV acabou (pelo diálogo do Cast ou pela TV): volta ao ExoPlayer local na posição em que a TV estava. */
     private fun endCast() {
         val pos = if (castPos >= 0) castPos else castOffset
+        castCbOff()
         casting = false
         castBusy = false
         castPos = -1.0
@@ -764,7 +783,7 @@ class PlayerActivity : AppCompatActivity() {
 
     /** Salva a posição atual do perfil (a cada 10 s, ao pausar e ao sair). */
     private fun save() {
-        if (loading || ending || casting) return  // 67.4: durante a transmissão o progresso vem da TV (67.7)
+        if (loading || ending || (casting && castBusy)) return  // 67.7: durante a transmissão a posição vem da TV (castAbs)
         val pos = absPos()
         if (pos < 1) return
         val k = kind
@@ -1941,7 +1960,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private val tick = object : Runnable {
         override fun run() {
-            if (player?.isPlaying == true && System.currentTimeMillis() - lastSave >= 10000) save()
+            if ((player?.isPlaying == true || (casting && castSession()?.remoteMediaClient?.isPlaying == true)) && System.currentTimeMillis() - lastSave >= 10000) save()  // 67.7
             if (!tv && mOverlay.visibility == View.VISIBLE) refreshM()
             if (cues.isNotEmpty()) {
                 val t = absPos()
@@ -1986,6 +2005,7 @@ class PlayerActivity : AppCompatActivity() {
         if (inPip) try { unregisterReceiver(pipReceiver) } catch (_: Exception) { }
         handler.removeCallbacksAndMessages(null)
         if (casting) {  // 67.4: o ✕ do player encerra a transmissão
+            castCbOff()
             casting = false
             try { CastSupport.context(this)?.sessionManager?.endCurrentSession(true) } catch (_: Throwable) { }
             stopSession(castSid)

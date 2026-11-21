@@ -74,10 +74,6 @@
     <string name="pp_ep">S%1$s · E%2$s</string>
     <string name="settings">設定</string>
     <string name="stop">停止</string>
-    <string name="cast_button">テレビにキャスト</string>
-    <string name="cast_unreachable">テレビがこのアドレスのサーバーにアクセスできません。</string>
-    <string name="cast_fail">キャストを開始できませんでした。</string>
-    <string name="cast_connected">%1$sにキャスト中</string>
     <string name="queue_hint_tv">▼  次のエピソード</string>
     <string name="player_bad_response">サーバーの応答が無効です（HTTP %1$s）。アプリに再度サインインしてください。</string>
     <string name="player_start_fail">再生を開始できませんでした</string>
@@ -218,4 +214,8 @@
     <string name="dur_m">%1$s分</string>
     <string name="ep_short">S%1$s · E%2$s</string>
     <string name="ep_bullet">S%1$s • E%2$s</string>
+    <string name="cast_button">テレビにキャスト</string>
+    <string name="cast_unreachable">テレビがこのアドレスのサーバーにアクセスできません。</string>
+    <string name="cast_fail">キャストを開始できませんでした。</string>
+    <string name="cast_connected">%1$sにキャスト中</string>
 </resources>

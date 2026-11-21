@@ -74,10 +74,6 @@
     <string name="pp_ep">С%1$s · Э%2$s</string>
     <string name="settings">Настройки</string>
     <string name="stop">Стоп</string>
-    <string name="cast_button">Транслировать на телевизор</string>
-    <string name="cast_unreachable">Телевизор не может подключиться к серверу по этому адресу.</string>
-    <string name="cast_fail">Не удалось начать трансляцию.</string>
-    <string name="cast_connected">Трансляция на %1$s</string>
     <string name="queue_hint_tv">▼  Следующие серии</string>
     <string name="player_bad_response">Недопустимый ответ сервера (HTTP %1$s). Войдите в приложение заново.</string>
     <string name="player_start_fail">Не удалось начать воспроизведение</string>
@@ -227,4 +223,8 @@
     <string name="dur_m">%1$s мин</string>
     <string name="ep_short">С%1$s · Э%2$s</string>
     <string name="ep_bullet">С%1$s • Э%2$s</string>
+    <string name="cast_button">Транслировать на телевизор</string>
+    <string name="cast_unreachable">Телевизор не может подключиться к серверу по этому адресу.</string>
+    <string name="cast_fail">Не удалось начать трансляцию.</string>
+    <string name="cast_connected">Трансляция на %1$s</string>
 </resources>

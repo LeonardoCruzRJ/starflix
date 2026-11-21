@@ -74,10 +74,6 @@
     <string name="pp_ep">S%1$s · B%2$s</string>
     <string name="settings">Ayarlar</string>
     <string name="stop">Durdur</string>
-    <string name="cast_button">TV\'ye yansıt</string>
-    <string name="cast_unreachable">TV bu adresteki sunucuya erişemiyor.</string>
-    <string name="cast_fail">Yansıtma başlatılamadı.</string>
-    <string name="cast_connected">%1$s cihazına yayınlanıyor</string>
     <string name="queue_hint_tv">▼  Sonraki bölümler</string>
     <string name="player_bad_response">Geçersiz sunucu yanıtı (HTTP %1$s). Uygulamada yeniden oturum açın.</string>
     <string name="player_start_fail">Oynatma başlatılamadı</string>
@@ -221,4 +217,8 @@
     <string name="dur_m">%1$s dk</string>
     <string name="ep_short">S%1$s · B%2$s</string>
     <string name="ep_bullet">S%1$s • B%2$s</string>
+    <string name="cast_button">TV\\\'ye yansıt</string>
+    <string name="cast_unreachable">TV bu adresteki sunucuya erişemiyor.</string>
+    <string name="cast_fail">Yansıtma başlatılamadı.</string>
+    <string name="cast_connected">%1$s cihazına yayınlanıyor</string>
 </resources>

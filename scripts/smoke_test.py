@@ -3550,6 +3550,82 @@ try:
           "s.label" in src66["web/static/js/player.js"] and "fun JSONObject.str" in src66["android/app/src/main/java/com/starflix/app/PlayerActivity.kt"]
           and "isNull(key)" in src66["android/app/src/main/java/com/starflix/app/PlayerActivity.kt"] and 'JStr(s, "label")' in src66["roku/components/PlayerView.brs"])
     c.post(f"/progress/movie/{z66}/watched", json={"watched": 1})
+    # ---- Fase 67 (67.1 a 67.8): transmitir para a TV (Google Cast), token `ct` (67.9: escrito, não rodar sem o Leo pedir)
+    from server import cast as cast67  # noqa: E402
+    from server.stream import _playlist_with_token as plt67  # noqa: E402
+    anon67 = run.app.test_client()
+    with get_db() as cn67:
+        uid67 = cn67.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()["id"]
+        pid67 = cn67.execute("SELECT id FROM profiles WHERE user_id = ? ORDER BY id LIMIT 1", (uid67,)).fetchone()
+        pid67 = pid67["id"] if pid67 else 0
+    with run.app.app_context():
+        tok67, ttl67 = cast67.make(uid67, pid67)
+        old67, _ = cast67.make(uid67, pid67, now=time.time() - cast67.TTL - 60)
+        with get_db() as cn67:
+            ok67 = cast67.resolve(cn67, tok67)
+            bad67 = [cast67.resolve(cn67, t_) for t_ in (tok67[:-1] + ("0" if tok67[-1] != "0" else "1"), old67, "", "a.b.c.d", tok67 + ".x", "x" * 300,
+                                                         cast67.make(999999, 0)[0])]
+    check("67.1 token válido: devolve usuário e perfil, validade de 12 h",
+          ok67 is not None and ok67["user_id"] == uid67 and (ok67["profile_id"] or 0) == pid67 and ttl67 == 12 * 3600)
+    check("67.1 token inválido: assinatura errada, vencido, vazio, malformado, longo demais e usuário inexistente = None", all(b_ is None for b_ in bad67))
+    with run.app.app_context():
+        pf67 = cast67.make(uid67, 999999)[0]
+        with get_db() as cn67:
+            check("67.1 token de perfil que não existe (ou não é do usuário) = None", cast67.resolve(cn67, pf67) is None)
+    rt67 = anon67.post("/api/cast/token")
+    check("67.1 POST /api/cast/token sem login = 401", rt67.status_code == 401)
+    rt67 = c.post("/api/cast/token")
+    check("67.1 POST /api/cast/token com login devolve `token` e `ttl` (12 h) e o token resolve",
+          rt67.status_code == 200 and rt67.json["ttl"] == 12 * 3600 and isinstance(rt67.json["token"], str) and rt67.json["token"].count(".") == 3)
+    ct67 = rt67.json["token"]
+    check("67.1 CAST_EPS: só vídeo, HLS, legendas e imagens (nada de admin, progresso ou conta)",
+          {"stream.direct", "stream.hls_file", "subtitles.subs_file", "subtitles.subs_embedded"} <= set(cast67.CAST_EPS)
+          and not any(e_.startswith(("admin", "account", "progress", "auth", "users", "profiles")) for e_ in cast67.CAST_EPS))
+    d67 = f"/stream/movie/{z66}/direct"
+    check("67.1 sem `ct` e sem cookie a rota de vídeo continua exigindo login (401)", anon67.get(d67).status_code == 401)
+    check("67.1 `ct` válido em GET na rota de vídeo passa do login (sem cookie)",
+          anon67.get(d67 + "?ct=" + ct67).status_code != 401 and anon67.head(d67 + "?ct=" + ct67).status_code != 401)
+    check("67.1 `ct` adulterado ou vencido = 401 JSON",
+          anon67.get(d67 + "?ct=" + ct67[:-1] + ("0" if ct67[-1] != "0" else "1")).status_code == 401 and anon67.get(d67 + "?ct=" + old67).status_code == 401)
+    check("67.1 `ct` válido NÃO vale em rota fora de CAST_EPS (/api/tv/continue e /api/cast/token seguem 401)",
+          anon67.get("/api/tv/continue?ct=" + ct67).status_code == 401 and anon67.post("/api/cast/token?ct=" + ct67).status_code == 401)
+    check("67.1 `ct` válido NÃO vale em POST/PUT/DELETE de rota de CAST_EPS",
+          anon67.post(d67 + "?ct=" + ct67).status_code in (401, 405) and anon67.delete(d67 + "?ct=" + ct67).status_code in (401, 405))
+    ra67 = anon67.get(d67 + "?ct=" + ct67)
+    check("67.1 a resposta com `ct` não grava cookie de sessão", "Set-Cookie" not in ra67.headers)
+    check("67.1 CORS: resposta com `ct` leva Allow-Origin * e expõe Content-Range/Accept-Ranges",
+          ra67.headers.get("Access-Control-Allow-Origin") == "*" and "Content-Range" in ra67.headers.get("Access-Control-Expose-Headers", "")
+          and "Accept-Ranges" in ra67.headers.get("Access-Control-Expose-Headers", ""))
+    ro67 = anon67.options(d67 + "?ct=" + ct67, headers={"Origin": "http://cast.example", "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "range"})
+    check("67.1 preflight OPTIONS com `ct` = 204, métodos GET/HEAD/OPTIONS, Allow-Origin * e cabeçalhos pedidos",
+          ro67.status_code == 204 and ro67.headers.get("Access-Control-Allow-Origin") == "*" and ro67.headers.get("Access-Control-Allow-Methods") == "GET, HEAD, OPTIONS"
+          and "range" in ro67.headers.get("Access-Control-Allow-Headers", "").lower())
+    rn67 = anon67.get(d67)
+    check("67.1 sem `ct` a rota de vídeo não recebe o CORS aberto do Cast", rn67.headers.get("Access-Control-Allow-Origin") != "*")
+    check("67.1 preflight sem `ct` numa rota de vídeo não é liberado pelo Cast", anon67.options(d67, headers={"Origin": "http://cast.example", "Access-Control-Request-Method": "GET"}).status_code != 204)
+    m3u67 = os.path.join(TMP, "f67.m3u8")
+    with open(m3u67, "w", encoding="utf-8") as f_:
+        f_.write('#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:4.0,\nseg0.m4s\n#EXTINF:4.0,\nseg1.m4s?x=1\n#EXTINF:4.0,\nhttp://outro/seg2.m4s\n#EXT-X-ENDLIST\n')
+    with run.app.test_request_context():
+        pl67 = plt67(m3u67, ct67, "ct").get_data(as_text=True)
+    tq67 = ct67
+    check("67.1 playlist HLS com `ct`: segmentos e EXT-X-MAP ganham `?ct=`/`&ct=`, URL absoluta fica como está",
+          f'URI="init.mp4?ct={tq67}"' in pl67 and f"seg0.m4s?ct={tq67}" in pl67 and f"seg1.m4s?x=1&ct={tq67}" in pl67 and "http://outro/seg2.m4s\n" in pl67)
+    with run.app.test_request_context():
+        pi67 = plt67(m3u67, "tk", "it").get_data(as_text=True)
+    check("67.1 `_playlist_with_token` com o padrão (`it`) segue igual para a Roku", "seg0.m4s?it=tk" in pi67 and "ct=" not in pi67)
+    src67 = {n_: open(os.path.join(ROOT, n_), encoding="utf-8").read() for n_ in (
+        "android/app/src/main/java/com/starflix/app/PlayerActivity.kt", "android/app/src/main/java/com/starflix/app/CastSupport.kt",
+        "android/app/src/main/AndroidManifest.xml", "android/app/build.gradle.kts", "android/app/src/main/res/layout/activity_player.xml")}
+    check("67.2/67.3 Cast: dependências, OptionsProvider no manifesto e MediaRouteButton no player",
+          "play-services-cast-framework" in src67["android/app/build.gradle.kts"] and "mediarouter" in src67["android/app/build.gradle.kts"]
+          and "OPTIONS_PROVIDER_CLASS_NAME" in src67["android/app/src/main/AndroidManifest.xml"] and "MediaRouteButton" in src67["android/app/src/main/res/layout/activity_player.xml"])
+    check("67.4 a 67.7 PlayerActivity: transmite em HLS com `ct`, legendas WebVTT, `endCast` e progresso pela posição da TV",
+          all(k_ in src67["android/app/src/main/java/com/starflix/app/PlayerActivity.kt"] for k_ in ("castLoad", "endCast", "castAbs", "/api/cast/token", "application/x-mpegURL", "text/vtt")))
+    check("67.8 os 4 textos do Cast existem em i18n/*.json nos 10 idiomas",
+          all(all(k_ in json.load(open(os.path.join(ROOT, "i18n", f"{l_}.json"), encoding="utf-8")) for k_ in
+                  ("android.cast_button", "android.cast_unreachable", "android.cast_fail", "android.cast_connected"))
+              for l_ in ("pt-BR", "en-US", "es-ES", "ru-RU", "fr-FR", "de-DE", "it-IT", "ja-JP", "zh-CN", "tr-TR")))
 finally:
     shutil.rmtree(TMP, ignore_errors=True)
 
