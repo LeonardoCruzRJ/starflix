@@ -407,7 +407,7 @@ class PlayerActivity : AppCompatActivity() {
     /** Pede /play (áudio e posição inicial) e toca o resultado; descarta a sessão anterior. */
     private fun load(audio: Int?, startSec: Int) {
         if (casting) { castLoad(audio, startSec); return }  // 67.5: troca de áudio/qualidade/salto com a TV tocando reinicia a sessão da TV
-        error.visibility = View.GONE
+        hideErr()
         loading = true
         val token = ++loadToken
         val old = sid
@@ -741,6 +741,7 @@ class PlayerActivity : AppCompatActivity() {
             it.trackSelectionParameters = it.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
             it.addListener(object : Player.Listener {
                 override fun onPlayerError(e: PlaybackException) {
+                    if (loading) return  // 68.2: a mídia antiga erra (sessão já encerrada) enquanto a nova carrega; não é falha
                     if (capsUsed && !safe && !loading) {  // 52.4: direct/remux pelo `caps` falhou: uma repetição com transcode completo
                         safe = true
                         load(audioIndex, absPos().toInt())
@@ -757,7 +758,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) hlsRetried = false else save()
+                    if (isPlaying) { hlsRetried = false; hideErr() } else save()
                     if (tv) {
                         updatePlayIcon()
                         // 57.24: só cancela o "sumir" se o usuário pausou; durante o buffer após pular 10 s segue tentando, e ao voltar a tocar agenda de novo (antes o cancelamento deixava os controles presos)
@@ -1516,9 +1517,19 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun absPos() = if (casting) castAbs() else offset + (player?.currentPosition ?: 0L) / 1000.0
 
+    private val hideErrRun = Runnable { error.visibility = View.GONE }
+
+    private fun hideErr() {
+        handler.removeCallbacks(hideErrRun)
+        error.visibility = View.GONE
+    }
+
+    /** 68.2: mensagem de erro some sozinha em 5 s (nunca fica presa na tela). */
     private fun fail(msg: String) {
         error.text = msg
         error.visibility = View.VISIBLE
+        handler.removeCallbacks(hideErrRun)
+        handler.postDelayed(hideErrRun, 5000)
     }
 
     // ---------- estilo da legenda do perfil (57.29) ----------

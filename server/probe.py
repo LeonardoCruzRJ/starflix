@@ -29,6 +29,19 @@ def _bits(s):
         return int(m.group(1)) if m and int(m.group(1)) in (9, 10, 12, 14, 16) else 8
 
 
+def _stream_dur(s):
+    """69.1: duração (s) de uma trilha: campo `duration` ou tag `DURATION` do MKV (`HH:MM:SS.fff`); 0 se não houver."""
+    try:
+        d = float(s.get("duration"))
+        if d > 0:
+            return d
+    except (TypeError, ValueError):
+        pass
+    t = next((v for k, v in (s.get("tags") or {}).items() if k.upper().startswith("DURATION")), "")
+    m = re.match(r"^(\d+):(\d+):(\d+(?:\.\d+)?)$", str(t).strip())
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3)) if m else 0.0
+
+
 def probe(path):
     """Roda ffprobe e devolve dict com duração, vídeo, áudios e legendas. None se falhar."""
     out = subprocess.run(
@@ -60,6 +73,9 @@ def probe(path):
                 if "DOVI" in str(sd.get("side_data_type", "")).upper() and sd.get("dv_profile") is not None:
                     info["video"]["dv_profile"] = int(sd["dv_profile"])
             info["video"]["hdr"] = derive_hdr(info["video"])
+            vd = _stream_dur(s)  # 69.1: áudio com duração maior que o vídeo (arquivo mal muxado) inflava o total; vale a do vídeo
+            if vd > 0 and info["duration"] > vd * 1.05:
+                info["duration"] = vd
         elif kind == "audio":
             info["audio"].append({
                 "index": s["index"], "codec": s.get("codec_name"), "channels": s.get("channels"),
@@ -70,6 +86,7 @@ def probe(path):
                 "index": s["index"], "codec": s.get("codec_name"),
                 "lang": tags.get("language"), "title": tags.get("title"),
             })
+    info["dur_v"] = 1  # 69.1: marca que a duração já passou pela regra do vídeo (itens sem a marca são analisados de novo no próximo scan)
     return info
 
 
@@ -100,14 +117,14 @@ def probe_library(library_id, media_id=None):
         items = [
             ("media", r["id"], r["path"], r["info"], r["id"])
             for r in conn.execute(
-                "SELECT id, path, info FROM media WHERE library_id = ? AND path IS NOT NULL AND (info IS NULL OR (info NOT LIKE '%\"video\": null%' AND (info NOT LIKE '%pix_fmt%' OR info NOT LIKE '%color_transfer%'))) AND (? IS NULL OR id = ?)",
+                "SELECT id, path, info FROM media WHERE library_id = ? AND path IS NOT NULL AND (info IS NULL OR (info NOT LIKE '%\"video\": null%' AND (info NOT LIKE '%pix_fmt%' OR info NOT LIKE '%color_transfer%' OR info NOT LIKE '%\"dur_v\"%'))) AND (? IS NULL OR id = ?)",
                 (library_id, media_id, media_id),
             )
         ] + [
             ("episodes", r["id"], r["path"], r["info"], r["media_id"])
             for r in conn.execute(
                 "SELECT e.id, e.path, e.info, e.media_id FROM episodes e JOIN media m ON m.id = e.media_id "
-                "WHERE m.library_id = ? AND (e.info IS NULL OR (e.info NOT LIKE '%\"video\": null%' AND (e.info NOT LIKE '%pix_fmt%' OR e.info NOT LIKE '%color_transfer%'))) AND (? IS NULL OR m.id = ?)",
+                "WHERE m.library_id = ? AND (e.info IS NULL OR (e.info NOT LIKE '%\"video\": null%' AND (e.info NOT LIKE '%pix_fmt%' OR e.info NOT LIKE '%color_transfer%' OR e.info NOT LIKE '%\"dur_v\"%'))) AND (? IS NULL OR m.id = ?)",
                 (library_id, media_id, media_id),
             )
         ]

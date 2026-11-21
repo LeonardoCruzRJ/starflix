@@ -14,7 +14,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = ((project.findProperty("sfVersionCode") as String?)?.toIntOrNull() ?: 80600)  // 57.31: sobe a cada versão (o launcher da TV só troca o ícone em cache quando versionCode/recursos mudam)
-        versionName = (project.findProperty("sfVersionName") as String?) ?: "1.0.808"
+        versionName = (project.findProperty("sfVersionName") as String?) ?: "1.0.811"
     }
 
     val ks = Properties().apply {
