@@ -515,7 +515,7 @@ def watch(kind, item_id):
                 "FROM episodes e JOIN media m ON m.id = e.media_id WHERE e.id = ?",
                 (item_id,),
             ).fetchone()
-            title, back = display_title(e["lid"], e["show"], e["orig"]), f"/show/{e['mid']}?season={e['season']}"
+            title, back = display_title(e["lid"], e["show"], e["orig"]), f"/show/{e['mid']}/season/{e['season']}?ep={item_id}"
             pf = _prefs(e["mid"], e["season"])
             sub = f"T{e['season']} · E{e['episode']}" + (f" - {e['title']}" if e["title"] else "")
     up = user_prefs()

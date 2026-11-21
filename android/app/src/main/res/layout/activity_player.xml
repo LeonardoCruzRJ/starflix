@@ -84,6 +84,15 @@
             android:layout_marginEnd="16dp"
             android:orientation="horizontal">
 
+            <androidx.mediarouter.app.MediaRouteButton
+                android:id="@+id/mBtnCast"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="@string/cast_button"
+                android:padding="10dp"
+                android:visibility="gone"
+                app:mediaRouteButtonTint="#FFFFFF" />
+
             <ImageView
                 android:id="@+id/mBtnPip"
                 android:layout_width="44dp"
@@ -103,6 +112,17 @@
                 android:src="@drawable/ic_m_close" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/mCastInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="140dp"
+            android:textColor="#E5A00D"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -119,14 +139,32 @@
                 android:visibility="gone" />
 
             <ImageView
+                android:id="@+id/mBtnRew"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="24dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_m_rew"
+                android:visibility="gone" />
+
+            <ImageView
                 android:id="@+id/mBtnPlay"
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:layout_marginStart="36dp"
-                android:layout_marginEnd="36dp"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="24dp"
                 android:background="@drawable/m_play_bg"
                 android:padding="18dp"
                 android:src="@drawable/ic_m_pause" />
+
+            <ImageView
+                android:id="@+id/mBtnFwd"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginEnd="24dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_m_fwd"
+                android:visibility="gone" />
 
             <ImageView
                 android:id="@+id/mBtnNext"

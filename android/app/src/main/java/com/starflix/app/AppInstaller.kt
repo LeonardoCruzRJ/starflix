@@ -98,6 +98,18 @@ object AppInstaller {
         emit(UpdateState.Failed(Txt.s(R.string.update_err_install, reason)))
     }
 
+    @Volatile private var reopenAt = 0L
+
+    /** Depois de atualizar, o sistema fecha o app e não o reabre: abre de novo (uma vez; o resultado da sessão e o MY_PACKAGE_REPLACED podem chegar juntos). */
+    internal fun reopen(ctx: Context) {
+        val now = System.currentTimeMillis()
+        if (now - reopenAt < 10000) return
+        reopenAt = now
+        try {
+            ctx.startActivity(Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {}
+    }
+
     internal fun cleanup(ctx: Context) {
         File(ctx.applicationContext.cacheDir, "update").listFiles()?.forEach { it.delete() }
     }
@@ -181,8 +193,15 @@ class UpdateReceiver : BroadcastReceiver() {
                     ctx.startActivity(confirm)
                 }
             }
-            PackageInstaller.STATUS_SUCCESS -> AppInstaller.cleanup(ctx)
+            PackageInstaller.STATUS_SUCCESS -> { AppInstaller.cleanup(ctx); AppInstaller.reopen(ctx) }
             else -> AppInstaller.report(ctx, intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE).orEmpty())
         }
+    }
+}
+
+/** Atualização concluída (app substituído): reabre o app que o sistema acabou de fechar. */
+class ReopenReceiver : BroadcastReceiver() {
+    override fun onReceive(ctx: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) AppInstaller.reopen(ctx)
     }
 }

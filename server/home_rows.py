@@ -357,20 +357,20 @@ def hero_items(row, limit=8):
 def _continue(ctx):
     """Capa do filme ou da série (como as outras fileiras); episódio em andamento mostra a série, o título e T · E, e o ▶ abre o episódio.
     Vídeo (biblioteca Outros Vídeos) não tem capa: usa a miniatura 16:9."""
-    from server.progress import continue_watching
+    from server.progress import continue_watching, watch_href
     out = []
     for i in continue_watching(ctx.user_id, ctx.profile_id, home=True):
         pct = min(100, int(i["position"] / i["duration"] * 100)) if i.get("duration") else 0
         if i["kind"] == "episode":
             out.append({"uid": f"m:{i['media_id']}", "id": i["media_id"], "type": "show", "title": i["show"], "year": None, "lib": i.get("lib"),
                         "season": i["season"], "episode": i["episode"], "ep_title": i["title"], "episode_id": i["id"], "pct": pct, "watched": False,
-                        "bd": f"/backdrop/{i['media_id']}", "left": _left(i)})
+                        "bd": f"/backdrop/{i['media_id']}", "left": _left(i), "watch_href": watch_href(i)})
         elif i.get("lib") in ctx.video_libs:  # 34.7: vídeo = miniatura (frame)
             out.append({"uid": f"m:{i['media_id']}", "id": i["media_id"], "type": "video", "kind": "movie", "title": i["title"], "year": None,
-                        "lib": i["lib"], "still": f"/thumb/{i['media_id']}", "pct": pct, "watched": False})
+                        "lib": i["lib"], "still": f"/thumb/{i['media_id']}", "pct": pct, "watched": False, "watch_href": watch_href(i, True)})
         else:
             out.append({"uid": f"m:{i['media_id']}", "id": i["media_id"], "type": "movie", "title": i["title"], "year": i["year"], "lib": i["lib"],
-                        "pct": pct, "watched": False, "bd": f"/backdrop/{i['media_id']}", "left": _left(i)})
+                        "pct": pct, "watched": False, "bd": f"/backdrop/{i['media_id']}", "left": _left(i), "watch_href": watch_href(i)})
     return out
 
 

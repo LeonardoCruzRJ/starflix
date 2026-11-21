@@ -63,6 +63,8 @@ import org.json.JSONObject
 data class TvCard(
     val type: String, val id: Long, val title: String, val sub: String, val image: String,
     val pct: Int, val watched: Boolean, val wide: Boolean, val play: String?, val mediaId: Long, val n: Int = 0,
+    val season: Int = 0,  // 66.6: temporada do episódio em andamento (Continue)
+    val direct: Boolean = false,  // 66.5: card do Continue assistindo toca direto (sem passar pelo detalhe)
 )
 
 data class TvRow(val key: String, val title: String, val items: List<TvCard>)
@@ -90,7 +92,7 @@ object TvHomeApi {
         return TvCard(
             type = o.optString("type", "movie"), id = o.optLong("id"), title = o.str("title"), sub = sub, image = o.str("image"),
             pct = o.optInt("pct"), watched = o.optBoolean("watched"), wide = o.optBoolean("wide"),
-            play = o.str("play").ifEmpty { null }, mediaId = o.optLong("media_id"),
+            play = o.str("play").ifEmpty { null }, mediaId = o.optLong("media_id"), direct = o.optBoolean("direct"), season = o.optInt("season"),
         )
     }
 

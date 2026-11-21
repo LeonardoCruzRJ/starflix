@@ -102,7 +102,8 @@ sub onSubs(event as object)
             if type(arr) = "roArray"
                 for each s in arr
                     lang = JStr(s, "lang")
-                    lab = JStr(s, "title")
+                    lab = JStr(s, "label")
+                    if lab = "" then lab = JStr(s, "title")
                     if lab = "" then lab = lang
                     if lab = "" then lab = tr("sub_track")
                     m.subList.Push({ path: JStr(s, "url"), lang: lang, label: lab })

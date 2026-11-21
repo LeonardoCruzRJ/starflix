@@ -491,9 +491,9 @@ sub ClearStack()
 end sub
 
 ' Abre uma tela: movie, show, episode, season (id = série, n = temporada), collection, playlist, library.
-sub Navigate(kind as string, id as integer, n as integer)
+sub Navigate(kind as string, id as integer, n as integer, focus = 0 as integer)
     if m.nav.busy = true then return
-    m.nav = { busy: true, kind: kind, id: id, n: n }
+    m.nav = { busy: true, kind: kind, id: id, n: n, focus: focus }
     Notice(tr("nav_loading"), 0)
     base = m.server + "/api/tv/"
     if kind = "library"
@@ -559,7 +559,7 @@ sub onNav(event as object)
         head = ""
         if type(d.show) = "roAssociativeArray" then head = JStr(d.show, "title")
         if nav.n = 0 then head = head + " — " + tr("det_special") else head = head + " — " + tr("det_season") + " " + Str(nav.n).Trim()
-        PushGrid(head, eps, eps.Count())
+        PushGrid(head, eps, eps.Count(), JInt(nav, "focus", 0))
     else if kind = "library"
         its = []
         for each c in m.cols
@@ -604,10 +604,14 @@ sub onPlayerClosed(event as object)
     m.homeStale = true ' o player gravou posição/assistido: Início e detalhe se atualizam
     m.detStale = true
     if m.stack.Count() > 0 and m.stack[m.stack.Count() - 1].isSameNode(event.getRoSGNode()) then Pop()
+    a = m.afterPlay ' 66.8: player aberto pelo Continue: ao fechar abre a temporada (episódio em foco) ou o filme; Voltar segue a pilha até o Início
+    m.afterPlay = invalid
+    if type(a) = "roAssociativeArray" then Navigate(a.kind, a.id, a.n, a.ep)
 end sub
 
-sub PushGrid(head as string, items as object, total as integer)
+sub PushGrid(head as string, items as object, total as integer, focusId = 0 as integer)
     v = CreateObject("roSGNode", "GridView")
+    v.focusId = focusId
     v.server = m.server
     v.imgToken = m.imgToken
     v.heading = head
@@ -638,6 +642,7 @@ end sub
 sub onPicked(event as object)
     p = event.getData()
     if type(p) <> "roAssociativeArray" then return
+    m.afterPlay = invalid
     act = JStr(p, "act")
     if act = "play"
         PlayVideo(JStr(p, "kind"), JInt(p, "id", 0), JStr(p, "title"))
@@ -656,7 +661,14 @@ sub onPicked(event as object)
     else
         k = JStr(p, "type") ' card de fileira/grade
         id = JInt(p, "id", 0)
-        if k = "movie" or k = "show" or k = "episode" or k = "collection" or k = "playlist"
+        pl = CreateObject("roRegex", "^/stream/(movie|episode)/(\d+)/play$", "").Match(JStr(p, "play"))
+        dir = false
+        if type(p.direct) = "roBoolean" or type(p.direct) = "Boolean" then dir = p.direct
+        if dir and pl.Count() = 3
+            if k = "movie" then m.afterPlay = { kind: "movie", id: id, n: 0, ep: 0 }
+            if k = "show" and JInt(p, "season", 0) > 0 then m.afterPlay = { kind: "season", id: id, n: JInt(p, "season", 0), ep: pl[2].ToInt() }
+            PlayVideo(pl[1], pl[2].ToInt(), JStr(p, "title")) ' 66.7: Continue assistindo toca direto o alvo (retoma da posição salva)
+        else if k = "movie" or k = "show" or k = "episode" or k = "collection" or k = "playlist"
             Navigate(k, id, 0)
         else if k = "video"
             PlayVideo("movie", id, JStr(p, "title"))

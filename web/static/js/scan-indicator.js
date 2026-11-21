@@ -27,7 +27,7 @@
       if (pon && !phas) pbox.appendChild(badge()); else if (!pon && phas) phas.remove();
     }
     document.querySelectorAll('.pcard').forEach(function (card) {
-      var a = card.querySelector('.pcard-title'), m = a && a.getAttribute('href') && a.getAttribute('href').match(/^\/(?:movie|show)\/(\d+)$/);
+      var a = card.querySelector('.pcard-title'), h = card.dataset.detail || (a && a.getAttribute('href')), m = h && h.match(/^\/(?:movie|show)\/(\d+)$/);  // 66.3
       var on = scanning && m && ids[m[1]], has = card.querySelector('.scan-badge'), box = card.querySelector('.pcard-poster');
       if (on && !has && box) { card.classList.add('pcard-scan'); box.appendChild(badge()); }
       else if (!on && has) { card.classList.remove('pcard-scan'); has.remove(); }
@@ -37,7 +37,7 @@
 
   function pageId() { var m = location.pathname.match(/^\/(?:movie|show)\/(\d+)$/); return m ? m[1] : null; }
   function cardId(card) {
-    var a = card.querySelector('.pcard-title'), m = a && a.getAttribute('href') && a.getAttribute('href').match(/^\/(?:movie|show)\/(\d+)$/);
+    var a = card.querySelector('.pcard-title'), h = card.dataset.detail || (a && a.getAttribute('href')), m = h && h.match(/^\/(?:movie|show)\/(\d+)$/);  // 66.3
     return m ? m[1] : null;
   }
   // 35.9: capa nova aparece na hora, sem Ctrl+Shift+R (carrega em segundo plano e troca)

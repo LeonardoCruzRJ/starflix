@@ -5,6 +5,7 @@
     <field id="imgToken" type="string" onChange="onToken" />
     <field id="heading" type="string" onChange="onHeading" />
     <field id="total" type="integer" />
+    <field id="focusId" type="integer" />
     <field id="items" type="array" onChange="onItems" alwaysNotify="true" />
     <field id="append" type="array" onChange="onAppend" alwaysNotify="true" />
     <field id="picked" type="assocarray" alwaysNotify="true" />

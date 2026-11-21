@@ -8,9 +8,11 @@
     - edit/more: mostram ✎ (abre o modal Editar, 23.18) e ⋮ (menu, 23.10); sem JS ligado ainda ficam só como ganchos data-*
     - lib/ptype: biblioteca e tipo (movie|show) do item — o Início (32.10) mistura bibliotecas e a barra de seleção precisa deles
     - pick: id da mídia; liga a seleção múltipla (24.3) — o ○ do canto passa a marcar o card (em vez de assistido)
-    - wide=True: still 16:9 (episódios); fb: imagem de reserva se a principal falhar -#}
-{% macro card(href, img, title, sub=None, sub2=None, pct=None, watched=False, play=None, kind=None, id=None, edit=False, more=False, wide=False, pick=None, lib=None, ptype=None, bd=None, left=None, fb=None) -%}
-<div class="pcard{{ ' pcard-wide' if wide }}{{ ' pcard-t-movie' if href.startswith('/movie/') }}{{ ' pcard-t-show' if href.startswith('/show/') }}" {% if kind and id %}data-kind="{{ kind }}" data-id="{{ id }}"{% endif %}{% if pick %} data-pick="{{ pick }}"{% endif %}{% if lib %} data-lib="{{ lib }}"{% endif %}{% if ptype %} data-type="{{ ptype }}"{% endif %}>
+    - wide=True: still 16:9 (episódios); fb: imagem de reserva se a principal falhar
+    - detail (66.3): URL de detalhe (/movie/<id> ou /show/<id>) quando o href toca direto (/watch/...); vira data-detail e os menus/edição/seleção a usam no lugar do href -#}
+{% macro card(href, img, title, sub=None, sub2=None, pct=None, watched=False, play=None, kind=None, id=None, edit=False, more=False, wide=False, pick=None, lib=None, ptype=None, bd=None, left=None, fb=None, detail=None) -%}
+{%- set dh = detail or href -%}
+<div class="pcard{{ ' pcard-wide' if wide }}{{ ' pcard-t-movie' if dh.startswith('/movie/') }}{{ ' pcard-t-show' if dh.startswith('/show/') }}"{% if detail %} data-detail="{{ detail }}"{% endif %} {% if kind and id %}data-kind="{{ kind }}" data-id="{{ id }}"{% endif %}{% if pick %} data-pick="{{ pick }}"{% endif %}{% if lib %} data-lib="{{ lib }}"{% endif %}{% if ptype %} data-type="{{ ptype }}"{% endif %}>
   <div class="pcard-poster">
     <span class="pcard-ph" aria-hidden="true">{{ title }}</span>
     <a class="pcard-link" href="{{ href }}" tabindex="-1" aria-hidden="true">

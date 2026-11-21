@@ -168,6 +168,7 @@ def home():
 def _continue_card(i):
     """57.11: Continuar assistindo no Início da TV em 16:9 (nunca capa): episódio = frame do episódio; filme = fundo (backdrop); vídeo já vem com a miniatura."""
     c = card(i)
+    c["direct"] = bool(c.get("play"))  # 66.5: a TV toca o alvo direto (sem detalhe)
     if c["type"] == "show" and i.get("episode_id"):
         c.update(wide=True, image=f"/still/{i['episode_id']}")
     elif c["type"] == "movie":

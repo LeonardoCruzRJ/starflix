@@ -37,6 +37,11 @@ sub onItems()
     content = CreateObject("roSGNode", "ContentNode")
     AddCards(content, items)
     m.grid.content = content
+    if m.top.focusId > 0 ' 66.8: abre com o foco no item (episódio que tocava)
+        for i = 0 to items.Count() - 1
+            if JInt(items[i], "id", 0) = m.top.focusId then m.grid.jumpToItem = i
+        end for
+    end if
     m.empty.visible = (items.Count() = 0)
     m.empty.text = ""
     if items.Count() = 0 then m.empty.text = tr("grid_empty")

@@ -74,6 +74,10 @@
     <string name="pp_ep">S%1$s · E%2$s</string>
     <string name="settings">Impostazioni</string>
     <string name="stop">Interrompi</string>
+    <string name="cast_button">Trasmetti alla TV</string>
+    <string name="cast_unreachable">La TV non riesce a raggiungere il server a questo indirizzo.</string>
+    <string name="cast_fail">Impossibile avviare la trasmissione.</string>
+    <string name="cast_connected">Trasmissione su %1$s</string>
     <string name="queue_hint_tv">▼  Prossimi episodi</string>
     <string name="player_bad_response">Risposta non valida dal server (HTTP %1$s). Accedi di nuovo all’app.</string>
     <string name="player_start_fail">Impossibile avviare la riproduzione</string>

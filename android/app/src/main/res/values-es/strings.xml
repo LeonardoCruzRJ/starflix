@@ -74,6 +74,10 @@
     <string name="pp_ep">T%1$s · E%2$s</string>
     <string name="settings">Ajustes</string>
     <string name="stop">Detener</string>
+    <string name="cast_button">Transmitir a la TV</string>
+    <string name="cast_unreachable">La TV no puede acceder al servidor en esta dirección.</string>
+    <string name="cast_fail">No se pudo iniciar la transmisión.</string>
+    <string name="cast_connected">Transmitiendo a %1$s</string>
     <string name="queue_hint_tv">▼  Próximos episodios</string>
     <string name="player_bad_response">Respuesta no válida del servidor (HTTP %1$s). Vuelve a entrar en la app.</string>
     <string name="player_start_fail">Error al iniciar la reproducción</string>

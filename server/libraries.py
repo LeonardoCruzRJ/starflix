@@ -814,7 +814,7 @@ def _get_lib(lid):
 @login_required
 def library(lid):
     """Biblioteca: abas Recomendado/Biblioteca, filtros, ordenação (?sort=&dir=&filter=&genre=&tab=) e contador."""
-    from server.progress import continue_watching
+    from server.progress import continue_watching, watch_href
 
     lib = _get_lib(lid)
     sort, d, flt, genre = _args(lid)
@@ -871,6 +871,7 @@ def library(lid):
         cont = [c for c in continue_watching(session["user_id"], session["profile_id"]) if c["media_id"] in ids]
         for c in cont:
             c["left"] = _left(c)
+            c["watch_href"] = watch_href(c)  # 66.2: o card toca o alvo (episódio em andamento, o próximo ou o filme)
         if cont:
             rec.append((i18n.tr("lib.row.continue"), "cont", cont))
         added = _items(lid, lib["type"], "added", "desc", "all", "")[:20]

@@ -12,7 +12,7 @@ bp = Blueprint("progress", __name__)
 
 SAVE_INTERVAL = 10  # segundos entre salvamentos (o player chama o endpoint nesse intervalo)
 RESUME_MIN = 5  # segundos: abaixo disso não há "continuar" (o player também começa do zero)
-WATCHED_RATIO = 0.9  # acima disso o item é marcado como assistido
+WATCHED_RATIO = 0.98  # 66.1: acima disso o item é marcado como assistido (e, no Continue assistindo, o episódio passa para o próximo)
 
 
 def _data():
@@ -42,24 +42,53 @@ def _same_file(conn, kind, item_id):
     return [r["id"] for r in rows] or [item_id]
 
 
+def _next_ep(conn, episode_id):
+    """Próxima linha de episódio da mesma série (ordem temporada/episódio) ou None; usa a conexão já aberta."""
+    cur = conn.execute("SELECT media_id, season, episode FROM episodes WHERE id = ?", (episode_id,)).fetchone()
+    if not cur:
+        return None
+    return conn.execute(
+        "SELECT id, season, episode, title FROM episodes WHERE media_id = ? AND (season > ? OR (season = ? AND episode > ?)) "
+        "AND path != (SELECT path FROM episodes WHERE id = ?) "  # S01E01E02: o próximo não pode ser o mesmo arquivo
+        "ORDER BY season, episode LIMIT 1",
+        (cur["media_id"], cur["season"], cur["season"], cur["episode"], episode_id),
+    ).fetchone()
+
+
 def next_episode(episode_id):
     """Próximo episódio da mesma série (ordem temporada/episódio); None se for o último."""
     with get_db() as conn:
-        cur = conn.execute("SELECT media_id, season, episode FROM episodes WHERE id = ?", (episode_id,)).fetchone()
-        if not cur:
-            return None
-        n = conn.execute(
-            "SELECT id, season, episode, title FROM episodes WHERE media_id = ? AND (season > ? OR (season = ? AND episode > ?)) "
-            "AND path != (SELECT path FROM episodes WHERE id = ?) "  # S01E01E02: o próximo não pode ser o mesmo arquivo
-            "ORDER BY season, episode LIMIT 1",
-            (cur["media_id"], cur["season"], cur["season"], cur["episode"], episode_id),
-        ).fetchone()
+        n = _next_ep(conn, episode_id)
     if not n:
         return None
     return {
         "id": n["id"], "season": n["season"], "episode": n["episode"], "title": n["title"],
         "play": f"/stream/episode/{n['id']}/play",
     }
+
+
+def watch_href(i, video=False):
+    """66.4: link do /watch para o card do Continue; ?back= leva a página de detalhe (temporada ou filme) que o app abre ao fechar o player."""
+    from urllib.parse import quote
+    if i["watch_kind"] == "episode":
+        back = f"/show/{i['media_id']}/season/{i.get('season') or 1}?ep={i['watch_id']}"
+    elif video and i.get("lib"):
+        back = f"/library/{i['lib']}"
+    else:
+        back = f"/movie/{i['media_id']}"
+    return f"/watch/{i['watch_kind']}/{i['watch_id']}?back={quote(back, safe='')}"
+
+
+def resume_target(conn, kind, item_id, position, duration):
+    """66.1: o que o card de \"Continue assistindo\" deve tocar: (kind, id, posição) ou None.
+    Filme: o próprio filme na posição salva. Episódio: o mesmo na posição salva, ou, se já passou de WATCHED_RATIO (98%) da duração,
+    o próximo episódio da série em 0; sem próximo, None (a série sai do Continue)."""
+    if kind != "episode":
+        return ("movie", item_id, position)
+    if duration and position / duration >= WATCHED_RATIO:
+        n = _next_ep(conn, item_id)
+        return ("episode", n["id"], 0) if n else None
+    return ("episode", item_id, position)
 
 
 @bp.route("/next/episode/<int:item_id>")
@@ -134,7 +163,7 @@ def set_watched(kind, item_id):
 def continue_watching(user_id, profile_id, limit=20, home=False):
     """Itens começados e não terminados do perfil, mais recentes primeiro (só bibliotecas liberadas;
     `home=True` tira as bibliotecas com visibilidade \"Excluir do Início\", 28.6)."""
-    allowed = {l["id"] for l in visible_libraries(user_id) if not home or lib_prefs(l)["visibility"] == "all"}
+    allowed = {l["id"] for l in visible_libraries(user_id) if l["type"] != "video" and (not home or lib_prefs(l)["visibility"] == "all")}  # Outros Vídeos nunca entra no Continue
     out = []
     shows = set()
     with get_db() as conn:
@@ -173,9 +202,21 @@ def continue_watching(user_id, profile_id, limit=20, home=False):
                 duration = (json.loads(m["info"]) if m["info"] else {}).get("duration") or 0
             except ValueError:
                 duration = 0
+            target = resume_target(conn, item["kind"], item["id"], r["position"], duration)  # 66.1: regra dos 98%
+            if not target:
+                continue  # último episódio já visto até o fim e sem próximo: sai do Continue (a série já entrou em `shows`)
+            position = r["position"]
+            if target[1] != item["id"]:  # 66.2: passou de 98%: o card passa a ser o próximo episódio (em 0), com os dados dele
+                n = conn.execute("SELECT id, season, episode, title, info FROM episodes WHERE id = ?", (target[1],)).fetchone()
+                try:
+                    duration = (json.loads(n["info"]) if n["info"] else {}).get("duration") or 0
+                except ValueError:
+                    duration = 0
+                item.update(id=n["id"], season=n["season"], episode=n["episode"], title=n["title"])
+                position = 0
             item.update(
-                position=r["position"], duration=duration, poster=f"/poster/{item['media_id']}",
-                updated_at=r["updated_at"],
+                position=position, duration=duration, poster=f"/poster/{item['media_id']}",
+                updated_at=r["updated_at"], watch_kind=target[0], watch_id=target[1], watch_pos=target[2],
             )
             out.append(item)
             if len(out) >= limit:

@@ -116,7 +116,7 @@
   window.sfMenuAt = function (btn, items, kb, cls) { if (trigger === btn) { close(); return; } open(btn, items, kb, cls); };
 
   function cardItems(card) {
-    var a = card.querySelector('.pcard-title'), href = a ? a.getAttribute('href') : '', items = [], m;
+    var a = card.querySelector('.pcard-title'), href = card.dataset.detail || (a ? a.getAttribute('href') : ''), items = [], m;  // 66.3: Continue assistindo toca no href; o detalhe vem em data-detail
     if ((m = href.match(/^\/show\/(\d+)$/))) items.push({l: T('lib.shuffle'), h: '/show/' + m[1] + '/random'});
     else if ((m = href.match(/^\/show\/(\d+)\/season\/(\d+)$/))) items.push({l: T('lib.shuffle'), h: href + '/play?random=1'});
     var sel = card.querySelector('.pcard-sel');

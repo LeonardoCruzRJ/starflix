@@ -227,18 +227,19 @@ def profile():
 
 def _profile_continue(user_id, profile_id, limit=3):
     """Celular: os 3 últimos itens de "Continuar Assistindo" do perfil (capa, link e % assistido, igual à fileira do Início)."""
-    from server.progress import continue_watching
+    from server.progress import continue_watching, watch_href
     with get_db() as conn:
         video_libs = {r["id"] for r in conn.execute("SELECT id FROM libraries WHERE type = 'video'")}
     out = []
     for i in continue_watching(user_id, profile_id, limit=limit, home=True):
         pct = min(100, int(i["position"] / i["duration"] * 100)) if i.get("duration") else 0
+        href = watch_href(i, i.get("lib") in video_libs)  # 66.2: toca direto (episódio em andamento, o próximo ou o filme)
         if i["kind"] == "episode":
-            title, href, img = i["show"], f"/show/{i['media_id']}", f"/poster/{i['media_id']}"
+            title, img = i["show"], f"/poster/{i['media_id']}"
         elif i.get("lib") in video_libs:  # biblioteca de vídeos não tem capa: usa a miniatura
-            title, href, img = i["title"], f"/watch/movie/{i['media_id']}", f"/thumb/{i['media_id']}"
+            title, img = i["title"], f"/thumb/{i['media_id']}"
         else:
-            title, href, img = i["title"], f"/movie/{i['media_id']}", f"/poster/{i['media_id']}"
+            title, img = i["title"], f"/poster/{i['media_id']}"
         out.append({"title": title, "href": href, "img": img, "pct": pct})
     return out
 

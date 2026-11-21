@@ -305,8 +305,8 @@
     selSubs.innerHTML = ''; subTracks = {};
     (subs.external || []).concat(subs.embedded || []).forEach(function (s) { if (s.key) subTracks[s.url] = { key: s.key, offset: s.offset || 0, rate: s.rate || 1, auto: !!s.auto, undo: !!s.undo }; });
     opt(selSubs, '', T('player.sub_off'));
-    (subs.external || []).forEach(function (s) { opt(selSubs, s.url, T('player.sub_ext', {name: s.lang || s.title})); });
-    (subs.embedded || []).forEach(function (s) { opt(selSubs, s.url, (s.title || (s.lang || T('player.track', {n: s.index}))).toUpperCase()); });
+    (subs.external || []).forEach(function (s) { opt(selSubs, s.url, T('player.sub_ext', {name: s.label || s.lang || s.title})); });
+    (subs.embedded || []).forEach(function (s) { opt(selSubs, s.url, (s.label || s.title || s.lang || T('player.track', {n: s.index})).toUpperCase()); });
   }
 
   // ---------- buscar legenda no SubDL (47.3, só admin) ----------

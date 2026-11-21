@@ -65,7 +65,7 @@
   }
 
   function fromCard(card) {
-    var a = card.querySelector('.pcard-title'), href = a ? a.getAttribute('href') : '', m;
+    var a = card.querySelector('.pcard-title'), href = card.dataset.detail || (a ? a.getAttribute('href') : ''), m;  // 66.3
     if (card.dataset.type === 'video' && card.dataset.id) return ['video', card.dataset.id];  // 34.6
     if (card.dataset.kind && card.dataset.id) return [card.dataset.kind, card.dataset.id];
     if ((m = href.match(/^\/show\/(\d+)\/season\/(\d+)$/))) return ['season', m[1] + '-' + m[2]];

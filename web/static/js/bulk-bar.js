@@ -36,7 +36,7 @@
   }
   async function reloading(op, body) { if (await post(op, body)) location.reload(); }
   function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
-  function link(id) { var c = cardOf(id), a = c && c.querySelector('.pcard-title'); return a ? a.getAttribute('href') : '/' + kindOf(id) + '/' + id; }
+  function link(id) { var c = cardOf(id), a = c && c.querySelector('.pcard-title'); return c && c.dataset.detail ? c.dataset.detail : (a ? a.getAttribute('href') : '/' + kindOf(id) + '/' + id); }  // 66.3
 
   function refreshBar() {
     var n = ids.length;

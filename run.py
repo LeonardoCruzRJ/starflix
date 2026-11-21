@@ -39,6 +39,7 @@ from server.home_rows import bp as home_rows_bp
 from server.tv_api import bp as tv_api_bp
 from server.tv_auth import bp as tv_auth_bp, bearer_token, device_for_token, profile_of
 from server import img_token  # 62.4
+from server import cast  # 67.1
 from server.markers import bp as markers_bp
 from server.trickplay import bp as trickplay_bp
 from server.playback import bp as playback_bp
@@ -76,7 +77,7 @@ class _Sessions(SecureCookieSessionInterface):
     """40.4: chamadas da TV (Bearer) usam o token no lugar do cookie e não criam nem alteram o cookie de sessão."""
 
     def save_session(self, app, session, response):
-        if g.get("tv_device"):
+        if g.get("tv_device") or g.get("cast_token"):  # 67.1: a TV de transmissão também não recebe cookie
             return None
         return super().save_session(app, session, response)
 
@@ -133,6 +134,7 @@ from server.i18n_api import bp as i18n_api_bp  # 59.3
 app.register_blueprint(i18n_api_bp)
 from server.app_update import bp as app_update_bp  # 63.3
 app.register_blueprint(app_update_bp)
+app.register_blueprint(cast.bp)  # 67.1
 
 PUBLIC = ("health", "auth.setup", "auth.login", "static", "tv_auth.code_new", "tv_auth.code_poll", "admin_server.info", "branding.serve", "i18n_api.catalog", "i18n_api.set_lang", "app_update.version", "app_update.apk", "phone_auth.connect_page", "phone_auth.claim", "phone_auth.session_from_token", "phone_auth.tv_ticket", "phone_auth.phone_me", "phone_auth.tv_claim")  # 40.2: a TV ainda não tem sessão
 
@@ -148,7 +150,7 @@ def _cors_origin():
 @app.before_request
 def cors_preflight():
     """62.14: responde o OPTIONS (preflight) antes do `gate`, que exigiria login."""
-    if request.method == "OPTIONS" and _cors_origin() and request.headers.get("Access-Control-Request-Method"):
+    if request.method == "OPTIONS" and request.headers.get("Access-Control-Request-Method") and (_cors_origin() or (request.args.get("ct") and request.endpoint in cast.CAST_EPS)):
         return app.make_response(("", 204))
     return None
 
@@ -172,6 +174,16 @@ def gate():
         if res["profile_id"]:
             session["profile_id"] = res["profile_id"]
         g.tv_device = res["device_id"]
+    if token is None and ep in cast.CAST_EPS and request.method in ("GET", "HEAD") and request.args.get("ct"):  # 67.1: vídeo/legenda/capa da transmissão (Chromecast, sem cabeçalho)
+        with get_db() as conn:
+            res = cast.resolve(conn, request.args.get("ct"))
+        if not res:
+            return jerr("err.token_invalido", 401)
+        session.clear()
+        session["user_id"], session["sv"] = res["user_id"], res["session_ver"]
+        if res["profile_id"]:
+            session["profile_id"] = res["profile_id"]
+        g.cast_token = True
     if token is not None:
         with get_db() as conn:
             dev = device_for_token(conn, token)
@@ -219,6 +231,14 @@ def gate():
 @app.after_request
 def cors_headers(resp):
     """62.14: libera a API para as origens de config.CORS_ORIGINS (o emulador Roku roda em outro domínio). Sem cookies: a TV usa Authorization."""
+    if request.args.get("ct") and (g.get("cast_token") or request.method == "OPTIONS") and request.endpoint in cast.CAST_EPS:  # 67.1: o receptor Cast (outra origem) lê HLS/legendas por XHR; o token vai na URL, sem cookie
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Expose-Headers"] = "Content-Length, Content-Range, Accept-Ranges, Content-Type"
+        if request.method == "OPTIONS":
+            resp.headers["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+            resp.headers["Access-Control-Allow-Headers"] = request.headers.get("Access-Control-Request-Headers", "Range, Accept, Content-Type")
+            resp.headers["Access-Control-Max-Age"] = "86400"
+        return resp
     origin = _cors_origin()
     if origin:
         resp.headers["Access-Control-Allow-Origin"] = origin

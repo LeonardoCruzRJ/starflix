@@ -93,8 +93,19 @@ def _read(path):
     return raw.decode("utf-8", "replace")
 
 
+def _lang_name(lang):
+    """66.12: nome do idioma no idioma ativo (pt → Português); desconhecido volta como veio; vazio/und = \"\"."""
+    v = str(lang or "").strip()
+    if not v or v.lower() == "und":
+        return ""
+    from server import i18n
+    from server.browse import _l2
+    code = _l2(v)
+    return (i18n.tr("lang." + code) if code else "") or v
+
+
 def external_subs(video_path):
-    """Lista .srt ao lado do vídeo (mesmo nome base): [{id, lang, file}]."""
+    """Lista .srt ao lado do vídeo (mesmo nome base): [{id, lang, file, title, label}]; `lang` None sem sufixo (subdl/subsync dependem disso), `label` sempre preenchido."""
     folder, name = os.path.split(video_path)
     base = os.path.splitext(name)[0]
     found = []
@@ -107,7 +118,7 @@ def external_subs(video_path):
         if rest and not all(_LANG_TOKEN.match(t) for t in re.split(r"[._ ]+", rest.strip("._ -"))):
             continue  # resto que não é idioma/flag ("Toy Story 2.srt" não é legenda de "Toy Story")
         lang = rest.strip(". _-") or None
-        found.append({"file": os.path.join(folder, f), "lang": lang, "title": f})
+        found.append({"file": os.path.join(folder, f), "lang": lang, "title": f, "label": _lang_name(lang) or os.path.splitext(f)[0]})
     for i, s in enumerate(found):
         s["id"] = i
     return found
@@ -187,6 +198,7 @@ def extract_vtt(video_path, index):
 @bp.route("/stream/<kind>/<int:item_id>/subs")
 @login_required
 def subs_list(kind, item_id):
+    from server import i18n
     path, info = get_item(kind, item_id)
     subs = external_subs(path)
     with get_db() as conn:  # 47.1: atraso salvo por legenda (s)
@@ -194,15 +206,16 @@ def subs_list(kind, item_id):
             "SELECT sub_key, offset, rate, source, prev_source FROM sub_offset WHERE item_type = ? AND item_id = ?", (kind, item_id))}
     return jsonify(
         external=[
-            {"id": s["id"], "lang": s["lang"], "title": s["title"], "url": f"/stream/{kind}/{item_id}/subs/{s['id']}.vtt",
+            {"id": s["id"], "lang": s["lang"] or "", "title": s["title"] or "", "label": s["label"], "url": f"/stream/{kind}/{item_id}/subs/{s['id']}.vtt",
              "key": ext_key(s), **_saved(saved.get(ext_key(s)))}
             for s in subs
         ],
         embedded=[
-            {"index": t["index"], "lang": t.get("lang"), "title": t.get("title"),
+            {"index": t["index"], "lang": t.get("lang") or "", "title": t.get("title") or "",
+             "label": (t.get("title") or "").strip() or _lang_name(t.get("lang")) or i18n.tr("player.track", n=n),
              "url": f"/stream/{kind}/{item_id}/subs/emb/{t['index']}.vtt",
              "key": emb_key(t), **_saved(saved.get(emb_key(t)))}
-            for t in embedded_subs(info)
+            for n, t in enumerate(embedded_subs(info), 1)
         ],
     )
 

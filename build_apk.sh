@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 63.1: compila o APK release assinado no próprio servidor Linux.
 # Uso: ./build_apk.sh   (na raiz do projeto)
-# Na primeira execução instala o que faltar (JDK 17 e Android SDK). A versão vem de config.VERSION (1.0.719 -> versionCode 719).
+# Na primeira execução instala o que faltar (JDK 17 e Android SDK). A versão vem de config.VERSION (1.0.719 -> versionCode 71900); rodar de novo na mesma versão gera 1.0.719.1 (71901), .2 (71902)...
 # Keystore: usa android/starflix.jks + android/keystore.properties se existirem; se não existirem, cria na 1ª execução (a MESMA chave do app instalado é necessária para atualizar por cima).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,9 +21,29 @@ apt_install() { $SUDO apt-get update -y && $SUDO apt-get install -y "$@"; }
 # versão (fonte única: config.VERSION)
 VERSION="$(python3 -c 'import config; print(config.VERSION)' 2>/dev/null || sed -n 's/^VERSION *= *"\([^"]*\)".*/\1/p' config.py | head -1)"
 [ -n "$VERSION" ] || { echo "ERRO: não achei VERSION em config.py"; exit 1; }
-CODE="${VERSION##*.}"
-case "$CODE" in ''|*[!0-9]*) echo "ERRO: VERSION '$VERSION' precisa terminar em número (ex.: 1.0.719)"; exit 1;; esac
-echo "Versão: $VERSION (versionCode $CODE)"
+BASE="${VERSION##*.}"
+case "$BASE" in ''|*[!0-9]*) echo "ERRO: VERSION '$VERSION' precisa terminar em número (ex.: 1.0.719)"; exit 1;; esac
+# rebuild da mesma versão: o 1º build sai como $VERSION; cada build seguinte da mesma versão ganha .1, .2, .3... (versionName) e o versionCode sobe (base*100 + n),
+# para o app instalado enxergar a diferença. Versão nova (config.VERSION maior) volta a sair sem o 4º número. A conta parte do apk/version.json já publicado.
+REV="$(python3 - "$VERSION" <<'PY'
+import json, sys
+v = sys.argv[1]
+try:
+    n = json.load(open("apk/version.json", encoding="utf-8")).get("versionName", "")
+except (OSError, ValueError):
+    n = ""
+if n == v:
+    print(1)
+elif n.startswith(v + ".") and n[len(v) + 1:].isdigit():
+    print(int(n[len(v) + 1:]) + 1)
+else:
+    print(0)
+PY
+)"
+[ "$REV" -le 99 ] || { echo "ERRO: mais de 99 builds da versão $VERSION; suba a versão em config.py."; exit 1; }
+CODE=$((BASE * 100 + REV))
+NAME="$VERSION"; [ "$REV" -gt 0 ] && NAME="$VERSION.$REV"
+echo "Versão: $NAME (versionCode $CODE)"
 
 # JDK 17
 java_major() { java -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1; }
@@ -84,7 +104,7 @@ printf 'sdk.dir=%s\n' "$SDK" > android/local.properties
 # compila
 cd android
 chmod +x gradlew
-./gradlew --no-daemon assembleRelease -PsfVersionName="$VERSION" -PsfVersionCode="$CODE"
+./gradlew --no-daemon assembleRelease -PsfVersionName="$NAME" -PsfVersionCode="$CODE"
 cd "$ROOT"
 
 # 63.2: confere o APK antes de publicar (assinatura, pacote e versionCode); se falhar, apk/ fica como estava
@@ -100,7 +120,7 @@ esac
 
 # publica: APK e version.json novos ao lado, depois trocados em seguida (o json por último, só aponta para APK já no lugar)
 cp "$BUILT" apk/starflix.apk.new
-python3 - "$VERSION" "$CODE" <<'PY'
+python3 - "$NAME" "$CODE" <<'PY'
 import hashlib, json, os, sys, datetime
 v, c = sys.argv[1], int(sys.argv[2])
 p = "apk/starflix.apk.new"
@@ -112,5 +132,5 @@ open("apk/version.json.new", "w", encoding="utf-8").write(json.dumps(info, inden
 PY
 mv -f apk/starflix.apk.new apk/starflix.apk
 mv -f apk/version.json.new apk/version.json
-echo "APK: $ROOT/apk/starflix.apk (versão $VERSION)"
+echo "APK: $ROOT/apk/starflix.apk (versão $NAME)"
 echo "Versão publicada: $ROOT/apk/version.json"

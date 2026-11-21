@@ -50,6 +50,7 @@ class WebActivity : AppCompatActivity() {
 
     // 54.20: <input type="file"> do site (foto do perfil): galeria/arquivos ou câmera (quando o input tem capture)
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var pendingBack: String? = null  // 66.4
     private var cameraUri: Uri? = null
     private val fileChooser = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         val cb = filePathCallback
@@ -155,6 +156,7 @@ class WebActivity : AppCompatActivity() {
                     if (m == null) return false
                     reloadOnResume = true
                     val start = request.url.getQueryParameter("start")?.toDoubleOrNull()?.toInt()  // ?start=0 = "Do início"
+                    pendingBack = request.url.getQueryParameter("back")?.takeIf { it.startsWith("/") && !it.startsWith("//") }  // 66.4: card do Continue; ao fechar o player abre a temporada/filme
                     startActivity(
                         Intent(this@WebActivity, PlayerActivity::class.java)
                             .putExtra(PlayerActivity.EXTRA_KIND, m.groupValues[1])
@@ -390,8 +392,9 @@ class WebActivity : AppCompatActivity() {
         if (reloadOnResume) {
             reloadOnResume = false
             // 60.7: o player grava a posição em segundo plano; recarregar na hora mostrava o Início/Continuar assistindo velho
-            val go = PlayerActivity.openAfter  // 64.9: card de Semelhantes da tela pós-reprodução
+            val go = PlayerActivity.openAfter ?: pendingBack  // 64.9: card de Semelhantes da tela pós-reprodução; 66.4: destino de volta do Continue
             PlayerActivity.openAfter = null
+            pendingBack = null
             if (go != null && go.startsWith("/")) web.loadUrl(baseUrl + go)
             else web.postDelayed({ if (!isDestroyed && !failed) web.reload() }, 1500L)
         }

@@ -13,8 +13,8 @@ android {
         applicationId = "com.starflix.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = ((project.findProperty("sfVersionCode") as String?)?.toIntOrNull() ?: 775)  // 57.31: sobe a cada versão (o launcher da TV só troca o ícone em cache quando versionCode/recursos mudam)
-        versionName = (project.findProperty("sfVersionName") as String?) ?: "1.0.775"
+        versionCode = ((project.findProperty("sfVersionCode") as String?)?.toIntOrNull() ?: 80400)  // 57.31: sobe a cada versão (o launcher da TV só troca o ícone em cache quando versionCode/recursos mudam)
+        versionName = (project.findProperty("sfVersionName") as String?) ?: "1.0.804"
     }
 
     val ks = Properties().apply {
@@ -69,5 +69,8 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")  // 40.9: cabeçalho Bearer nas imagens (Coil)
     implementation("androidx.tvprovider:tvprovider:1.0.0")  // 52.15: linha "Reproduzir a seguir" (WatchNextProgram)
+    // 67.2: transmitir para a TV (Google Cast) pelo player do celular
+    implementation("com.google.android.gms:play-services-cast-framework:21.5.0")
+    implementation("androidx.mediarouter:mediarouter:1.7.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")  // 40.8: token da TV criptografado
 }

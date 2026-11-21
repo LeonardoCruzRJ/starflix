@@ -57,8 +57,12 @@ class TvActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        parseLink(intent)?.let { pendingLink = it }
+        val link = parseLink(intent)
+        if (link != null) pendingLink = link
+        else if (intent.action == Intent.ACTION_MAIN) resetTick++  // 66.11: abrir pelo launcher volta ao Início, nunca ao player ou ao detalhe antigo
     }
+
+    private var resetTick by mutableStateOf(0)   // 66.11
 
     private lateinit var store: TvStore
     private var updatePending by mutableStateOf<AppRelease?>(null)   // 63.7: versão nova publicada (ou pendente de antes): modal bloqueante
@@ -86,9 +90,26 @@ class TvActivity : ComponentActivity() {
         pausedAt = System.currentTimeMillis()
     }
 
+    // 66.9: Home com a tela visível fecha a tarefa (o app não fica em segundo plano); `ownLaunch` marca as aberturas do próprio app (player, tela de conexão), que também disparam onUserLeaveHint
+    private var leaving = false
+    private var ownLaunch = false
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        leaving = !ownLaunch
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // não fecha durante a atualização (63.5: o instalador e os ajustes tiram o app da frente) nem em mudança de configuração
+        if (leaving && updatePending == null && !isChangingConfigurations) finishAndRemoveTask()
+        leaving = false
+    }
+
     /** 52.17: ao abrir o app e ao voltar do player, atualiza a linha "Reproduzir a seguir" (assistido sai, próximo episódio entra). */
     override fun onResume() {
         super.onResume()
+        leaving = false; ownLaunch = false
         if (::store.isInitialized) { resumeTick++; checkUpdate() }
         TvWatchNext.refresh(this, store, if (fromPlayer) 1500L else 0L)
         if (!fromPlayer && pausedAt > 0 && System.currentTimeMillis() - pausedAt > 20000L) playTick++
@@ -119,10 +140,11 @@ class TvActivity : ComponentActivity() {
                             recreate()
                         },
                         onAddress = {  // 58.17: último recurso, endereço digitado → /api/server-info → PairScreen
+                            ownLaunch = true
                             startActivity(Intent(this, ConnectActivity::class.java))
                             finish()
                         },
-                        onBack = { finish() },
+                        onBack = { finishAndRemoveTask() },
                     )
                 }
             }
@@ -161,9 +183,23 @@ class TvActivity : ComponentActivity() {
                 var origin by remember { mutableStateOf(Screen.HOME) }          // tela de onde o 1º detalhe foi aberto
                 fun open(from: Screen, c: TvCard) {
                     val t = c.target()
+                    if (c.direct && c.play != null) {  // 66.5: Continue toca direto, retomando da posição salva
+                        // 66.6: o detalhe (temporada com o episódio em foco ou filme) entra na pilha antes do player; ao fechar, a tela já é ele e Voltar segue até o Início
+                        val d = when { c.type == "movie" -> Target("movie", c.id); c.type == "show" && c.season > 0 -> Target("season", c.id, c.season); else -> null }
+                        if (d != null) { if (stack.isEmpty()) origin = from; stack.add(d); screen = Screen.DETAIL }
+                        play(c.play, c.title, 0); return
+                    }
                     if (t == null) { play(c.play, c.title, 0); return }
                     if (stack.isEmpty()) origin = from
                     stack.add(t); screen = Screen.DETAIL
+                }
+                // 66.11: reabertura pelo launcher (intent MAIN): zera pilha, foco, busca e menu e recarrega o Início
+                LaunchedEffect(resetTick) {
+                    if (resetTick == 0) return@LaunchedEffect
+                    if (screen == Screen.HOME || screen == Screen.LIBRARY || screen == Screen.DETAIL || screen == Screen.SEARCH || screen == Screen.MYLIST) {
+                        stack.clear(); homeFocus = null; libFocus = null; libId = 0L; searchQuery = ""
+                        screen = Screen.HOME; playTick++
+                    }
                 }
                 // 52.16: link da linha da TV: abre o detalhe ou já continua a reprodução; sem pareamento/perfil espera (o fluxo normal segue e volta aqui)
                 LaunchedEffect(pendingLink, screen) {
@@ -172,7 +208,10 @@ class TvActivity : ComponentActivity() {
                         (screen == Screen.HOME || screen == Screen.LIBRARY || screen == Screen.DETAIL || screen == Screen.SEARCH || screen == Screen.MYLIST)
                     if (!ready) return@LaunchedEffect
                     pendingLink = null
-                    if (l.play) play("/stream/${l.type}/${l.id}/play", "", 0)
+                    if (l.play) {  // 66.6: linha "Reproduzir a seguir": o detalhe (filme ou episódio) fica na pilha ao fechar o player
+                        stack.clear(); origin = Screen.HOME; stack.add(Target(l.type, l.id)); screen = Screen.DETAIL
+                        play("/stream/${l.type}/${l.id}/play", "", 0)
+                    }
                     else { stack.clear(); origin = Screen.HOME; stack.add(Target(l.type, l.id)); screen = Screen.DETAIL }
                 }
                 // 401: token revogado → pareamento; 403: perfil apagado → escolha de perfil (o token segue valendo)
@@ -220,7 +259,7 @@ class TvActivity : ComponentActivity() {
                     token = store.token,
                     onPicked = { p -> store.profileId = p.id; store.profileName = p.name; store.profileColor = p.color; store.profilePhoto = p.photo; screen = Screen.HOME; TvWatchNext.refresh(this@TvActivity, store) },
                     onUnauthorized = { unauthorized() },
-                    onExit = { finish() },
+                    onExit = { finishAndRemoveTask() },  // 66.9: Voltar no Início encerra a tarefa
                 )
                 Screen.HOME -> HomeScreen(
                     server = store.server,
@@ -228,7 +267,7 @@ class TvActivity : ComponentActivity() {
                     profileId = store.profileId,
                     profileName = store.profileName, profileColor = store.profileColor, profilePhoto = store.profilePhoto,
                     onOpen = { c -> open(Screen.HOME, c) },
-                    onExit = { finish() },
+                    onExit = { finishAndRemoveTask() },  // 66.9: Voltar no Início encerra a tarefa
                     refresh = playTick,
                     onNavigate = { dest -> navigate(dest) },
                     onLibs = { libs = it },
@@ -278,6 +317,7 @@ class TvActivity : ComponentActivity() {
     private fun play(path: String?, title: String, position: Int) {
         val m = Regex("/stream/(movie|episode)/(\\d+)/play").find(path.orEmpty())
         if (m == null) { Toast.makeText(this, Txt.s(R.string.tv_no_video, title), Toast.LENGTH_SHORT).show(); return }
+        ownLaunch = true
         playerLauncher.launch(
             Intent(this, PlayerActivity::class.java)
                 .putExtra(PlayerActivity.EXTRA_KIND, m.groupValues[1])

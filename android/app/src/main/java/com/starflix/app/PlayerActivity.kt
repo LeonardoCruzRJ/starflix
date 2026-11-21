@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.webkit.CookieManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
@@ -25,6 +26,16 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.mediarouter.app.MediaRouteButton
+import com.google.android.gms.cast.MediaInfo
+import com.google.android.gms.cast.MediaLoadRequestData
+import com.google.android.gms.cast.MediaMetadata
+import com.google.android.gms.cast.MediaSeekOptions
+import com.google.android.gms.cast.MediaTrack
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.SessionManagerListener
+import com.google.android.gms.common.images.WebImage
+import com.google.android.gms.cast.framework.CastButtonFactory
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -44,6 +55,9 @@ import kotlin.concurrent.thread
 
 private class Cue(val start: Double, val end: Double, val text: String)
 
+// 66.13: org.json devolve a string "null" em optString quando o valor é nulo; aqui nulo = vazio
+private fun JSONObject.str(key: String): String = if (isNull(key)) "" else optString(key)
+
 /** Player nativo (ExoPlayer) com troca de faixa de áudio (nova sessão no servidor) e legendas .vtt desenhadas por cima. */
 @OptIn(UnstableApi::class)
 class PlayerActivity : AppCompatActivity() {
@@ -59,6 +73,9 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var mBtnPlay: ImageView
     private lateinit var mBtnPrev: ImageView
     private lateinit var mBtnNext: ImageView
+    private lateinit var mBtnRew: ImageView       // 67.6: ±10 s, só durante a transmissão
+    private lateinit var mBtnFwd: ImageView
+    private lateinit var mCastInfo: TextView      // 67.6: "Transmitindo para <TV>"
     private lateinit var mBtnQueue: ImageView
     private var lockLand = true                   // 55.7: bloquear em paisagem (padrão ligado; guardado no aparelho)
     private var fitMode = 0                       // 55.7: 0 Letterbox (FIT), 1 Preencher (ZOOM), 2 Esticar (FILL)
@@ -164,6 +181,9 @@ class PlayerActivity : AppCompatActivity() {
         mBtnPlay = findViewById(R.id.mBtnPlay)
         mBtnPrev = findViewById(R.id.mBtnPrev)
         mBtnNext = findViewById(R.id.mBtnNext)
+        mBtnRew = findViewById(R.id.mBtnRew)
+        mBtnFwd = findViewById(R.id.mBtnFwd)
+        mCastInfo = findViewById(R.id.mCastInfo)
         mBtnQueue = findViewById(R.id.mBtnQueue)
         tvOverlay = findViewById(R.id.tvOverlay)
         btnSkipIntro = findViewById(R.id.btnSkipIntro)
@@ -205,8 +225,19 @@ class PlayerActivity : AppCompatActivity() {
             fitMode = sp.getInt("pl_fit", 0).coerceIn(0, 2)
             applyOrientation()
             applyFit()
-            view.setOnClickListener { if (mOverlay.visibility == View.VISIBLE) hideM() else showM() }
-            mOverlay.setOnClickListener { hideM() }
+            // 68.1: toque simples mostra/esconde os controles; toque duplo na metade esquerda/direita (fora dos botões) volta/avança 10 s (não na transmissão)
+            val gd = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: android.view.MotionEvent) = true
+                override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean { if (mOverlay.visibility == View.VISIBLE) hideM() else showM(); return true }
+                override fun onDoubleTap(e: android.view.MotionEvent): Boolean {
+                    if (casting || loading || player == null) return true
+                    seekTo(absPos() + if (e.rawX < resources.displayMetrics.widthPixels / 2f) -10 else 10)
+                    return true
+                }
+            })
+            val tl = View.OnTouchListener { _, ev -> gd.onTouchEvent(ev) }
+            view.setOnTouchListener(tl)
+            mOverlay.setOnTouchListener(tl)
             mSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
                     if (fromUser && duration > 0) {
@@ -227,11 +258,19 @@ class PlayerActivity : AppCompatActivity() {
                     showM()
                 }
             })
-            mBtnPlay.setOnClickListener { val p = player; if (p != null) { if (p.isPlaying) p.pause() else p.play() }; updateMPlay(); showM() }
+            mBtnPlay.setOnClickListener {
+                val rmc = if (casting) castSession()?.remoteMediaClient else null
+                if (rmc != null) rmc.togglePlayback()  // 67.6: play/pausa na TV
+                else { val p = player; if (p != null) { if (p.isPlaying) p.pause() else p.play() } }
+                updateMPlay(); showM()
+            }
+            mBtnRew.setOnClickListener { seekTo(absPos() - 10); showM() }
+            mBtnFwd.setOnClickListener { seekTo(absPos() + 10); showM() }
             mBtnPrev.setOnClickListener { if (prevId > 0) { save(); switchTo(prevId) } }
             mBtnNext.setOnClickListener { if (nextId > 0) { save(); switchTo(nextId) } }
             findViewById<View>(R.id.mBtnClose).setOnClickListener { finish() }
             if (pipSupported()) findViewById<View>(R.id.mBtnPip).apply { visibility = View.VISIBLE; setOnClickListener { enterPip() } }
+            if (CastSupport.available(this)) findViewById<MediaRouteButton>(R.id.mBtnCast).apply { CastButtonFactory.setUpMediaRouteButton(applicationContext, this); visibility = View.VISIBLE }  // 67.3: só celular com Google Play Services
             findViewById<View>(R.id.mBtnSubs).setOnClickListener { openSubsSheet() }
             findViewById<View>(R.id.mBtnSettings).setOnClickListener { openSettingsSheet() }
             updateTrackButtons()
@@ -365,6 +404,7 @@ class PlayerActivity : AppCompatActivity() {
 
     /** Pede /play (áudio e posição inicial) e toca o resultado; descarta a sessão anterior. */
     private fun load(audio: Int?, startSec: Int) {
+        if (casting) { castLoad(audio, startSec); return }  // 67.5: troca de áudio/qualidade/salto com a TV tocando reinicia a sessão da TV
         error.visibility = View.GONE
         loading = true
         val token = ++loadToken
@@ -430,8 +470,8 @@ class PlayerActivity : AppCompatActivity() {
             val arr = info?.optJSONArray("audio")
             if (arr != null) for (i in 0 until arr.length()) {
                 val a = arr.getJSONObject(i)
-                val name = a.optString("title").ifBlank { a.optString("lang").ifBlank { "Faixa ${i + 1}" }.uppercase() }
-                val label = listOf(name, a.optString("codec").uppercase(), if (a.optInt("channels") > 0) "${a.optInt("channels")}ch" else "")
+                val name = a.str("title").ifBlank { a.str("lang").ifBlank { "Faixa ${i + 1}" }.uppercase() }
+                val label = listOf(name, a.str("codec").uppercase(), if (a.optInt("channels") > 0) "${a.optInt("channels")}ch" else "")
                     .filter { it.isNotBlank() }.joinToString(" · ")
                 audio.add(a.getInt("index") to label)
             }
@@ -440,13 +480,13 @@ class PlayerActivity : AppCompatActivity() {
             subs.optJSONArray("external")?.let { e ->
                 for (i in 0 until e.length()) {
                     val s = e.getJSONObject(i)
-                    list.add(getString(R.string.subs_ext, s.optString("lang").ifBlank { s.optString("title") }) to s.getString("url"))
+                    list.add(getString(R.string.subs_ext, s.str("label").ifBlank { s.str("lang").ifBlank { s.str("title") } }) to s.getString("url"))
                 }
             }
             subs.optJSONArray("embedded")?.let { e ->
                 for (i in 0 until e.length()) {
                     val s = e.getJSONObject(i)
-                    val name = s.optString("title").ifBlank { s.optString("lang").ifBlank { "Faixa ${s.optInt("index")}" } }
+                    val name = s.str("label").ifBlank { s.str("title").ifBlank { s.str("lang").ifBlank { "Faixa ${s.optInt("index")}" } } }
                     list.add(name.uppercase() to s.getString("url"))
                 }
             }
@@ -463,9 +503,196 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    // ---------- 67.4: transmissão para a TV (Google Cast) ----------
+    private var casting = false                   // a TV está tocando (o ExoPlayer local fica parado)
+    private var castBusy = false                  // pedindo /play e o token à API
+    private var castSid: String? = null           // sessão HLS do servidor usada pela TV
+    private var castOffset = 0.0                  // segundo absoluto onde a sessão da TV começa
+    private var castPos = -1.0                    // posição absoluta guardada ao encerrar a sessão
+    private var castListener: SessionManagerListener<CastSession>? = null
+
+    private fun castListener() = object : SessionManagerListener<CastSession> {
+        override fun onSessionStarting(s: CastSession) {}
+        override fun onSessionStarted(s: CastSession, id: String) = castSync()
+        override fun onSessionStartFailed(s: CastSession, e: Int) {}
+        override fun onSessionEnding(s: CastSession) { if (casting) castPos = castOffset + (s.remoteMediaClient?.approximateStreamPosition ?: 0L) / 1000.0 }
+        override fun onSessionEnded(s: CastSession, e: Int) = castSync()
+        override fun onSessionResuming(s: CastSession, id: String) {}
+        override fun onSessionResumed(s: CastSession, was: Boolean) = castSync()
+        override fun onSessionResumeFailed(s: CastSession, e: Int) {}
+        override fun onSessionSuspended(s: CastSession, r: Int) {}
+    }
+
+    private fun castSync() {
+        if (tv || isDestroyed || isFinishing || !CastSupport.available(this)) return
+        val sm = try { CastSupport.context(this)?.sessionManager } catch (_: Throwable) { null } ?: return
+        val s = sm.currentCastSession
+        if (s != null && s.isConnected && !casting && !castBusy && !loading) startCast(s)
+        else if (s == null && casting) endCast()
+    }
+
+    private fun withCt(u: String, tok: String) = u + (if (u.contains('?')) "&" else "?") + "ct=" + URLEncoder.encode(tok, "UTF-8")
+
+    private var castToken = 0                     // identifica o último pedido à TV; respostas antigas são descartadas
+    private var castSubUrls = listOf<String>()    // legendas enviadas à TV, na ordem das faixas (id = índice + 1)
+
+    private fun castSession(): CastSession? = try { CastSupport.context(this)?.sessionManager?.currentCastSession } catch (_: Throwable) { null }
+
+    /** Segundo absoluto em que a TV está. */
+    private fun castAbs(): Double = castOffset + (castSession()?.remoteMediaClient?.approximateStreamPosition ?: 0L) / 1000.0
+
+    /** Passa o vídeo para a TV, na posição atual do player local. */
+    private fun startCast(s: CastSession) {
+        val pos = absPos().toInt()
+        casting = true
+        castOffset = pos.toDouble()
+        val old = sid
+        sid = null
+        stopSession(old)
+        player?.let { it.pause(); it.stop(); it.clearMediaItems() }
+        cues = emptyList()  // as legendas passam a ser as da TV (67.5)
+        subtitle.visibility = View.GONE
+        showM()  // 67.6
+        castLoad(audioIndex, pos)
+    }
+
+    private fun fetchCastSubs(k: String, id: Int): List<Pair<String, String>> {
+        val subs = JSONObject(request("GET", "/stream/$k/$id/subs", readTimeoutMs = 300000).second)
+        val list = mutableListOf<Pair<String, String>>()
+        subs.optJSONArray("external")?.let { e ->
+            for (i in 0 until e.length()) {
+                val s = e.getJSONObject(i)
+                list.add(getString(R.string.subs_ext, s.str("label").ifBlank { s.str("lang").ifBlank { s.str("title") } }) to s.getString("url"))
+            }
+        }
+        subs.optJSONArray("embedded")?.let { e ->
+            for (i in 0 until e.length()) {
+                val s = e.getJSONObject(i)
+                list.add(s.str("label").ifBlank { s.str("title").ifBlank { s.str("lang").ifBlank { "Faixa ${s.optInt("index")}" } } }.uppercase() to s.getString("url"))
+            }
+        }
+        return list
+    }
+
+    /** (Re)inicia a sessão da TV em `pos` (início, troca de áudio ou qualidade, salto fora do trecho gerado, legenda nova): sempre HLS (H.264/AAC estéreo, HDR→SDR); URLs com o token `ct` (a TV não tem o cookie); legendas .vtt como faixas de texto, deslocadas pelo início da sessão. */
+    private fun castLoad(audio: Int?, pos: Int) {
+        val s = castSession()
+        if (s == null || !s.isConnected) { castPos = pos.toDouble(); endCast(); return }
+        castBusy = true
+        val tk = ++castToken
+        castOffset = pos.toDouble()
+        val old = castSid
+        castSid = null
+        stopSession(old)
+        val k = kind
+        val id = itemId
+        val title = mTitle.text.toString()
+        val line = mSub.text.toString()
+        val q = quality
+        val known = if (tracksLoaded) subTracks else null
+        val sel = subChecked
+        thread {
+            var newSid: String? = null
+            try {
+                val host = Uri.parse(base).host.orEmpty()
+                if (host == "localhost" || host.startsWith("127.") || host == "10.0.2.2") throw Exception(getString(R.string.cast_unreachable))
+                val qs = buildString {
+                    append("?start=").append(pos).append("&mode=hls&tv=1&hdr=0")
+                    if (audio != null) append("&audio=").append(audio)
+                    if (q != null) append("&quality=").append(q)
+                }
+                val (code, text) = request("POST", "/stream/$k/$id/play$qs")
+                val j = try { JSONObject(text) } catch (_: Exception) { throw Exception(getString(R.string.player_bad_response, code)) }
+                newSid = j.optString("sid").ifBlank { null }
+                if (code != 200) throw Exception(j.optString("error", getString(R.string.cast_fail)))
+                val tok = JSONObject(request("POST", "/api/cast/token").second).getString("token")
+                val off = j.optDouble("offset", 0.0)
+                val subs = known ?: try { fetchCastSubs(k, id) } catch (_: Exception) { emptyList() }
+                val tracks = subs.mapIndexed { i, sb ->
+                    val u = sb.second + (if (off > 0) (if (sb.second.contains('?')) "&" else "?") + "shift=" + "%.1f".format(java.util.Locale.US, off) else "")
+                    MediaTrack.Builder(i + 1L, MediaTrack.TYPE_TEXT).setName(sb.first).setContentId(withCt(base + u, tok))
+                        .setContentType("text/vtt").setSubtype(MediaTrack.SUBTYPE_SUBTITLES).build()
+                }
+                val md = MediaMetadata(if (k == "episode") MediaMetadata.MEDIA_TYPE_TV_SHOW else MediaMetadata.MEDIA_TYPE_MOVIE)
+                md.putString(MediaMetadata.KEY_TITLE, title)
+                if (line.isNotBlank()) md.putString(MediaMetadata.KEY_SUBTITLE, line)
+                val img = when (k) { "episode" -> "/still/$id"; "movie" -> "/backdrop/$id"; else -> null }
+                if (img != null) md.addImage(WebImage(Uri.parse(withCt(base + img, tok))))
+                val mi = MediaInfo.Builder(withCt(base + j.getString("url"), tok))
+                    .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+                    .setContentType("application/x-mpegURL")
+                    .setMetadata(md)
+                    .setMediaTracks(tracks)
+                    .build()
+                val rb = MediaLoadRequestData.Builder().setMediaInfo(mi).setAutoplay(true).setCurrentTime(0L)
+                if (sel in subs.indices) rb.setActiveTrackIds(longArrayOf(sel + 1L))
+                val req = rb.build()
+                runOnUiThread {
+                    if (tk != castToken || !casting || isDestroyed || !s.isConnected) { stopSession(newSid); return@runOnUiThread }
+                    castSid = newSid
+                    castOffset = off
+                    castSubUrls = subs.map { it.second }
+                    castBusy = false
+                    s.remoteMediaClient?.load(req)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    stopSession(newSid)
+                    if (tk == castToken && casting) castFail(e.message ?: getString(R.string.cast_fail), pos)
+                }
+            }
+        }
+    }
+
+    /** Legenda escolhida durante a transmissão: liga a faixa já enviada à TV; legenda que ainda não foi enviada (SubDL) recarrega a sessão. */
+    private fun castSubs(url: String?) {
+        val rmc = castSession()?.remoteMediaClient ?: return
+        if (url == null) { rmc.setActiveMediaTracks(LongArray(0)); return }
+        val i = castSubUrls.indexOf(url)
+        if (i >= 0) rmc.setActiveMediaTracks(longArrayOf(i + 1L)) else castLoad(audioIndex, castAbs().toInt())
+    }
+
+    /** Busca na TV: dentro do trecho já gerado move a posição; fora dele reinicia a sessão em `target`. */
+    private fun castSeek(target: Double) {
+        val rmc = castSession()?.remoteMediaClient
+        val local = target - castOffset
+        val gen = (rmc?.streamDuration ?: 0L) / 1000.0
+        if (rmc != null && local >= 0 && gen > 0 && local < gen - 6) rmc.seek(MediaSeekOptions.Builder().setPosition((local * 1000).toLong()).build())
+        else castLoad(audioIndex, target.toInt())
+    }
+
+    /** Falhou ao iniciar: encerra a conexão com a TV, avisa e volta a tocar no celular da mesma posição. */
+    private fun castFail(msg: String, pos: Int) {
+        casting = false
+        castBusy = false
+        try { CastSupport.context(this)?.sessionManager?.endCurrentSession(true) } catch (_: Throwable) { }
+        stopSession(castSid)
+        castSid = null
+        if (isDestroyed) return
+        showM()  // 67.6: volta aos controles do celular
+        android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+        load(audioIndex, pos)
+    }
+
+    /** A conexão com a TV acabou (pelo diálogo do Cast ou pela TV): volta ao ExoPlayer local na posição em que a TV estava. */
+    private fun endCast() {
+        val pos = if (castPos >= 0) castPos else castOffset
+        casting = false
+        castBusy = false
+        castPos = -1.0
+        stopSession(castSid)
+        castSid = null
+        if (!isFinishing && !isDestroyed) {
+            showM()  // 67.6
+            load(audioIndex, pos.toInt())
+            if (subChecked in subTracks.indices) setSubs(subTracks[subChecked].second)  // volta a desenhar a legenda no celular
+        }
+    }
+
     // ---------- player ----------
     private fun start(j: JSONObject, startSec: Int) {
         if (isDestroyed) return
+        if (casting) { stopSession(if (j.has("sid")) j.getString("sid") else null); return }  // 67.4: a TV já está tocando
         loading = false
         tvSeekTarget = null
         lastSave = System.currentTimeMillis()
@@ -481,6 +708,7 @@ class PlayerActivity : AppCompatActivity() {
         if (direct) p.setMediaItem(item, startSec * 1000L) else p.setMediaItem(item)
         p.prepare()
         p.playWhenReady = true
+        castSync()  // 67.4: já conectado a uma TV ao abrir o player: passa a transmitir
     }
 
     private fun createPlayer(): ExoPlayer {
@@ -536,7 +764,7 @@ class PlayerActivity : AppCompatActivity() {
 
     /** Salva a posição atual do perfil (a cada 10 s, ao pausar e ao sair). */
     private fun save() {
-        if (loading || ending) return
+        if (loading || ending || casting) return  // 67.4: durante a transmissão o progresso vem da TV (67.7)
         val pos = absPos()
         if (pos < 1) return
         val k = kind
@@ -692,7 +920,7 @@ class PlayerActivity : AppCompatActivity() {
         hlsRetried = false
         sheet?.close()
         ppHide()
-        mOverlay.visibility = View.GONE
+        mOverlay.visibility = if (casting) View.VISIBLE else View.GONE  // 67.6
         tvOverlay.visibility = View.GONE
         prevId = 0
         nextId = 0
@@ -749,8 +977,11 @@ class PlayerActivity : AppCompatActivity() {
         try { enterPictureInPictureMode(pipParams()) } catch (_: Exception) { }
     }
 
+    private var tvLeaving = false  // 66.10: Home no player da TV
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (tv) tvLeaving = true
         // Android 8–11: sai do app tocando → entra em PiP (no 12+ o `setAutoEnterEnabled` já faz isso)
         if (Build.VERSION.SDK_INT < 31 && pipSupported() && player?.isPlaying == true && !isFinishing) enterPip()
     }
@@ -1139,13 +1370,13 @@ class PlayerActivity : AppCompatActivity() {
                     for (i in 0 until e.length()) {
                         val s = e.getJSONObject(i)
                         if (s.optString("title") == file) pos = list.size
-                        list.add(getString(R.string.subs_ext, s.optString("lang").ifBlank { s.optString("title") }) to s.getString("url"))
+                        list.add(getString(R.string.subs_ext, s.str("label").ifBlank { s.str("lang").ifBlank { s.str("title") } }) to s.getString("url"))
                     }
                 }
                 subs.optJSONArray("embedded")?.let { e ->
                     for (i in 0 until e.length()) {
                         val s = e.getJSONObject(i)
-                        val name = s.optString("title").ifBlank { s.optString("lang").ifBlank { "Faixa ${s.optInt("index")}" } }
+                        val name = s.str("label").ifBlank { s.str("title").ifBlank { s.str("lang").ifBlank { "Faixa ${s.optInt("index")}" } } }
                         list.add(name.uppercase() to s.getString("url"))
                     }
                 }
@@ -1175,20 +1406,28 @@ class PlayerActivity : AppCompatActivity() {
         refreshM()
         mOverlay.visibility = View.VISIBLE
         handler.removeCallbacks(hideMRun)
-        handler.postDelayed(hideMRun, 3000)
+        if (!casting) handler.postDelayed(hideMRun, 3000)  // 67.6: transmitindo, os controles ficam (a tela do celular não tem vídeo)
     }
 
     private fun hideM() {
+        if (casting) return
         handler.removeCallbacks(hideMRun)
         mOverlay.visibility = View.GONE
     }
 
     private fun updateMPlay() {
-        mBtnPlay.setImageResource(if (player?.isPlaying == true) R.drawable.ic_m_pause else R.drawable.ic_m_play)
+        val rmc = if (casting) castSession()?.remoteMediaClient else null
+        val on = if (rmc != null) rmc.isPlaying || rmc.isBuffering else player?.isPlaying == true
+        mBtnPlay.setImageResource(if (on) R.drawable.ic_m_pause else R.drawable.ic_m_play)
     }
 
     private fun refreshM() {
         updateMPlay()
+        val cv = if (casting) View.VISIBLE else View.GONE  // 67.6
+        mBtnRew.visibility = cv
+        mBtnFwd.visibility = cv
+        mCastInfo.visibility = cv
+        if (casting) mCastInfo.text = getString(R.string.cast_connected, castSession()?.castDevice?.friendlyName.orEmpty())
         mBtnPrev.visibility = if (prevId > 0) View.VISIBLE else View.GONE
         mBtnNext.visibility = if (nextId > 0) View.VISIBLE else View.GONE
         mBtnQueue.visibility = if (queueItems.isNotEmpty()) View.VISIBLE else View.GONE
@@ -1197,7 +1436,7 @@ class PlayerActivity : AppCompatActivity() {
         mElapsed.text = fmt(t)
         if (duration > 0) {
             mSeek.progress = (t / duration * 1000).toInt().coerceIn(0, 1000)
-            val buf = offset + (player?.bufferedPosition ?: 0L) / 1000.0
+            val buf = if (casting) castOffset + (castSession()?.remoteMediaClient?.streamDuration ?: 0L) / 1000.0 else offset + (player?.bufferedPosition ?: 0L) / 1000.0
             mSeek.secondaryProgress = (buf / duration * 1000).toInt().coerceIn(0, 1000)
             mRemain.text = "-" + fmt(duration - t)
         } else {
@@ -1242,6 +1481,7 @@ class PlayerActivity : AppCompatActivity() {
 
     /** Busca para o segundo absoluto t: dentro do trecho já gerado usa o player; fora dele reinicia a sessão em t. */
     private fun seekTo(t: Double) {
+        if (casting) { castSeek(t.coerceIn(0.0, if (duration > 0) duration else t)); return }  // 67.5
         val p = player ?: return
         val target = t.coerceIn(0.0, if (duration > 0) duration else t)
         if (!hls) {
@@ -1255,7 +1495,7 @@ class PlayerActivity : AppCompatActivity() {
         else load(audioIndex, target.toInt())
     }
 
-    private fun absPos() = offset + (player?.currentPosition ?: 0L) / 1000.0
+    private fun absPos() = if (casting) castAbs() else offset + (player?.currentPosition ?: 0L) / 1000.0
 
     private fun fail(msg: String) {
         error.text = msg
@@ -1299,6 +1539,7 @@ class PlayerActivity : AppCompatActivity() {
     private fun setSubs(url: String?) {
         cues = emptyList()
         subtitle.visibility = View.GONE
+        if (casting) { castSubs(url); return }  // 67.5: a TV desenha a legenda
         if (url == null) return
         thread {
             try {
@@ -1718,6 +1959,14 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     /** 60.7: grava a posição já ao sair da tela (antes de o site/TV recarregarem o Início); o onStop repete por segurança. */
+    override fun onStart() {
+        super.onStart()
+        if (!tv && CastSupport.available(this)) {  // 67.4
+            val l = castListener ?: castListener().also { castListener = it }
+            try { CastSupport.context(this)?.sessionManager?.addSessionManagerListener(l, CastSession::class.java) } catch (_: Throwable) { }
+            castSync()
+        }
+    }
     override fun onPause() {
         super.onPause()
         save()
@@ -1725,14 +1974,23 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
+        castListener?.let { try { CastSupport.context(this)?.sessionManager?.removeSessionManagerListener(it, CastSession::class.java) } catch (_: Throwable) { } }
         player?.pause()
         save()
         if (inPip) finish()  // 55.9: fechar a janela do PiP encerra como o ✕ (expandir de volta não passa por aqui)
+        else if (tv && tvLeaving && !isFinishing && !isChangingConfigurations) finishAndRemoveTask()  // 66.10: Home na TV grava a posição (acima) e encerra a tarefa; Voltar só fecha o player
+        tvLeaving = false
     }
 
     override fun onDestroy() {
         if (inPip) try { unregisterReceiver(pipReceiver) } catch (_: Exception) { }
         handler.removeCallbacksAndMessages(null)
+        if (casting) {  // 67.4: o ✕ do player encerra a transmissão
+            casting = false
+            try { CastSupport.context(this)?.sessionManager?.endCurrentSession(true) } catch (_: Throwable) { }
+            stopSession(castSid)
+            castSid = null
+        }
         player?.release()
         player = null
         stopSession(sid)

@@ -580,12 +580,12 @@ def _hls(kind, item_id, path, mode, audio=None, quality=None, fmt="hls", info=No
     return jerr("err.falha_iniciar_transcode", 500, detail=detail)
 
 
-def _playlist_with_token(fpath, it):
-    """62.16: reescreve as URIs relativas do .m3u8 (linhas de segmento e URI="..." de EXT-X-MAP/KEY) acrescentando `it=<token>`."""
+def _playlist_with_token(fpath, it, param="it"):
+    """62.16: reescreve as URIs relativas do .m3u8 (linhas de segmento e URI="..." de EXT-X-MAP/KEY) acrescentando `<param>=<token>` (`it` da Roku; `ct` da transmissão, 67.1)."""
     def add(u):
-        if u.startswith(("http://", "https://")) or "it=" in u:
+        if u.startswith(("http://", "https://")) or re.search(r"[?&]" + param + "=", u):
             return u
-        return u + ("&" if "?" in u else "?") + "it=" + quote(it, safe="")
+        return u + ("&" if "?" in u else "?") + param + "=" + quote(it, safe="")
     out = []
     with open(fpath, encoding="utf-8") as fh:
         for line in fh.read().splitlines():
@@ -609,9 +609,11 @@ def hls_file(sid, name):
         abort(404)
     s["last"] = time.time()
     resp = send_from_directory(s["dir"], name, max_age=0)
-    it = request.args.get("it")
+    it, param = request.args.get("it"), "it"
+    if not it and request.args.get("ct"):  # 67.1: o mesmo para o token de transmissão
+        it, param = request.args.get("ct"), "ct"
     if it and name.endswith(".m3u8"):  # 62.16: segmentos/init são relativos e perderiam o ?it=; propaga o token no playlist
-        resp = _playlist_with_token(os.path.join(s["dir"], name), it)
+        resp = _playlist_with_token(os.path.join(s["dir"], name), it, param)
     if name.endswith(".m3u8"):
         resp.mimetype = "application/vnd.apple.mpegurl"
     elif name.endswith(".ts"):

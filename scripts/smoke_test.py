@@ -3478,6 +3478,78 @@ try:
     pv_keys = ["acc.trailer.card", "acc.trailer.card_note", "set.card_preview.auto", "set.card_preview.on", "set.card_preview.off"]
     check("65.6 textos da prévia (acc.trailer.card*, set.card_preview.*) existem nos 10 idiomas, nenhum vazio",
           len(langs64) == 10 and all(cat64[f_].get(k_) for f_ in langs64 for k_ in pv_keys))
+    # ---- Fase 66 (66.1 a 66.13): Continue assistindo abre o player, TV fecha ao sair, legenda sem idioma (66.14: escrito, não rodar sem o Leo pedir)
+    from server.progress import WATCHED_RATIO as wr66, resume_target as rt66, watch_href as wh66  # noqa: E402
+    d66s, d66m = os.path.join(TMP, "f66s"), os.path.join(TMP, "f66m")
+    touch(os.path.join(d66s, "Serie66 (2020)", "Serie66.S01E01E02.mp4"))
+    touch(os.path.join(d66s, "Serie66 (2020)", "Serie66.S01E03.mp4"))
+    touch(os.path.join(d66m, "Filme66 (2021).mp4"))
+    c.post("/admin/libraries", data={"name": "Serie66", "type": "show", "path": d66s})
+    c.post("/admin/libraries", data={"name": "Filme66", "type": "movie", "path": d66m})
+    scan_shows(lib_id(d66s))
+    scan_movies(lib_id(d66m))
+    with get_db() as cn66:
+        e66 = {r_["episode"]: r_["id"] for r_ in cn66.execute(
+            "SELECT e.id, e.episode FROM episodes e JOIN media m ON m.id = e.media_id WHERE m.library_id = ?", (lib_id(d66s),))}
+        sm66 = cn66.execute("SELECT media_id FROM episodes WHERE id = ?", (e66[1],)).fetchone()["media_id"]
+        z66 = cn66.execute("SELECT id FROM media WHERE library_id = ?", (lib_id(d66m),)).fetchone()["id"]
+        cn66.execute("UPDATE episodes SET info = ? WHERE media_id = ?", ('{"duration": 100, "video": null, "audio": [], "subs": []}', sm66))
+        cn66.execute("UPDATE media SET info = ? WHERE id = ?", ('{"duration": 100, "video": null, "audio": [], "subs": []}', z66))
+    check("66.1 WATCHED_RATIO = 0,98", wr66 == 0.98)
+    with get_db() as cn66:
+        check("66.1 resume_target: filme e episódio parcial voltam ao ponto parado",
+              rt66(cn66, "movie", z66, 40, 100) == ("movie", z66, 40) and rt66(cn66, "episode", e66[1], 50, 100) == ("episode", e66[1], 50))
+        check("66.1 resume_target: episódio a 97% segue retomável; a 98% e 99% passam para o próximo em 0",
+              rt66(cn66, "episode", e66[1], 97, 100) == ("episode", e66[1], 97)
+              and rt66(cn66, "episode", e66[1], 98, 100) == ("episode", e66[3], 0) and rt66(cn66, "episode", e66[1], 99, 100) == ("episode", e66[3], 0))
+        check("66.1 resume_target: S01E01E02 (mesmo arquivo) pula para o E03 tanto no E01 quanto no E02",
+              rt66(cn66, "episode", e66[2], 99, 100) == ("episode", e66[3], 0))
+        check("66.1 resume_target: último episódio a 99% sem próximo = nenhum alvo; sem duração segue o episódio",
+              rt66(cn66, "episode", e66[3], 99, 100) is None and rt66(cn66, "episode", e66[3], 99, 0) == ("episode", e66[3], 99))
+    c.post(f"/progress/movie/{z66}", json={"position": 40, "duration": 100})
+    c.post(f"/progress/episode/{e66[1]}", json={"position": 50, "duration": 100})
+    ct66 = c.get("/api/tv/continue").json["items"]
+    check("66.2 /api/tv/continue: filme e episódio em andamento com `play` no próprio item",
+          any(i_["type"] == "movie" and i_["id"] == z66 and i_["play"] == f"/stream/movie/{z66}/play" for i_ in ct66)
+          and any(i_["type"] == "episode" and i_["id"] == e66[1] and i_["play"] == f"/stream/episode/{e66[1]}/play" for i_ in ct66))
+    sql32("UPDATE progress SET position = 99 WHERE item_type = 'episode' AND item_id = ?", e66[1])
+    ct66 = c.get("/api/tv/continue").json["items"]
+    check("66.2 episódio a 99% no /api/tv/continue vira o próximo (E03) em 0, com `play` dele",
+          any(i_["type"] == "episode" and i_["id"] == e66[3] and i_["play"] == f"/stream/episode/{e66[3]}/play" and i_["position"] == 0 for i_ in ct66)
+          and not any(i_["type"] == "episode" and i_["id"] == e66[1] for i_ in ct66))
+    hr66 = next((r_ for r_ in c.get("/api/tv/home").json["rows"] if r_["key"] == "continue"), None)
+    check("66.5 /api/tv/home: fileira continue com `play` no alvo e `direct` ligado",
+          hr66 is not None and any(i_.get("play") == f"/stream/episode/{e66[3]}/play" and i_.get("direct") is True for i_ in hr66["items"]))
+    c.post(f"/progress/episode/{e66[3]}", json={"position": 50, "duration": 100})
+    sql32("UPDATE progress SET position = 99 WHERE item_type = 'episode' AND item_id = ?", e66[3])
+    ct66 = c.get("/api/tv/continue").json["items"]
+    check("66.1 último episódio a 99% sem próximo: a série sai do Continue (o episódio antigo dela não volta)",
+          not any(i_["type"] == "episode" and i_["id"] in (e66[1], e66[2], e66[3]) for i_ in ct66)
+          and any(i_["type"] == "movie" and i_["id"] == z66 for i_ in ct66))
+    h66 = wh66({"watch_kind": "episode", "watch_id": e66[3], "media_id": sm66, "season": 1})
+    check("66.4 watch_href: /watch/<tipo>/<id>?back= com a temporada (episódio) ou o filme",
+          h66 == f"/watch/episode/{e66[3]}?back=%2Fshow%2F{sm66}%2Fseason%2F1%3Fep%3D{e66[3]}"
+          and wh66({"watch_kind": "movie", "watch_id": z66, "media_id": z66}) == f"/watch/movie/{z66}?back=%2Fmovie%2F{z66}")
+    touch(os.path.join(d66m, "Filme66 (2021).srt"))
+    touch(os.path.join(d66m, "Filme66 (2021).pt-BR.srt"))
+    sb66 = c.get(f"/stream/movie/{z66}/subs")
+    ex66 = sb66.json["external"] if sb66.status_code == 200 else []
+    check("66.12 legenda sem sufixo: `label` = nome do arquivo sem a extensão; com sufixo: nome do idioma",
+          any(s_["label"] == "Filme66 (2021)" for s_ in ex66) and any(s_["title"] == "Filme66 (2021).pt-BR.srt" and s_["label"] and s_["label"] != s_["title"] for s_ in ex66))
+    check("66.12 /subs: `label`, `lang` e `title` sempre texto (nunca null), `label` nunca vazio",
+          len(ex66) == 2 and all(isinstance(s_[k_], str) for s_ in ex66 for k_ in ("lang", "title", "label")) and all(s_["label"] for s_ in ex66)
+          and any(s_["lang"] == "" for s_ in ex66))
+    check("66.12 o `lang` interno segue None sem sufixo (subdl/subsync)", any(s_["lang"] is None for s_ in external_subs(os.path.join(d66m, "Filme66 (2021).mp4"))))
+    src66 = {n_: open(os.path.join(ROOT, n_), encoding="utf-8").read() for n_ in (
+        "web/static/js/player.js", "web/templates/_home_cards.html", "android/app/src/main/java/com/starflix/app/PlayerActivity.kt",
+        "android/app/src/main/java/com/starflix/app/TvActivity.kt", "android/app/src/main/AndroidManifest.xml", "roku/components/PlayerView.brs")}
+    check("66.3 o card do Continue no Início usa watch_href", "watch_href" in src66["web/templates/_home_cards.html"])
+    check("66.9 a 66.11: TvActivity fecha a tarefa (finishAndRemoveTask) e o manifesto tem clearTaskOnLaunch",
+          "finishAndRemoveTask" in src66["android/app/src/main/java/com/starflix/app/TvActivity.kt"] and 'android:clearTaskOnLaunch="true"' in src66["android/app/src/main/AndroidManifest.xml"])
+    check("66.13 player.js, PlayerActivity.kt (JSONObject.str com isNull) e PlayerView.brs usam `label`",
+          "s.label" in src66["web/static/js/player.js"] and "fun JSONObject.str" in src66["android/app/src/main/java/com/starflix/app/PlayerActivity.kt"]
+          and "isNull(key)" in src66["android/app/src/main/java/com/starflix/app/PlayerActivity.kt"] and 'JStr(s, "label")' in src66["roku/components/PlayerView.brs"])
+    c.post(f"/progress/movie/{z66}/watched", json={"watched": 1})
 finally:
     shutil.rmtree(TMP, ignore_errors=True)
 

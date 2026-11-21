@@ -74,6 +74,10 @@
     <string name="pp_ep">S%1$s · É%2$s</string>
     <string name="settings">Réglages</string>
     <string name="stop">Arrêter</string>
+    <string name="cast_button">Diffuser sur la TV</string>
+    <string name="cast_unreachable">La TV ne peut pas joindre le serveur à cette adresse.</string>
+    <string name="cast_fail">Impossible de démarrer la diffusion.</string>
+    <string name="cast_connected">Diffusion vers %1$s</string>
     <string name="queue_hint_tv">▼  Épisodes suivants</string>
     <string name="player_bad_response">Réponse invalide du serveur (HTTP %1$s). Reconnectez-vous à l’application.</string>
     <string name="player_start_fail">Échec du démarrage de la lecture</string>

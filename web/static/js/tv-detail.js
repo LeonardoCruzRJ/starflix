@@ -50,6 +50,8 @@
     var part = function (c) { return !seen(c) && !!c.querySelector(".pcard-bar"); };
     for (var i = 0; i < cards.length; i++) { if (seen(cards[i]) || part(cards[i])) last = i; }
     if (last >= 0) idx = part(cards[last]) ? last : (last + 1 < cards.length ? last + 1 : 0);
+    var want = (location.search.match(/[?&]ep=(\d+)/) || [])[1];  // voltando do player: o episódio que estava tocando
+    if (want) for (var k = 0; k < cards.length; k++) { var h = cards[k].querySelector(".pcard-title"); if (h && /\/episode\/(\d+)/.test(h.getAttribute("href") || "") && RegExp.$1 === want) { idx = k; break; } }
     var f = cards[idx], a = f && f.querySelector(".pcard-title");
     var back = false; try { back = performance.getEntriesByType("navigation")[0].type === "back_forward"; } catch (x) {}
     if (a) {

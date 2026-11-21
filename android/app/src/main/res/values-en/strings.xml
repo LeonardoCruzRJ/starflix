@@ -74,6 +74,10 @@
     <string name="pp_ep">S%1$s · E%2$s</string>
     <string name="settings">Settings</string>
     <string name="stop">Stop</string>
+    <string name="cast_button">Cast to TV</string>
+    <string name="cast_unreachable">The TV can\'t reach the server at this address.</string>
+    <string name="cast_fail">Couldn\'t start casting.</string>
+    <string name="cast_connected">Casting to %1$s</string>
     <string name="queue_hint_tv">▼  Next episodes</string>
     <string name="player_bad_response">Invalid server response (HTTP %1$s). Sign in to the app again.</string>
     <string name="player_start_fail">Failed to start playback</string>

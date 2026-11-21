@@ -20,10 +20,11 @@
   {% else %}
     {% set movie = i.type == 'movie' %}
     {% set cw = r.key == 'continue' %}{#- 54.11: Continue assistindo é sempre o frame 16:9 (site e celular); sem backdrop, cai no pôster -#}
-    {{ card(href="/" ~ i.type ~ "/" ~ i.id, img=(i.bd if cw and i.bd else "/poster/" ~ i.id), fb=("/poster/" ~ i.id if cw and i.bd else None), wide=cw, title=i.title,
+    {% set go = i.watch_href if cw and i.watch_href else None %}{#- 66.3: Continue assistindo toca direto (episódio em andamento, o próximo ou o filme); o detalhe vai em data-detail -#}
+    {{ card(href=go or ("/" ~ i.type ~ "/" ~ i.id), detail=("/" ~ i.type ~ "/" ~ i.id) if go else None, img=(i.bd if cw and i.bd else "/poster/" ~ i.id), fb=("/poster/" ~ i.id if cw and i.bd else None), wide=cw, title=i.title,
             sub=(i.ep_title if i.season else ((t('card.new_eps', n=i.new) if i.new else None) or i.year or None)),
             sub2=t('card.season_episode', s=i.season, e=i.episode) if i.season else None,
-            watched=i.watched, pct=i.pct or None, play=("/watch/movie/" ~ i.id) if movie else (("/watch/episode/" ~ i.episode_id) if i.episode_id else None),
+            watched=i.watched, pct=i.pct or None, play=go or (("/watch/movie/" ~ i.id) if movie else (("/watch/episode/" ~ i.episode_id) if i.episode_id else None)),
             kind=("movie" if movie else None), id=(i.id if movie else None), edit=admin, more=True,
             pick=i.id, lib=i.lib, ptype=i.type, bd=i.bd, left=i.left) }}
   {% endif %}
